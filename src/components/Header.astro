@@ -9,7 +9,7 @@ const { lang } = Astro.props;
 const base = import.meta.env.BASE_URL;
 ---
 
-<nav class="wrap header" data-base={base}>
+<nav class="wrap header" data-base={base} transition:persist transition:name="header">
   <a href="#top" class="logo">p.v.</a>
   <button class="nav-toggle" aria-label="Toggle navigation menu" id="nav-toggle">
     <span></span>

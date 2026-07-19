@@ -19,7 +19,7 @@ const lang = 'fr';
   <div>
     <Header lang={lang} />
 
-    <main id="main-content">
+    <main id="main-content" transition:name="main-content" transition:animate="slide">
       <Hero lang={lang} />
       <DisciplinesStrip />
       <PhotoCarousel />
