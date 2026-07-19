@@ -1,0 +1,85 @@
+---
+const photos = [1, 2, 3, 4, 5, 6, 7];
+const base = import.meta.env.BASE_URL;
+---
+
+<section id="photos" class="section-reveal photo-section">
+  <div class="photo-carousel">
+    <div class="carousel-track" id="carousel-track">
+      {/* Original set */}
+      {photos.map((num) => (
+        <div class="carousel-slide">
+          <img
+            src={`${base}images/photos/${num}.jpg`}
+            alt={`Photography by P.V. - ${num}`}
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      ))}
+      {/* Duplicate for seamless loop */}
+      {photos.map((num) => (
+        <div class="carousel-slide">
+          <img
+            src={`${base}images/photos/${num}.jpg`}
+            alt={`Photography by P.V. - ${num}`}
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" aria-label="Close">&times;</button>
+  <img src="" alt="Full size photo" id="lightbox-img" />
+</div>
+
+<style>
+  .photo-section {
+    padding-top: clamp(40px, 5vw, 64px);
+    padding-bottom: clamp(40px, 5vw, 64px);
+  }
+</style>
+
+<script>
+  // Photo Lightbox
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
+  const lightboxClose = document.querySelector('.lightbox-close');
+  const carouselSlides = document.querySelectorAll('.carousel-slide');
+
+  // Open lightbox on click
+  carouselSlides.forEach(slide => {
+    slide.addEventListener('click', () => {
+      const img = slide.querySelector('img');
+      if (img && lightboxImg && lightbox) {
+        lightboxImg.src = img.src;
+        lightboxImg.alt = img.alt;
+        lightbox.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+      }
+    });
+  });
+
+  // Close lightbox
+  function closeLightbox() {
+    lightbox?.classList.remove('is-open');
+    document.body.style.overflow = '';
+  }
+
+  lightboxClose?.addEventListener('click', closeLightbox);
+  lightbox?.addEventListener('click', (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+
+  // Close with Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && lightbox?.classList.contains('is-open')) {
+      closeLightbox();
+    }
+  });
+</script>

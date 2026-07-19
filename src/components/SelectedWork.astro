@@ -1,0 +1,146 @@
+---
+const base = import.meta.env.BASE_URL;
+const projects = [
+  {
+    url: 'https://www.youtube.com/watch?v=0Wb-eaG1Vio&t=71s',
+    image: `${base}images/Screenshot 2026-07-19 at 12.25.53.png`,
+    category: 'Documentary',
+    title: 'Audience',
+  },
+  {
+    url: 'https://www.youtube.com/watch?v=uqHGwlVwo8c&t=100s',
+    image: 'https://img.youtube.com/vi/uqHGwlVwo8c/maxresdefault.jpg',
+    category: 'Ugegraff Artist Interview',
+    title: 'Nadine Robert',
+  },
+  {
+    url: 'https://www.youtube.com/watch?v=ozb0hqq4Udg&t=10s',
+    image: 'https://img.youtube.com/vi/ozb0hqq4Udg/maxresdefault.jpg',
+    category: 'Ugegraff Artist Interview',
+    title: 'Tetiana Popyk',
+  },
+  {
+    url: 'https://www.youtube.com/watch?v=xN6xxZU8gqY',
+    image: 'https://img.youtube.com/vi/xN6xxZU8gqY/maxresdefault.jpg',
+    category: 'Ugegraff Artist Interview',
+    title: 'Sarah Mandres',
+  },
+];
+---
+
+<section id="work" class="wrap section-reveal work-section">
+  <div class="reveal work-header">
+    <span class="kick">Selected work</span>
+    <a
+      href="https://drive.google.com/drive/folders/1-yi1D4Q1SOvcCpneOJlK946MZpk0sRJo?usp=sharing"
+      target="_blank"
+      rel="noopener"
+      class="archive-link"
+    >
+      Full archive ↗
+    </a>
+  </div>
+
+  <div class="work-grid grid-2">
+    {projects.map((project, index) => (
+      <a
+        href={project.url}
+        target="_blank"
+        rel="noopener"
+        class={`card-link reveal delay-${index + 1}`}
+      >
+        <figure class="plate">
+          <div class="project-thumbnail">
+            <img
+              src={project.image}
+              alt={project.title}
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        </figure>
+        <div class="project-info">
+          <div>
+            <div class="kick project-category">{project.category}</div>
+            <div class="project-title">{project.title}</div>
+          </div>
+          <span class="kick watch-link">Watch ↗</span>
+        </div>
+      </a>
+    ))}
+  </div>
+
+  <div class="reveal delay-5 tags-row">
+    <span class="tag tag-outline">More on the Drive archive</span>
+    <span class="tag tag-outline">New work added regularly</span>
+  </div>
+</section>
+
+<style>
+  .work-section {
+    padding-top: clamp(48px, 6vw, 80px);
+    padding-bottom: clamp(40px, 5vw, 64px);
+  }
+
+  .work-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 38px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .archive-link {
+    font-family: var(--font-body);
+    font-size: 13px;
+  }
+
+  .work-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(32px, 4vw, 52px) clamp(28px, 3vw, 44px);
+  }
+
+  .project-thumbnail {
+    aspect-ratio: 16/9;
+    overflow: hidden;
+  }
+
+  .project-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .project-info {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 16px;
+    gap: 16px;
+  }
+
+  .project-category {
+    color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  }
+
+  .project-title {
+    font-family: var(--font-heading);
+    font-size: 28px;
+    letter-spacing: -.008em;
+    margin-top: 5px;
+  }
+
+  .watch-link {
+    color: var(--color-accent-700);
+    white-space: nowrap;
+  }
+
+  .tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 40px;
+  }
+</style>

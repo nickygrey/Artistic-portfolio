@@ -1,0 +1,53 @@
+---
+import { type Lang, t } from '../i18n/translations';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+---
+
+<section id="top" class="wrap hero">
+  <span class="kick hero-animate">{t(lang, 'hero.tagline')}</span>
+  <h1 class="disp hero-h hero-animate">
+    <span class="title-line">{t(lang, 'hero.title1')}</span>
+    <span class="title-line">{t(lang, 'hero.title2')}</span>
+  </h1>
+  <p class="prose hero-animate hero-desc">{t(lang, 'hero.desc')}</p>
+  <div class="hero-animate hero-ctas">
+    <a href="#reel" class="btn btn-primary">{t(lang, 'hero.cta')}</a>
+    <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener" class="btn btn-ghost">Instagram</a>
+  </div>
+</section>
+
+<style>
+  .hero {
+    padding-top: clamp(64px, 10vw, 120px);
+    padding-bottom: clamp(48px, 7vw, 88px);
+  }
+
+  .hero-h {
+    font-size: clamp(56px, 9vw, 116px);
+    line-height: 1.0;
+    margin: clamp(20px, 3vw, 30px) 0 0;
+    margin-left: -.04em;
+  }
+
+  .title-line {
+    display: block;
+  }
+
+  .hero-desc {
+    font-size: clamp(17px, 1.6vw, 19px);
+    max-width: 56ch;
+    margin: 32px 0 0;
+  }
+
+  .hero-ctas {
+    display: flex;
+    gap: 14px;
+    margin-top: 36px;
+    flex-wrap: wrap;
+  }
+</style>

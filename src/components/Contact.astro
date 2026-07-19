@@ -1,0 +1,186 @@
+---
+import { type Lang, t } from '../i18n/translations';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+---
+
+<section id="contact" class="wrap about-split section-reveal contact-section">
+  <div class="reveal contact-info">
+    <span class="kick">{t(lang, 'contact.label')}</span>
+    <h2 class="disp contact-title" set:html={t(lang, 'contact.title')} />
+    <p class="prose contact-desc">{t(lang, 'contact.desc')}</p>
+    <div class="contact-links">
+      <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener" class="btn btn-ghost">
+        Instagram — @nickygreys
+      </a>
+      <a href="https://www.youtube.com/watch?v=0Wb-eaG1Vio" target="_blank" rel="noopener" class="btn btn-ghost">
+        YouTube — the films
+      </a>
+      <a href="https://drive.google.com/drive/folders/1-yi1D4Q1SOvcCpneOJlK946MZpk0sRJo?usp=sharing" target="_blank" rel="noopener" class="btn btn-ghost">
+        Full archive
+      </a>
+      <a href="mailto:pv@nickygrey.com" class="btn btn-ghost">Email</a>
+    </div>
+  </div>
+
+  <form
+    id="contact-form"
+    action="https://formspree.io/f/xwvgojzz"
+    method="POST"
+    class="contact-form reveal delay-2"
+  >
+    <input type="hidden" name="_subject" value="New project enquiry from portfolio">
+
+    <div class="field">
+      <label for="cf-name">{t(lang, 'contact.name')}</label>
+      <input class="input" id="cf-name" name="name" type="text" placeholder="Your name" required>
+    </div>
+
+    <div class="field">
+      <label for="cf-email">{t(lang, 'contact.email')}</label>
+      <input class="input" id="cf-email" name="_replyto" type="email" placeholder="you@example.com" required>
+    </div>
+
+    <div class="field field-full">
+      <label for="cf-type">{t(lang, 'contact.type')}</label>
+      <input
+        class="input"
+        id="cf-type"
+        name="type"
+        type="text"
+        placeholder={t(lang, 'contact.type.placeholder')}
+      >
+    </div>
+
+    <div class="field field-full">
+      <label for="cf-msg">{t(lang, 'contact.message')}</label>
+      <textarea
+        class="input"
+        id="cf-msg"
+        name="message"
+        rows="5"
+        placeholder={t(lang, 'contact.message.placeholder')}
+        required
+      ></textarea>
+    </div>
+
+    <div class="field-full submit-row">
+      <button type="submit" class="btn btn-primary" id="submit-btn">
+        {t(lang, 'contact.submit')}
+      </button>
+      <span id="form-status" class="form-status"></span>
+    </div>
+  </form>
+</section>
+
+<style>
+  .contact-section {
+    padding-top: clamp(64px, 8vw, 104px);
+    padding-bottom: clamp(56px, 7vw, 88px);
+    display: grid;
+    grid-template-columns: 5fr 7fr;
+    gap: clamp(36px, 5vw, 72px);
+    align-items: start;
+  }
+
+  .contact-info {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .contact-title {
+    font-size: clamp(40px, 5vw, 60px);
+    line-height: 1.02;
+    margin: 0;
+  }
+
+  .contact-desc {
+    font-size: 17px;
+    max-width: 42ch;
+    margin: 0;
+  }
+
+  .contact-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 6px;
+  }
+
+  .contact-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 24px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .field-full {
+    grid-column: 1 / -1;
+  }
+
+  textarea.input {
+    resize: vertical;
+    font-family: var(--font-body);
+  }
+
+  .submit-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+
+  .form-status {
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  }
+</style>
+
+<script>
+  // Contact form handler with Formspree
+  const contactForm = document.getElementById('contact-form') as HTMLFormElement;
+  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+  const formStatus = document.getElementById('form-status') as HTMLSpanElement;
+
+  contactForm?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+    formStatus.textContent = '';
+    formStatus.style.color = 'color-mix(in srgb, var(--color-text) 55%, transparent)';
+
+    try {
+      const response = await fetch(contactForm.action, {
+        method: 'POST',
+        body: new FormData(contactForm),
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if (response.ok) {
+        formStatus.textContent = 'Message sent successfully!';
+        formStatus.style.color = 'var(--color-accent-700)';
+        contactForm.reset();
+      } else {
+        throw new Error('Form submission failed');
+      }
+    } catch (error) {
+      formStatus.textContent = 'Something went wrong. Please email me directly.';
+      formStatus.style.color = '#c44';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send enquiry';
+    }
+  });
+</script>

@@ -1,0 +1,36 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Hero from '../../components/Hero.astro';
+import DisciplinesStrip from '../../components/DisciplinesStrip.astro';
+import PhotoCarousel from '../../components/PhotoCarousel.astro';
+import FeaturedReel from '../../components/FeaturedReel.astro';
+import SelectedWork from '../../components/SelectedWork.astro';
+import About from '../../components/About.astro';
+import Services from '../../components/Services.astro';
+import Contact from '../../components/Contact.astro';
+import Partners from '../../components/Partners.astro';
+import Footer from '../../components/Footer.astro';
+
+const lang = 'de';
+---
+
+<Layout lang={lang} title="P.V. — Kameramann & Fotograf">
+  <div>
+    <Header lang={lang} />
+
+    <main id="main-content" transition:name="main-content" transition:animate="slide">
+      <Hero lang={lang} />
+      <DisciplinesStrip />
+      <PhotoCarousel />
+      <FeaturedReel lang={lang} />
+      <SelectedWork />
+      <About lang={lang} />
+      <Services lang={lang} />
+      <Contact lang={lang} />
+      <Partners lang={lang} />
+    </main>
+
+    <Footer lang={lang} />
+  </div>
+</Layout>

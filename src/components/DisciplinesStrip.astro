@@ -1,0 +1,42 @@
+---
+const disciplines = ['Cinematography', 'Photography', 'Editing', 'Colour'];
+---
+
+<div class="wrap"><div class="divider"></div></div>
+<div class="wrap section-reveal disciplines-section">
+  <p class="disciplines-line reveal">
+    {disciplines.map((discipline, index) => (
+      <>
+        <span>{discipline}</span>
+        {index < disciplines.length - 1 && <span class="separator">·</span>}
+      </>
+    ))}
+  </p>
+</div>
+<div class="wrap"><div class="divider"></div></div>
+
+<style>
+  .divider {
+    height: 1px;
+    background: var(--color-divider);
+  }
+
+  .disciplines-section {
+    padding: clamp(28px, 4vw, 44px) 0;
+    text-align: center;
+  }
+
+  .disciplines-line {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: clamp(18px, 2.2vw, 26px);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    color: var(--color-text);
+  }
+
+  .separator {
+    margin: 0 clamp(16px, 2.5vw, 32px);
+    opacity: 0.4;
+  }
+</style>
