@@ -1,5 +1,6 @@
 /* Design Tokens */
 :root {
+  /* Light theme (default) */
   --color-bg: #f3f2f2;
   --color-surface: #eae9e9;
   --color-text: #201f1d;
@@ -16,6 +17,31 @@
   --shadow-lg: 0 12px 32px color-mix(in srgb, #2d2b2b 22%, transparent);
   --space-2: 9.2px;
   --space-3: 13.8px;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --color-bg: #141210;
+  --color-surface: #1e1c19;
+  --color-text: #e8e6e3;
+  --color-accent: #d4a24a;
+  --color-divider: color-mix(in srgb, #e8e6e3 12%, transparent);
+  --color-neutral-100: #1a1816;
+  --color-accent-700: #c9923d;
+  --color-accent-600: #e0a94f;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 3px 10px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Smooth theme transition */
+html {
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+html.theme-transitioning,
+html.theme-transitioning * {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
 }
 
 /* Reset */
