@@ -4,11 +4,11 @@ const base = import.meta.env.BASE_URL;
 ---
 
 <section id="photos" class="section-reveal photo-section">
-  <div class="photo-carousel">
+  <div class="photo-carousel" id="photo-carousel">
     <div class="carousel-track" id="carousel-track">
       {/* Original set */}
-      {photos.map((num) => (
-        <div class="carousel-slide">
+      {photos.map((num, index) => (
+        <div class="carousel-slide" data-index={index}>
           <img
             src={`${base}images/photos/${num}.jpg`}
             alt={`Photography by P.V. - ${num}`}
@@ -18,8 +18,8 @@ const base = import.meta.env.BASE_URL;
         </div>
       ))}
       {/* Duplicate for seamless loop */}
-      {photos.map((num) => (
-        <div class="carousel-slide">
+      {photos.map((num, index) => (
+        <div class="carousel-slide" data-index={index}>
           <img
             src={`${base}images/photos/${num}.jpg`}
             alt={`Photography by P.V. - ${num}`}
@@ -32,10 +32,21 @@ const base = import.meta.env.BASE_URL;
   </div>
 </section>
 
-<!-- Lightbox -->
+<!-- Lightbox with navigation -->
 <div class="lightbox" id="lightbox">
   <button class="lightbox-close" aria-label="Close">&times;</button>
+  <button class="lightbox-nav lightbox-prev" aria-label="Previous photo">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M15 18l-6-6 6-6"/>
+    </svg>
+  </button>
   <img src="" alt="Full size photo" id="lightbox-img" />
+  <button class="lightbox-nav lightbox-next" aria-label="Next photo">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+  </button>
+  <div class="lightbox-counter" id="lightbox-counter"></div>
 </div>
 
 <style>
@@ -43,26 +54,139 @@ const base = import.meta.env.BASE_URL;
     padding-top: clamp(40px, 5vw, 64px);
     padding-bottom: clamp(40px, 5vw, 64px);
   }
+
+  .photo-carousel {
+    cursor: grab;
+    user-select: none;
+  }
+
+  .photo-carousel.is-dragging {
+    cursor: grabbing;
+  }
+
+  .photo-carousel.is-dragging .carousel-track {
+    animation-play-state: paused;
+  }
+
+  /* Lightbox navigation */
+  .lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease, transform 0.3s ease;
+    z-index: 10;
+  }
+
+  .lightbox-nav:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  .lightbox-prev {
+    left: 20px;
+  }
+
+  .lightbox-next {
+    right: 20px;
+  }
+
+  .lightbox-counter {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.7);
+    font-family: var(--font-body);
+    font-size: 14px;
+    letter-spacing: 0.1em;
+  }
+
+  @media (max-width: 768px) {
+    .lightbox-nav {
+      width: 40px;
+      height: 40px;
+    }
+    .lightbox-prev {
+      left: 10px;
+    }
+    .lightbox-next {
+      right: 10px;
+    }
+  }
 </style>
 
 <script>
-  // Photo Lightbox
+  // Photo data
+  const photoCount = 7;
+  const photos = Array.from({ length: photoCount }, (_, i) => i + 1);
+  const base = document.querySelector('.carousel-slide img')?.getAttribute('src')?.replace(/images\/photos\/\d+\.jpg$/, '') || '/';
+
+  // Elements
   const lightbox = document.getElementById('lightbox');
   const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
   const lightboxClose = document.querySelector('.lightbox-close');
+  const lightboxPrev = document.querySelector('.lightbox-prev');
+  const lightboxNext = document.querySelector('.lightbox-next');
+  const lightboxCounter = document.getElementById('lightbox-counter');
+  const carousel = document.getElementById('photo-carousel');
+  const track = document.getElementById('carousel-track');
   const carouselSlides = document.querySelectorAll('.carousel-slide');
+
+  let currentPhotoIndex = 0;
+
+  // Update lightbox image
+  function showPhoto(index: number) {
+    currentPhotoIndex = ((index % photoCount) + photoCount) % photoCount;
+    const photoNum = photos[currentPhotoIndex];
+    if (lightboxImg) {
+      lightboxImg.src = `${base}images/photos/${photoNum}.jpg`;
+      lightboxImg.alt = `Photography by P.V. - ${photoNum}`;
+    }
+    if (lightboxCounter) {
+      lightboxCounter.textContent = `${currentPhotoIndex + 1} / ${photoCount}`;
+    }
+  }
 
   // Open lightbox on click
   carouselSlides.forEach(slide => {
     slide.addEventListener('click', () => {
-      const img = slide.querySelector('img');
-      if (img && lightboxImg && lightbox) {
-        lightboxImg.src = img.src;
-        lightboxImg.alt = img.alt;
-        lightbox.classList.add('is-open');
-        document.body.style.overflow = 'hidden';
-      }
+      // Don't open if we just finished dragging
+      if (carousel?.classList.contains('just-dragged')) return;
+
+      const index = parseInt(slide.getAttribute('data-index') || '0');
+      showPhoto(index);
+      lightbox?.classList.add('is-open');
+      document.body.style.overflow = 'hidden';
     });
+  });
+
+  // Navigation
+  function nextPhoto() {
+    showPhoto(currentPhotoIndex + 1);
+  }
+
+  function prevPhoto() {
+    showPhoto(currentPhotoIndex - 1);
+  }
+
+  lightboxPrev?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    prevPhoto();
+  });
+
+  lightboxNext?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    nextPhoto();
   });
 
   // Close lightbox
@@ -76,10 +200,101 @@ const base = import.meta.env.BASE_URL;
     if (e.target === lightbox) closeLightbox();
   });
 
-  // Close with Escape key
+  // Keyboard navigation
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && lightbox?.classList.contains('is-open')) {
-      closeLightbox();
-    }
+    if (!lightbox?.classList.contains('is-open')) return;
+
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowLeft') prevPhoto();
+    if (e.key === 'ArrowRight') nextPhoto();
   });
+
+  // Mouse drag for carousel
+  if (carousel && track) {
+    let isDragging = false;
+    let startX = 0;
+    let scrollLeft = 0;
+    let dragDistance = 0;
+
+    carousel.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      carousel.classList.add('is-dragging');
+      startX = e.pageX - carousel.offsetLeft;
+      scrollLeft = carousel.scrollLeft;
+      dragDistance = 0;
+    });
+
+    carousel.addEventListener('mouseleave', () => {
+      if (isDragging) {
+        isDragging = false;
+        carousel.classList.remove('is-dragging');
+      }
+    });
+
+    carousel.addEventListener('mouseup', () => {
+      isDragging = false;
+      carousel.classList.remove('is-dragging');
+
+      // Prevent click if we dragged more than 5px
+      if (Math.abs(dragDistance) > 5) {
+        carousel.classList.add('just-dragged');
+        setTimeout(() => carousel.classList.remove('just-dragged'), 100);
+      }
+    });
+
+    carousel.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.pageX - carousel.offsetLeft;
+      const walk = (x - startX) * 2;
+      dragDistance = walk;
+      carousel.scrollLeft = scrollLeft - walk;
+    });
+
+    // Touch support (mobile)
+    carousel.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      carousel.classList.add('is-dragging');
+      startX = e.touches[0].pageX - carousel.offsetLeft;
+      scrollLeft = carousel.scrollLeft;
+      dragDistance = 0;
+    }, { passive: true });
+
+    carousel.addEventListener('touchend', () => {
+      isDragging = false;
+      carousel.classList.remove('is-dragging');
+      if (Math.abs(dragDistance) > 5) {
+        carousel.classList.add('just-dragged');
+        setTimeout(() => carousel.classList.remove('just-dragged'), 100);
+      }
+    });
+
+    carousel.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      const x = e.touches[0].pageX - carousel.offsetLeft;
+      const walk = (x - startX) * 2;
+      dragDistance = walk;
+      carousel.scrollLeft = scrollLeft - walk;
+    }, { passive: true });
+  }
+
+  // Swipe navigation in lightbox
+  if (lightbox) {
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    lightbox.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+    }, { passive: true });
+
+    lightbox.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].clientX;
+      const diff = touchStartX - touchEndX;
+
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) nextPhoto();
+        else prevPhoto();
+      }
+    });
+  }
 </script>
