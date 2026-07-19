@@ -361,6 +361,33 @@
     width: 100%;
   }
 
+  /* Language toggle */
+  .lang-toggle {
+    display: flex;
+    gap: 4px;
+    margin-left: 10px;
+    padding-left: 20px;
+    border-left: 1px solid var(--color-divider);
+  }
+  .lang-btn {
+    background: transparent;
+    border: none;
+    font-family: var(--font-body);
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    color: color-mix(in srgb, var(--color-text) 50%, transparent);
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: color 0.3s ease;
+  }
+  .lang-btn:hover {
+    color: var(--color-text);
+  }
+  .lang-btn.is-active {
+    color: var(--color-accent-700);
+    font-weight: 500;
+  }
+
   /* Card hover enhancements */
   .card-link {
     text-decoration: none;
@@ -662,26 +689,31 @@
       <span></span>
     </button>
     <div id="nav-links" class="nav-links" style="display: flex; gap: 30px; align-items: baseline; font-family: var(--font-body); font-size: 14px;">
-      <a href="#photos" class="navlink">Photos</a>
-      <a href="#reel" class="navlink">Reel</a>
-      <a href="#work" class="navlink">Work</a>
-      <a href="#about" class="navlink">About</a>
-      <a href="#services" class="navlink">Services</a>
+      <a href="#photos" class="navlink" data-i18n="nav.photos">Photos</a>
+      <a href="#reel" class="navlink" data-i18n="nav.reel">Reel</a>
+      <a href="#work" class="navlink" data-i18n="nav.work">Work</a>
+      <a href="#about" class="navlink" data-i18n="nav.about">About</a>
+      <a href="#services" class="navlink" data-i18n="nav.services">Services</a>
       <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener" class="navlink" style="color: var(--color-accent-700);">@nickygreys</a>
+      <div class="lang-toggle" id="lang-toggle">
+        <button class="lang-btn is-active" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="fr">FR</button>
+        <button class="lang-btn" data-lang="de">DE</button>
+      </div>
     </div>
   </nav>
 
   <main id="main-content">
     <!-- Hero -->
     <section id="top" class="wrap" style="padding-top: clamp(64px,10vw,120px); padding-bottom: clamp(48px,7vw,88px);">
-      <span class="kick hero-animate">Cinematographer · Photographer · Editor — Luxembourg</span>
+      <span class="kick hero-animate" data-i18n="hero.tagline">Cinematographer · Photographer · Editor — Luxembourg</span>
       <h1 class="disp hero-h hero-animate" style="font-size: clamp(56px,9vw,116px); line-height: 1.0; margin: clamp(20px,3vw,30px) 0 0; margin-left: -.04em;">
-        <span style="display: block;">Images made</span>
-        <span style="display: block;">with patience.</span>
+        <span style="display: block;" data-i18n="hero.title1">Images made</span>
+        <span style="display: block;" data-i18n="hero.title2">with patience.</span>
       </h1>
-      <p class="prose hero-animate" style="font-size: clamp(17px,1.6vw,19px); max-width: 56ch; margin: 32px 0 0;">I came up through film photography and grew into cinematography — short films, documentaries and commercial work, shot with a still photographer's eye and finished, colour and cut, in-house.</p>
+      <p class="prose hero-animate" style="font-size: clamp(17px,1.6vw,19px); max-width: 56ch; margin: 32px 0 0;" data-i18n="hero.desc">I came up through film photography and grew into cinematography — short films, documentaries and commercial work, shot with a still photographer's eye and finished, colour and cut, in-house.</p>
       <div class="hero-animate" style="display: flex; gap: 14px; margin-top: 36px; flex-wrap: wrap;">
-        <a href="#reel" class="btn btn-primary">View the reel</a>
+        <a href="#reel" class="btn btn-primary" data-i18n="hero.cta">View the reel</a>
         <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener" class="btn btn-ghost">Instagram</a>
       </div>
     </section>
@@ -734,10 +766,10 @@
     <section id="reel" class="wrap section-reveal" style="padding-top: clamp(56px,7vw,96px); padding-bottom: clamp(40px,5vw,64px);">
       <div class="reveal" style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 26px; gap: 16px; flex-wrap: wrap;">
         <div>
-          <span class="kick">Featured</span>
-          <h2 class="disp" style="font-size: clamp(34px,4vw,48px); margin: 12px 0 0;">The showreel</h2>
+          <span class="kick" data-i18n="reel.label">Featured</span>
+          <h2 class="disp" style="font-size: clamp(34px,4vw,48px); margin: 12px 0 0;" data-i18n="reel.title">The showreel</h2>
         </div>
-        <a href="https://www.youtube.com/watch?v=0Wb-eaG1Vio&t=71s" target="_blank" rel="noopener" style="font-family: var(--font-body); font-size: 14px;">Watch on YouTube ↗</a>
+        <a href="https://www.youtube.com/watch?v=0Wb-eaG1Vio&t=71s" target="_blank" rel="noopener" style="font-family: var(--font-body); font-size: 14px;" data-i18n="reel.youtube">Watch on YouTube ↗</a>
       </div>
       <a href="https://www.youtube.com/watch?v=0Wb-eaG1Vio&t=71s" target="_blank" rel="noopener" class="card-link featured reveal-scale delay-2">
         <figure class="plate" style="margin: 0; position: relative;">
@@ -837,17 +869,17 @@
         <img src="slava new-6 (1).jpg" alt="Vyacheslav Plotnikov" loading="lazy" decoding="async" style="aspect-ratio: 4/5; object-fit: cover; width: 100%;">
       </figure>
       <div class="reveal delay-2">
-        <span class="kick">About</span>
-        <h2 class="disp" style="font-size: clamp(30px,3.6vw,42px); line-height: 1.1; margin: 16px 0 0;">Based in Luxembourg, working wherever the story is.</h2>
-        <p class="prose" style="font-size: 16px; text-align: justify; hyphens: auto; margin: 24px 0 0;">A professional cinematographer and photographer with strong editing skills. My work began with film photography — the discipline of light, patience and a limited frame — and grew into cinematography across short films, documentaries and commercial projects.</p>
-        <p class="prose" style="font-size: 16px; text-align: justify; hyphens: auto; margin: 16px 0 0;">I shoot, grade and cut, so a project stays whole from the first setup to the final frame. Available for commissions, staff roles and brand collaborations.</p>
+        <span class="kick" data-i18n="about.label">About</span>
+        <h2 class="disp" style="font-size: clamp(30px,3.6vw,42px); line-height: 1.1; margin: 16px 0 0;" data-i18n="about.title">Based in Luxembourg, working wherever the story is.</h2>
+        <p class="prose" style="font-size: 16px; text-align: justify; hyphens: auto; margin: 24px 0 0;" data-i18n="about.p1">A professional cinematographer and photographer with strong editing skills. My work began with film photography — the discipline of light, patience and a limited frame — and grew into cinematography across short films, documentaries and commercial projects.</p>
+        <p class="prose" style="font-size: 16px; text-align: justify; hyphens: auto; margin: 16px 0 0;" data-i18n="about.p2">I shoot, grade and cut, so a project stays whole from the first setup to the final frame. Available for commissions, staff roles and brand collaborations.</p>
       </div>
     </section>
 
     <!-- Services -->
     <section id="services" class="section-reveal" style="background: var(--color-neutral-100); border-top: 1px solid var(--color-divider); border-bottom: 1px solid var(--color-divider);">
       <div class="wrap" style="padding-top: clamp(56px,7vw,88px); padding-bottom: clamp(56px,7vw,88px);">
-        <span class="kick reveal">Services</span>
+        <span class="kick reveal" data-i18n="services.label">Services</span>
         <div class="svc-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(32px,4vw,48px); margin-top: 30px;">
 
           <div class="service-card reveal delay-1">
@@ -875,20 +907,12 @@
       </div>
     </section>
 
-    <!-- Partners -->
-    <section class="wrap section-reveal" style="padding-top: clamp(48px,6vw,72px); padding-bottom: clamp(48px,6vw,72px); text-align: center;">
-      <span class="kick reveal">General Partner</span>
-      <div class="reveal delay-1" style="margin-top: 24px;">
-        <img src="Partners/Main logo Horizontal.png" alt="General Partner" loading="lazy" decoding="async" style="max-width: 280px; height: auto; margin: 0 auto; opacity: 0.85; transition: opacity 0.3s ease; cursor: pointer;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">
-      </div>
-    </section>
-
     <!-- Contact -->
     <section id="contact" class="wrap about-split section-reveal" style="padding-top: clamp(64px,8vw,104px); padding-bottom: clamp(56px,7vw,88px); display: grid; grid-template-columns: 5fr 7fr; gap: clamp(36px,5vw,72px); align-items: start;">
       <div class="reveal" style="display: flex; flex-direction: column; gap: 24px;">
-        <span class="kick">Contact</span>
-        <h2 class="disp" style="font-size: clamp(40px,5vw,60px); line-height: 1.02; margin: 0;">Let's make<br>something.</h2>
-        <p class="prose" style="font-size: 17px; max-width: 42ch; margin: 0;">Commissions, roles and brand work welcome. Tell me about the project below, or reach me directly.</p>
+        <span class="kick" data-i18n="contact.label">Contact</span>
+        <h2 class="disp" style="font-size: clamp(40px,5vw,60px); line-height: 1.02; margin: 0;" data-i18n="contact.title">Let's make<br>something.</h2>
+        <p class="prose" style="font-size: 17px; max-width: 42ch; margin: 0;" data-i18n="contact.desc">Commissions, roles and brand work welcome. Tell me about the project below, or reach me directly.</p>
         <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px;">
           <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener" class="btn btn-ghost">Instagram — @nickygreys</a>
           <a href="https://www.youtube.com/watch?v=0Wb-eaG1Vio" target="_blank" rel="noopener" class="btn btn-ghost">YouTube — the films</a>
@@ -919,6 +943,14 @@
           <span id="form-status" class="prose" style="font-size: 13px; margin: 0; color: color-mix(in srgb, var(--color-text) 55%, transparent);"></span>
         </div>
       </form>
+    </section>
+
+    <!-- Partners -->
+    <section class="wrap section-reveal" style="padding-top: clamp(48px,6vw,72px); padding-bottom: clamp(48px,6vw,72px); text-align: center;">
+      <span class="kick reveal" data-i18n="partner">General Partner</span>
+      <div class="reveal delay-1" style="margin-top: 24px;">
+        <img src="Partners/Main logo Horizontal.png" alt="General Partner" loading="lazy" decoding="async" style="max-width: 280px; height: auto; margin: 0 auto; opacity: 0.85; transition: opacity 0.3s ease; cursor: pointer;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">
+      </div>
     </section>
   </main>
 
@@ -1071,6 +1103,113 @@
       }
     }, { passive: true });
   }
+
+  // Multilingual Support
+  const translations = {
+    en: {
+      'nav.photos': 'Photos',
+      'nav.reel': 'Reel',
+      'nav.work': 'Work',
+      'nav.about': 'About',
+      'nav.services': 'Services',
+      'hero.tagline': 'Cinematographer · Photographer · Editor — Luxembourg',
+      'hero.title1': 'Images made',
+      'hero.title2': 'with patience.',
+      'hero.desc': 'I came up through film photography and grew into cinematography — short films, documentaries and commercial work, shot with a still photographer\'s eye and finished, colour and cut, in-house.',
+      'hero.cta': 'View the reel',
+      'reel.label': 'Featured',
+      'reel.title': 'The showreel',
+      'reel.youtube': 'Watch on YouTube ↗',
+      'about.label': 'About',
+      'about.title': 'Based in Luxembourg, working wherever the story is.',
+      'about.p1': 'A professional cinematographer and photographer with strong editing skills. My work began with film photography — the discipline of light, patience and a limited frame — and grew into cinematography across short films, documentaries and commercial projects.',
+      'about.p2': 'I shoot, grade and cut, so a project stays whole from the first setup to the final frame. Available for commissions, staff roles and brand collaborations.',
+      'services.label': 'Services',
+      'contact.label': 'Contact',
+      'contact.title': 'Let\'s make<br>something.',
+      'contact.desc': 'Commissions, roles and brand work welcome. Tell me about the project below, or reach me directly.',
+      'partner': 'General Partner'
+    },
+    fr: {
+      'nav.photos': 'Photos',
+      'nav.reel': 'Bande-démo',
+      'nav.work': 'Travaux',
+      'nav.about': 'À propos',
+      'nav.services': 'Services',
+      'hero.tagline': 'Cinéaste · Photographe · Monteur — Luxembourg',
+      'hero.title1': 'Des images',
+      'hero.title2': 'avec patience.',
+      'hero.desc': 'J\'ai commencé par la photographie argentique et j\'ai évolué vers la cinématographie — courts métrages, documentaires et travaux commerciaux, tournés avec l\'œil d\'un photographe et finalisés, couleur et montage, en interne.',
+      'hero.cta': 'Voir la bande-démo',
+      'reel.label': 'En vedette',
+      'reel.title': 'La bande-démo',
+      'reel.youtube': 'Regarder sur YouTube ↗',
+      'about.label': 'À propos',
+      'about.title': 'Basé au Luxembourg, travaillant partout où l\'histoire se trouve.',
+      'about.p1': 'Cinéaste et photographe professionnel avec de solides compétences en montage. Mon travail a commencé avec la photographie argentique — la discipline de la lumière, de la patience et du cadre limité — et a évolué vers la cinématographie à travers courts métrages, documentaires et projets commerciaux.',
+      'about.p2': 'Je filme, étalonne et monte, pour qu\'un projet reste cohérent du premier plan au dernier. Disponible pour commandes, postes et collaborations.',
+      'services.label': 'Services',
+      'contact.label': 'Contact',
+      'contact.title': 'Créons<br>ensemble.',
+      'contact.desc': 'Commandes, postes et collaborations bienvenues. Parlez-moi de votre projet ci-dessous, ou contactez-moi directement.',
+      'partner': 'Partenaire Général'
+    },
+    de: {
+      'nav.photos': 'Fotos',
+      'nav.reel': 'Showreel',
+      'nav.work': 'Arbeiten',
+      'nav.about': 'Über mich',
+      'nav.services': 'Leistungen',
+      'hero.tagline': 'Kameramann · Fotograf · Editor — Luxemburg',
+      'hero.title1': 'Bilder mit',
+      'hero.title2': 'Geduld.',
+      'hero.desc': 'Ich begann mit der Filmfotografie und entwickelte mich zur Kinematografie — Kurzfilme, Dokumentationen und kommerzielle Arbeiten, aufgenommen mit dem Auge eines Fotografen und fertiggestellt, Farbe und Schnitt, im Haus.',
+      'hero.cta': 'Showreel ansehen',
+      'reel.label': 'Empfohlen',
+      'reel.title': 'Das Showreel',
+      'reel.youtube': 'Auf YouTube ansehen ↗',
+      'about.label': 'Über mich',
+      'about.title': 'In Luxemburg ansässig, arbeite ich überall, wo die Geschichte ist.',
+      'about.p1': 'Ein professioneller Kameramann und Fotograf mit starken Schnittfähigkeiten. Meine Arbeit begann mit der Filmfotografie — die Disziplin des Lichts, der Geduld und des begrenzten Rahmens — und entwickelte sich zur Kinematografie für Kurzfilme, Dokumentationen und kommerzielle Projekte.',
+      'about.p2': 'Ich filme, grade und schneide, damit ein Projekt vom ersten Setup bis zum letzten Bild ganz bleibt. Verfügbar für Aufträge, Stellen und Markenkooperationen.',
+      'services.label': 'Leistungen',
+      'contact.label': 'Kontakt',
+      'contact.title': 'Lass uns etwas<br>schaffen.',
+      'contact.desc': 'Aufträge, Stellen und Markenarbeit willkommen. Erzählen Sie mir unten von Ihrem Projekt oder kontaktieren Sie mich direkt.',
+      'partner': 'Generalpartner'
+    }
+  };
+
+  let currentLang = localStorage.getItem('lang') || 'en';
+
+  function setLanguage(lang) {
+    currentLang = lang;
+    localStorage.setItem('lang', lang);
+
+    // Update all translatable elements
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (translations[lang] && translations[lang][key]) {
+        el.innerHTML = translations[lang][key];
+      }
+    });
+
+    // Update active button
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.classList.toggle('is-active', btn.dataset.lang === lang);
+    });
+
+    // Update html lang attribute
+    document.documentElement.lang = lang;
+  }
+
+  // Language toggle event listeners
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+  });
+
+  // Set initial language
+  setLanguage(currentLang);
 </script>
 
 </body>
