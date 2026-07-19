@@ -201,7 +201,6 @@
     .grid-2 { grid-template-columns: 1fr !important; }
     .about-split { grid-template-columns: 1fr !important; }
     .svc-grid { grid-template-columns: 1fr !important; }
-    .disc-strip { grid-template-columns: repeat(2, 1fr) !important; }
     .hero-h { font-size: 15vw !important; }
     .nav-links { display: none !important; }
     .nav-toggle { display: flex !important; }
@@ -330,52 +329,12 @@
     letter-spacing: 0.2em;
   }
 
-  /* Disciplines strip redesign */
-  .discipline-item {
-    display: flex;
-    flex-direction: column;
-    padding: 32px 0;
-    position: relative;
-    transition: all 0.3s ease;
+  /* Disciplines line */
+  .disciplines-line span:not([style]) {
+    transition: color 0.3s ease;
   }
-  .discipline-item::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    height: 40%;
-    width: 1px;
-    background: var(--color-divider);
-  }
-  .discipline-item:last-child::after {
-    display: none;
-  }
-  .discipline-title {
-    font-family: var(--font-heading);
-    font-size: clamp(24px, 3vw, 32px);
-    font-weight: 400;
-    letter-spacing: -0.01em;
-    color: var(--color-text);
-    margin: 0;
-    transition: color 0.3s ease, transform 0.3s ease;
-  }
-  .discipline-item:hover .discipline-title {
+  .disciplines-line span:not([style]):hover {
     color: var(--color-accent-700);
-    transform: translateX(4px);
-  }
-  .discipline-label {
-    font-family: var(--font-body);
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-accent-700);
-    margin-top: 8px;
-    opacity: 0.8;
-    transition: opacity 0.3s ease;
-  }
-  .discipline-item:hover .discipline-label {
-    opacity: 1;
   }
 
   /* Nav link hover effect */
@@ -729,24 +688,17 @@
 
     <!-- Disciplines Strip -->
     <div class="wrap"><div style="height: 1px; background: var(--color-divider);"></div></div>
-    <section class="wrap disc-strip section-reveal" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;">
-      <div class="discipline-item reveal delay-1">
-        <span class="discipline-label">Motion</span>
-        <h3 class="discipline-title">Cinematography</h3>
-      </div>
-      <div class="discipline-item reveal delay-2">
-        <span class="discipline-label">Stills</span>
-        <h3 class="discipline-title">Photography</h3>
-      </div>
-      <div class="discipline-item reveal delay-3">
-        <span class="discipline-label">The Cut</span>
-        <h3 class="discipline-title">Editing</h3>
-      </div>
-      <div class="discipline-item reveal delay-4">
-        <span class="discipline-label">Grade</span>
-        <h3 class="discipline-title">Colour</h3>
-      </div>
-    </section>
+    <div class="wrap section-reveal" style="padding: clamp(28px,4vw,44px) 0; text-align: center;">
+      <p class="disciplines-line reveal" style="margin: 0; font-family: var(--font-heading); font-size: clamp(18px,2.2vw,26px); font-weight: 400; letter-spacing: 0.02em; color: var(--color-text);">
+        <span>Cinematography</span>
+        <span style="margin: 0 clamp(16px,2.5vw,32px); opacity: 0.4;">·</span>
+        <span>Photography</span>
+        <span style="margin: 0 clamp(16px,2.5vw,32px); opacity: 0.4;">·</span>
+        <span>Editing</span>
+        <span style="margin: 0 clamp(16px,2.5vw,32px); opacity: 0.4;">·</span>
+        <span>Colour</span>
+      </p>
+    </div>
     <div class="wrap"><div style="height: 1px; background: var(--color-divider);"></div></div>
 
     <!-- Photo Showreel -->
