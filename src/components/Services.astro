@@ -1,0 +1,89 @@
+---
+import { type Lang, t } from '../i18n/translations';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+
+const services = [
+  {
+    number: '01',
+    titleKey: 'services.cinematography' as const,
+    descKey: 'services.cinematography.desc' as const,
+  },
+  {
+    number: '02',
+    titleKey: 'services.photography' as const,
+    descKey: 'services.photography.desc' as const,
+  },
+  {
+    number: '03',
+    titleKey: 'services.editing' as const,
+    descKey: 'services.editing.desc' as const,
+  },
+];
+---
+
+<section id="services" class="section-reveal services-section">
+  <div class="wrap services-inner">
+    <span class="kick reveal">{t(lang, 'services.label')}</span>
+    <div class="svc-grid">
+      {services.map((service, index) => (
+        <div class={`service-card reveal delay-${index + 1}`}>
+          <div class="service-number">{service.number}</div>
+          <div class="service-divider"></div>
+          <h3>{t(lang, service.titleKey)}</h3>
+          <p class="prose service-desc">{t(lang, service.descKey)}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .services-section {
+    background: var(--color-neutral-100);
+    border-top: 1px solid var(--color-divider);
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .services-inner {
+    padding-top: clamp(56px, 7vw, 88px);
+    padding-bottom: clamp(56px, 7vw, 88px);
+  }
+
+  .svc-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(32px, 4vw, 48px);
+    margin-top: 30px;
+  }
+
+  .service-number {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    color: var(--color-accent-700);
+  }
+
+  .service-divider {
+    height: 1px;
+    background: var(--color-divider);
+    margin: 14px 0;
+  }
+
+  .service-card h3 {
+    font-family: var(--font-heading);
+    font-weight: 400;
+    font-size: 26px;
+    margin: 0;
+  }
+
+  .service-desc {
+    font-size: 15px;
+    text-align: justify;
+    hyphens: auto;
+    margin: 14px 0 0;
+  }
+</style>

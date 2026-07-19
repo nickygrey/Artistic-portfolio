@@ -1,0 +1,67 @@
+---
+import { type Lang, t } from '../i18n/translations';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<div class="wrap"><div class="divider"></div></div>
+<section id="about" class="wrap about-split section-reveal about-section">
+  <figure class="plate about-image reveal-scale">
+    <img
+      src={`${base}images/slava new-6 (1).jpg`}
+      alt="Vyacheslav Plotnikov"
+      loading="lazy"
+      decoding="async"
+    />
+  </figure>
+  <div class="reveal delay-2 about-content">
+    <span class="kick">{t(lang, 'about.label')}</span>
+    <h2 class="disp about-title">{t(lang, 'about.title')}</h2>
+    <p class="prose about-text">{t(lang, 'about.p1')}</p>
+    <p class="prose about-text">{t(lang, 'about.p2')}</p>
+  </div>
+</section>
+
+<style>
+  .divider {
+    height: 1px;
+    background: var(--color-divider);
+  }
+
+  .about-section {
+    padding-top: clamp(56px, 7vw, 96px);
+    padding-bottom: clamp(56px, 7vw, 96px);
+    display: grid;
+    grid-template-columns: 5fr 7fr;
+    gap: clamp(32px, 4vw, 56px);
+    align-items: center;
+  }
+
+  .about-image img {
+    aspect-ratio: 4/5;
+    object-fit: cover;
+    width: 100%;
+  }
+
+  .about-title {
+    font-size: clamp(30px, 3.6vw, 42px);
+    line-height: 1.1;
+    margin: 16px 0 0;
+  }
+
+  .about-text {
+    font-size: 16px;
+    text-align: justify;
+    hyphens: auto;
+    margin: 16px 0 0;
+  }
+
+  .about-text:first-of-type {
+    margin-top: 24px;
+  }
+</style>

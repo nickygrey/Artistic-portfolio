@@ -1,0 +1,92 @@
+---
+import { type Lang, t, languages } from '../i18n/translations';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<nav class="wrap header" data-base={base}>
+  <a href="#top" class="logo">p.v.</a>
+  <button class="nav-toggle" aria-label="Toggle navigation menu" id="nav-toggle">
+    <span></span>
+  </button>
+  <div id="nav-links" class="nav-links">
+    <a href="#photos" class="navlink">{t(lang, 'nav.photos')}</a>
+    <a href="#reel" class="navlink">{t(lang, 'nav.reel')}</a>
+    <a href="#work" class="navlink">{t(lang, 'nav.work')}</a>
+    <a href="#about" class="navlink">{t(lang, 'nav.about')}</a>
+    <a href="#services" class="navlink">{t(lang, 'nav.services')}</a>
+    <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener" class="navlink instagram">@nickygreys</a>
+    <div class="lang-toggle" id="lang-toggle">
+      {Object.keys(languages).map((l) => (
+        <button
+          class:list={['lang-btn', { 'is-active': l === lang }]}
+          data-lang={l}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  </div>
+</nav>
+
+<style>
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+    padding-top: 22px;
+    padding-bottom: 22px;
+    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 30px;
+    align-items: baseline;
+    font-family: var(--font-body);
+    font-size: 14px;
+  }
+
+  .instagram {
+    color: var(--color-accent-700);
+  }
+</style>
+
+<script>
+  // Mobile menu toggle
+  const navToggle = document.getElementById('nav-toggle');
+  const navLinks = document.getElementById('nav-links');
+
+  navToggle?.addEventListener('click', () => {
+    navToggle.classList.toggle('is-open');
+    navLinks?.classList.toggle('is-open');
+  });
+
+  // Language toggle with localStorage persistence
+  const langToggle = document.getElementById('lang-toggle');
+  const nav = document.querySelector('.header') as HTMLElement;
+  const basePath = nav?.dataset.base || '/';
+
+  langToggle?.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('lang-btn')) {
+      const newLang = target.dataset.lang;
+      if (newLang) {
+        localStorage.setItem('lang', newLang);
+        // Redirect to the localized URL with correct base path
+        window.location.href = newLang === 'en' ? basePath : `${basePath}${newLang}/`;
+      }
+    }
+  });
+</script>

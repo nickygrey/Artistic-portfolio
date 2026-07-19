@@ -1,0 +1,33 @@
+---
+import { type Lang, t } from '../i18n/translations';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+---
+
+<footer class="wrap footer">
+  <span>{t(lang, 'footer.copyright')}</span>
+  <span>
+    <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener">@nickygreys</a>
+    {' · '}
+    <a href="mailto:pv@nickygrey.com">pv@nickygrey.com</a>
+  </span>
+</footer>
+
+<style>
+  .footer {
+    padding-top: 32px;
+    padding-bottom: 48px;
+    border-top: 1px solid var(--color-divider);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  }
+</style>

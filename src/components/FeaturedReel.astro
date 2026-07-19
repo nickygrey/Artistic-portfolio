@@ -1,0 +1,85 @@
+---
+import { type Lang, t } from '../i18n/translations';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const youtubeUrl = 'https://www.youtube.com/watch?v=0Wb-eaG1Vio&t=71s';
+const base = import.meta.env.BASE_URL;
+---
+
+<section id="reel" class="wrap section-reveal reel-section">
+  <div class="reveal reel-header">
+    <div>
+      <span class="kick">{t(lang, 'reel.label')}</span>
+      <h2 class="disp reel-title">{t(lang, 'reel.title')}</h2>
+    </div>
+    <a href={youtubeUrl} target="_blank" rel="noopener" class="youtube-link">
+      {t(lang, 'reel.youtube')}
+    </a>
+  </div>
+  <a href={youtubeUrl} target="_blank" rel="noopener" class="card-link featured reveal-scale delay-2">
+    <figure class="plate">
+      <div class="reel-thumbnail">
+        <img
+          src={`${base}images/Screenshot 2026-07-19 at 12.25.53.png`}
+          alt="Showreel - UGEGRAAF Documentary"
+          loading="lazy"
+          decoding="async"
+        />
+        <div class="reel-overlay">
+          <span class="play"></span>
+        </div>
+      </div>
+    </figure>
+  </a>
+</section>
+
+<style>
+  .reel-section {
+    padding-top: clamp(56px, 7vw, 96px);
+    padding-bottom: clamp(40px, 5vw, 64px);
+  }
+
+  .reel-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 26px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .reel-title {
+    font-size: clamp(34px, 4vw, 48px);
+    margin: 12px 0 0;
+  }
+
+  .youtube-link {
+    font-family: var(--font-body);
+    font-size: 14px;
+  }
+
+  .reel-thumbnail {
+    aspect-ratio: 21/9;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .reel-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.02);
+  }
+
+  .reel-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(20,18,16,.05), rgba(20,18,16,.35));
+    display: grid;
+    place-items: center;
+  }
+</style>

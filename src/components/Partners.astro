@@ -1,0 +1,48 @@
+---
+import { type Lang, t } from '../i18n/translations';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<section class="wrap section-reveal partners-section">
+  <span class="kick reveal">{t(lang, 'partner')}</span>
+  <div class="reveal delay-1 partner-logo-wrapper">
+    <img
+      src={`${base}images/partners/Main logo Horizontal.png`}
+      alt="General Partner"
+      loading="lazy"
+      decoding="async"
+      class="partner-logo"
+    />
+  </div>
+</section>
+
+<style>
+  .partners-section {
+    padding-top: clamp(48px, 6vw, 72px);
+    padding-bottom: clamp(48px, 6vw, 72px);
+    text-align: center;
+  }
+
+  .partner-logo-wrapper {
+    margin-top: 24px;
+  }
+
+  .partner-logo {
+    max-width: 280px;
+    height: auto;
+    margin: 0 auto;
+    opacity: 0.85;
+    transition: opacity 0.3s ease;
+    cursor: pointer;
+  }
+
+  .partner-logo:hover {
+    opacity: 1;
+  }
+</style>
