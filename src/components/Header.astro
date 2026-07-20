@@ -91,6 +91,10 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
     transform: scale(1.1);
   }
 
+  .theme-toggle:active {
+    transform: scale(0.95) rotate(15deg);
+  }
+
   .theme-toggle .icon-sun,
   .theme-toggle .icon-moon {
     transition: opacity 0.3s ease, transform 0.3s ease;

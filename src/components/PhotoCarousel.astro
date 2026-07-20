@@ -46,8 +46,7 @@ const base = import.meta.env.BASE_URL;
       <path d="M9 18l6-6-6-6"/>
     </svg>
   </button>
-  <div class="lightbox-counter" id="lightbox-counter"></div>
-</div>
+  </div>
 
 <style>
   .photo-section {
@@ -73,228 +72,238 @@ const base = import.meta.env.BASE_URL;
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    width: 48px;
-    height: 48px;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.3s ease, transform 0.3s ease;
+    opacity: 0;
+    transition: opacity 0.3s ease, background 0.3s ease, color 0.3s ease, transform 0.3s ease;
     z-index: 10;
   }
 
+  :global(.lightbox:hover) .lightbox-nav {
+    opacity: 1;
+  }
+
   .lightbox-nav:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-50%) scale(1.1);
+    background: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.95);
+    transform: translateY(-50%) scale(1.08);
+  }
+
+  .lightbox-nav:focus-visible {
+    opacity: 1;
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
   }
 
   .lightbox-prev {
-    left: 20px;
+    left: 24px;
   }
 
   .lightbox-next {
-    right: 20px;
-  }
-
-  .lightbox-counter {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: rgba(255, 255, 255, 0.7);
-    font-family: var(--font-body);
-    font-size: 14px;
-    letter-spacing: 0.1em;
+    right: 24px;
   }
 
   @media (max-width: 768px) {
     .lightbox-nav {
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
+      opacity: 0.8;
+    }
+    :global(.lightbox:hover) .lightbox-nav {
+      opacity: 1;
     }
     .lightbox-prev {
-      left: 10px;
+      left: 12px;
     }
     .lightbox-next {
-      right: 10px;
+      right: 12px;
     }
   }
 </style>
 
 <script>
-  // Photo data
-  const photoCount = 7;
-  const photos = Array.from({ length: photoCount }, (_, i) => i + 1);
-  const base = document.querySelector('.carousel-slide img')?.getAttribute('src')?.replace(/images\/photos\/\d+\.jpg$/, '') || '/';
+  function initPhotoCarousel() {
+    // Photo data
+    const photoCount = 7;
+    const photos = Array.from({ length: photoCount }, (_, i) => i + 1);
+    const base = document.querySelector('.carousel-slide img')?.getAttribute('src')?.replace(/images\/photos\/\d+\.jpg$/, '') || '/';
 
-  // Elements
-  const lightbox = document.getElementById('lightbox');
-  const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
-  const lightboxClose = document.querySelector('.lightbox-close');
-  const lightboxPrev = document.querySelector('.lightbox-prev');
-  const lightboxNext = document.querySelector('.lightbox-next');
-  const lightboxCounter = document.getElementById('lightbox-counter');
-  const carousel = document.getElementById('photo-carousel');
-  const track = document.getElementById('carousel-track');
-  const carouselSlides = document.querySelectorAll('.carousel-slide');
+    // Elements
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
+    const lightboxClose = document.querySelector('.lightbox-close');
+    const lightboxPrev = document.querySelector('.lightbox-prev');
+    const lightboxNext = document.querySelector('.lightbox-next');
+    const carousel = document.getElementById('photo-carousel');
+    const track = document.getElementById('carousel-track');
+    const carouselSlides = document.querySelectorAll('.carousel-slide');
 
-  let currentPhotoIndex = 0;
+    if (!lightbox || !carousel) return;
 
-  // Update lightbox image
-  function showPhoto(index: number) {
-    currentPhotoIndex = ((index % photoCount) + photoCount) % photoCount;
-    const photoNum = photos[currentPhotoIndex];
-    if (lightboxImg) {
-      lightboxImg.src = `${base}images/photos/${photoNum}.jpg`;
-      lightboxImg.alt = `Photography by P.V. - ${photoNum}`;
+    let currentPhotoIndex = 0;
+
+    // Update lightbox image
+    function showPhoto(index: number) {
+      currentPhotoIndex = ((index % photoCount) + photoCount) % photoCount;
+      const photoNum = photos[currentPhotoIndex];
+      if (lightboxImg) {
+        lightboxImg.src = `${base}images/photos/${photoNum}.jpg`;
+        lightboxImg.alt = `Photography by P.V. - ${photoNum}`;
+      }
     }
-    if (lightboxCounter) {
-      lightboxCounter.textContent = `${currentPhotoIndex + 1} / ${photoCount}`;
-    }
-  }
 
-  // Open lightbox on click
-  carouselSlides.forEach(slide => {
-    slide.addEventListener('click', () => {
-      // Don't open if we just finished dragging
-      if (carousel?.classList.contains('just-dragged')) return;
+    // Open lightbox on click
+    carouselSlides.forEach(slide => {
+      slide.addEventListener('click', () => {
+        // Don't open if we just finished dragging
+        if (carousel?.classList.contains('just-dragged')) return;
 
-      const index = parseInt(slide.getAttribute('data-index') || '0');
-      showPhoto(index);
-      lightbox?.classList.add('is-open');
-      document.body.style.overflow = 'hidden';
-    });
-  });
-
-  // Navigation
-  function nextPhoto() {
-    showPhoto(currentPhotoIndex + 1);
-  }
-
-  function prevPhoto() {
-    showPhoto(currentPhotoIndex - 1);
-  }
-
-  lightboxPrev?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    prevPhoto();
-  });
-
-  lightboxNext?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    nextPhoto();
-  });
-
-  // Close lightbox
-  function closeLightbox() {
-    lightbox?.classList.remove('is-open');
-    document.body.style.overflow = '';
-  }
-
-  lightboxClose?.addEventListener('click', closeLightbox);
-  lightbox?.addEventListener('click', (e) => {
-    if (e.target === lightbox) closeLightbox();
-  });
-
-  // Keyboard navigation
-  document.addEventListener('keydown', (e) => {
-    if (!lightbox?.classList.contains('is-open')) return;
-
-    if (e.key === 'Escape') closeLightbox();
-    if (e.key === 'ArrowLeft') prevPhoto();
-    if (e.key === 'ArrowRight') nextPhoto();
-  });
-
-  // Mouse drag for carousel
-  if (carousel && track) {
-    let isDragging = false;
-    let startX = 0;
-    let scrollLeft = 0;
-    let dragDistance = 0;
-
-    carousel.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      carousel.classList.add('is-dragging');
-      startX = e.pageX - carousel.offsetLeft;
-      scrollLeft = carousel.scrollLeft;
-      dragDistance = 0;
+        const index = parseInt(slide.getAttribute('data-index') || '0');
+        showPhoto(index);
+        lightbox?.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+      });
     });
 
-    carousel.addEventListener('mouseleave', () => {
-      if (isDragging) {
+    // Navigation
+    function nextPhoto() {
+      showPhoto(currentPhotoIndex + 1);
+    }
+
+    function prevPhoto() {
+      showPhoto(currentPhotoIndex - 1);
+    }
+
+    lightboxPrev?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      prevPhoto();
+    });
+
+    lightboxNext?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      nextPhoto();
+    });
+
+    // Close lightbox
+    function closeLightbox() {
+      lightbox?.classList.remove('is-open');
+      document.body.style.overflow = '';
+    }
+
+    lightboxClose?.addEventListener('click', closeLightbox);
+    lightbox?.addEventListener('click', (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+
+    // Keyboard navigation
+    function handleKeydown(e: KeyboardEvent) {
+      if (!lightbox?.classList.contains('is-open')) return;
+
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') prevPhoto();
+      if (e.key === 'ArrowRight') nextPhoto();
+    }
+    document.addEventListener('keydown', handleKeydown);
+
+    // Mouse drag for carousel
+    if (carousel && track) {
+      let isDragging = false;
+      let startX = 0;
+      let scrollLeft = 0;
+      let dragDistance = 0;
+
+      carousel.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        carousel.classList.add('is-dragging');
+        startX = e.pageX - carousel.offsetLeft;
+        scrollLeft = carousel.scrollLeft;
+        dragDistance = 0;
+      });
+
+      carousel.addEventListener('mouseleave', () => {
+        if (isDragging) {
+          isDragging = false;
+          carousel.classList.remove('is-dragging');
+        }
+      });
+
+      carousel.addEventListener('mouseup', () => {
         isDragging = false;
         carousel.classList.remove('is-dragging');
-      }
-    });
 
-    carousel.addEventListener('mouseup', () => {
-      isDragging = false;
-      carousel.classList.remove('is-dragging');
+        // Prevent click if we dragged more than 5px
+        if (Math.abs(dragDistance) > 5) {
+          carousel.classList.add('just-dragged');
+          setTimeout(() => carousel.classList.remove('just-dragged'), 100);
+        }
+      });
 
-      // Prevent click if we dragged more than 5px
-      if (Math.abs(dragDistance) > 5) {
-        carousel.classList.add('just-dragged');
-        setTimeout(() => carousel.classList.remove('just-dragged'), 100);
-      }
-    });
+      carousel.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const x = e.pageX - carousel.offsetLeft;
+        const walk = (x - startX) * 2;
+        dragDistance = walk;
+        carousel.scrollLeft = scrollLeft - walk;
+      });
 
-    carousel.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      const x = e.pageX - carousel.offsetLeft;
-      const walk = (x - startX) * 2;
-      dragDistance = walk;
-      carousel.scrollLeft = scrollLeft - walk;
-    });
+      // Touch support (mobile)
+      carousel.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        carousel.classList.add('is-dragging');
+        startX = e.touches[0].pageX - carousel.offsetLeft;
+        scrollLeft = carousel.scrollLeft;
+        dragDistance = 0;
+      }, { passive: true });
 
-    // Touch support (mobile)
-    carousel.addEventListener('touchstart', (e) => {
-      isDragging = true;
-      carousel.classList.add('is-dragging');
-      startX = e.touches[0].pageX - carousel.offsetLeft;
-      scrollLeft = carousel.scrollLeft;
-      dragDistance = 0;
-    }, { passive: true });
+      carousel.addEventListener('touchend', () => {
+        isDragging = false;
+        carousel.classList.remove('is-dragging');
+        if (Math.abs(dragDistance) > 5) {
+          carousel.classList.add('just-dragged');
+          setTimeout(() => carousel.classList.remove('just-dragged'), 100);
+        }
+      });
 
-    carousel.addEventListener('touchend', () => {
-      isDragging = false;
-      carousel.classList.remove('is-dragging');
-      if (Math.abs(dragDistance) > 5) {
-        carousel.classList.add('just-dragged');
-        setTimeout(() => carousel.classList.remove('just-dragged'), 100);
-      }
-    });
+      carousel.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const x = e.touches[0].pageX - carousel.offsetLeft;
+        const walk = (x - startX) * 2;
+        dragDistance = walk;
+        carousel.scrollLeft = scrollLeft - walk;
+      }, { passive: true });
+    }
 
-    carousel.addEventListener('touchmove', (e) => {
-      if (!isDragging) return;
-      const x = e.touches[0].pageX - carousel.offsetLeft;
-      const walk = (x - startX) * 2;
-      dragDistance = walk;
-      carousel.scrollLeft = scrollLeft - walk;
-    }, { passive: true });
+    // Swipe navigation in lightbox
+    if (lightbox) {
+      let touchStartX = 0;
+      let touchEndX = 0;
+
+      lightbox.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+      }, { passive: true });
+
+      lightbox.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].clientX;
+        const diff = touchStartX - touchEndX;
+
+        if (Math.abs(diff) > 50) {
+          if (diff > 0) nextPhoto();
+          else prevPhoto();
+        }
+      });
+    }
   }
 
-  // Swipe navigation in lightbox
-  if (lightbox) {
-    let touchStartX = 0;
-    let touchEndX = 0;
-
-    lightbox.addEventListener('touchstart', (e) => {
-      touchStartX = e.touches[0].clientX;
-    }, { passive: true });
-
-    lightbox.addEventListener('touchend', (e) => {
-      touchEndX = e.changedTouches[0].clientX;
-      const diff = touchStartX - touchEndX;
-
-      if (Math.abs(diff) > 50) {
-        if (diff > 0) nextPhoto();
-        else prevPhoto();
-      }
-    });
-  }
+  // Initialize on page load and after View Transitions
+  initPhotoCarousel();
+  document.addEventListener('astro:page-load', initPhotoCarousel);
 </script>
