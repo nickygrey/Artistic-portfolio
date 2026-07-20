@@ -15,7 +15,8 @@ const {
   lang = defaultLang
 } = Astro.props;
 
-const base = import.meta.env.BASE_URL;
+// Use full site URL for social media images (OG/Twitter require absolute URLs)
+const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.com';
 ---
 
 <!DOCTYPE html>
@@ -43,14 +44,14 @@ const base = import.meta.env.BASE_URL;
   <meta property="og:type" content="website">
   <meta property="og:title" content="P.V.">
   <meta property="og:description" content="Professional cinematographer and photographer based in Luxembourg. Short films, documentaries, and commercial projects shot with a still photographer's eye.">
-  <meta property="og:image" content={`${base}images/slava new-6 (1).jpg`}>
+  <meta property="og:image" content={`${siteUrl}/images/slava%20new-6%20(1).jpg`}>
   <meta property="og:locale" content="en_US">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="P.V.">
   <meta name="twitter:description" content="Professional cinematographer and photographer based in Luxembourg.">
-  <meta name="twitter:image" content={`${base}images/slava new-6 (1).jpg`}>
+  <meta name="twitter:image" content={`${siteUrl}/images/slava%20new-6%20(1).jpg`}>
 
   <!-- Theme Color -->
   <meta name="theme-color" content="#f3f2f2">

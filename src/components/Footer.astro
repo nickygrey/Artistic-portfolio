@@ -6,10 +6,15 @@ interface Props {
 }
 
 const { lang } = Astro.props;
+const privacyUrl = lang === 'en' ? '/privacy' : `/${lang}/privacy`;
 ---
 
 <footer class="wrap footer">
-  <span>{t(lang, 'footer.copyright')}</span>
+  <span>
+    {t(lang, 'footer.copyright')}
+    {' · '}
+    <a href={privacyUrl}>{t(lang, 'footer.privacy')}</a>
+  </span>
   <span>
     <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener">@nickygreys</a>
     {' · '}

@@ -69,6 +69,24 @@ export const translations = {
 
     // Footer
     'footer.copyright': '© 2026 Vyacheslav Plotnikov — Luxembourg',
+    'footer.privacy': 'Privacy',
+
+    // Privacy Policy
+    'privacy.title': 'Privacy Policy',
+    'privacy.intro': 'This website is operated by Vyacheslav Plotnikov, a cinematographer and photographer based in Luxembourg. I respect your privacy and am committed to protecting any personal data you share with me.',
+    'privacy.data.title': 'Data I Collect',
+    'privacy.data.intro': 'When you use the contact form, I collect:',
+    'privacy.data.list': 'Your name, email address, project type, and message content.',
+    'privacy.data.purpose': 'This information is used solely to respond to your enquiry. I do not use it for marketing or share it with third parties for their own purposes.',
+    'privacy.thirdparty.title': 'Third-Party Services',
+    'privacy.thirdparty.formspree': 'Contact form submissions are processed through Formspree, a US-based service. Formspree acts as a data processor and stores your submission temporarily to deliver it to me.',
+    'privacy.thirdparty.fonts': 'This site uses Google Fonts, which may log your IP address when loading fonts.',
+    'privacy.thirdparty.hosting': 'The site is hosted on GitHub Pages, which may collect basic server logs including IP addresses.',
+    'privacy.storage.title': 'Cookies & Local Storage',
+    'privacy.storage.desc': 'This site does not use tracking cookies or analytics. The only data stored in your browser is your theme preference (light/dark mode), which is necessary for the site to function properly.',
+    'privacy.rights.title': 'Your Rights',
+    'privacy.rights.desc': 'Under GDPR, you have the right to access, correct, or delete any personal data I hold about you. To exercise these rights, contact me at:',
+    'privacy.updated': 'Last updated: July 2026',
   },
 
   fr: {
@@ -133,6 +151,24 @@ export const translations = {
 
     // Footer
     'footer.copyright': '© 2026 Vyacheslav Plotnikov — Luxembourg',
+    'footer.privacy': 'Confidentialité',
+
+    // Privacy Policy
+    'privacy.title': 'Politique de confidentialité',
+    'privacy.intro': 'Ce site est exploité par Vyacheslav Plotnikov, cinéaste et photographe basé au Luxembourg. Je respecte votre vie privée et m\'engage à protéger les données personnelles que vous partagez avec moi.',
+    'privacy.data.title': 'Données collectées',
+    'privacy.data.intro': 'Lorsque vous utilisez le formulaire de contact, je collecte :',
+    'privacy.data.list': 'Votre nom, adresse email, type de projet et contenu du message.',
+    'privacy.data.purpose': 'Ces informations sont utilisées uniquement pour répondre à votre demande. Je ne les utilise pas à des fins marketing et ne les partage pas avec des tiers.',
+    'privacy.thirdparty.title': 'Services tiers',
+    'privacy.thirdparty.formspree': 'Les soumissions du formulaire de contact sont traitées par Formspree, un service basé aux États-Unis. Formspree agit en tant que sous-traitant et stocke temporairement votre soumission pour me la transmettre.',
+    'privacy.thirdparty.fonts': 'Ce site utilise Google Fonts, qui peut enregistrer votre adresse IP lors du chargement des polices.',
+    'privacy.thirdparty.hosting': 'Le site est hébergé sur GitHub Pages, qui peut collecter des journaux serveur basiques incluant les adresses IP.',
+    'privacy.storage.title': 'Cookies et stockage local',
+    'privacy.storage.desc': 'Ce site n\'utilise pas de cookies de suivi ni d\'analyses. La seule donnée stockée dans votre navigateur est votre préférence de thème (mode clair/sombre), nécessaire au bon fonctionnement du site.',
+    'privacy.rights.title': 'Vos droits',
+    'privacy.rights.desc': 'En vertu du RGPD, vous avez le droit d\'accéder, de corriger ou de supprimer toute donnée personnelle que je détiens à votre sujet. Pour exercer ces droits, contactez-moi à :',
+    'privacy.updated': 'Dernière mise à jour : juillet 2026',
   },
 
   de: {
@@ -197,6 +233,24 @@ export const translations = {
 
     // Footer
     'footer.copyright': '© 2026 Vyacheslav Plotnikov — Luxemburg',
+    'footer.privacy': 'Datenschutz',
+
+    // Privacy Policy
+    'privacy.title': 'Datenschutzerklärung',
+    'privacy.intro': 'Diese Website wird von Vyacheslav Plotnikov betrieben, einem Kameramann und Fotografen mit Sitz in Luxemburg. Ich respektiere Ihre Privatsphäre und verpflichte mich, alle persönlichen Daten zu schützen, die Sie mit mir teilen.',
+    'privacy.data.title': 'Erhobene Daten',
+    'privacy.data.intro': 'Wenn Sie das Kontaktformular nutzen, erhebe ich:',
+    'privacy.data.list': 'Ihren Namen, Ihre E-Mail-Adresse, den Projekttyp und den Nachrichteninhalt.',
+    'privacy.data.purpose': 'Diese Informationen werden ausschließlich verwendet, um auf Ihre Anfrage zu antworten. Ich nutze sie nicht für Marketingzwecke und teile sie nicht mit Dritten.',
+    'privacy.thirdparty.title': 'Drittanbieter',
+    'privacy.thirdparty.formspree': 'Kontaktformular-Einreichungen werden über Formspree verarbeitet, einen Dienst mit Sitz in den USA. Formspree fungiert als Auftragsverarbeiter und speichert Ihre Einreichung vorübergehend, um sie mir zuzustellen.',
+    'privacy.thirdparty.fonts': 'Diese Website verwendet Google Fonts, die beim Laden der Schriftarten Ihre IP-Adresse protokollieren können.',
+    'privacy.thirdparty.hosting': 'Die Website wird auf GitHub Pages gehostet, das grundlegende Server-Logs einschließlich IP-Adressen erfassen kann.',
+    'privacy.storage.title': 'Cookies und lokaler Speicher',
+    'privacy.storage.desc': 'Diese Website verwendet keine Tracking-Cookies oder Analysen. Die einzigen in Ihrem Browser gespeicherten Daten sind Ihre Designpräferenz (Hell-/Dunkelmodus), die für das ordnungsgemäße Funktionieren der Website erforderlich ist.',
+    'privacy.rights.title': 'Ihre Rechte',
+    'privacy.rights.desc': 'Gemäß DSGVO haben Sie das Recht, auf alle personenbezogenen Daten, die ich über Sie habe, zuzugreifen, diese zu korrigieren oder zu löschen. Um diese Rechte auszuüben, kontaktieren Sie mich unter:',
+    'privacy.updated': 'Zuletzt aktualisiert: Juli 2026',
   },
 } as const;
 

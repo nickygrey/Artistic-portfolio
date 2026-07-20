@@ -1,0 +1,141 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { type Lang, t } from '../../i18n/translations';
+
+const lang: Lang = 'fr';
+---
+
+<Layout lang={lang} title="Politique de confidentialité — P.V.">
+  <div>
+    <Header lang={lang} />
+
+    <main class="wrap privacy-page">
+      <article class="privacy-content reveal">
+        <h1 class="disp privacy-title">{t(lang, 'privacy.title')}</h1>
+
+        <p class="prose">{t(lang, 'privacy.intro')}</p>
+
+        <section>
+          <h2>{t(lang, 'privacy.data.title')}</h2>
+          <p class="prose">{t(lang, 'privacy.data.intro')}</p>
+          <ul>
+            <li>{t(lang, 'privacy.data.list')}</li>
+          </ul>
+          <p class="prose">{t(lang, 'privacy.data.purpose')}</p>
+        </section>
+
+        <section>
+          <h2>{t(lang, 'privacy.thirdparty.title')}</h2>
+          <ul>
+            <li><strong>Formspree:</strong> {t(lang, 'privacy.thirdparty.formspree')}</li>
+            <li><strong>Google Fonts:</strong> {t(lang, 'privacy.thirdparty.fonts')}</li>
+            <li><strong>GitHub Pages:</strong> {t(lang, 'privacy.thirdparty.hosting')}</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>{t(lang, 'privacy.storage.title')}</h2>
+          <p class="prose">{t(lang, 'privacy.storage.desc')}</p>
+        </section>
+
+        <section>
+          <h2>{t(lang, 'privacy.rights.title')}</h2>
+          <p class="prose">{t(lang, 'privacy.rights.desc')}</p>
+          <p class="prose"><a href="mailto:pv@nickygrey.com">pv@nickygrey.com</a></p>
+        </section>
+
+        <p class="updated">{t(lang, 'privacy.updated')}</p>
+
+        <a href="/fr" class="back-link">← Retour à l'accueil</a>
+      </article>
+    </main>
+
+    <Footer lang={lang} />
+  </div>
+</Layout>
+
+<style>
+  .privacy-page {
+    padding-top: clamp(100px, 12vw, 140px);
+    padding-bottom: clamp(64px, 8vw, 104px);
+  }
+
+  .privacy-content {
+    max-width: 680px;
+  }
+
+  .privacy-title {
+    font-size: clamp(36px, 5vw, 52px);
+    line-height: 1.1;
+    margin-bottom: 32px;
+  }
+
+  .privacy-content section {
+    margin-top: 40px;
+  }
+
+  .privacy-content h2 {
+    font-family: var(--font-display);
+    font-size: clamp(22px, 3vw, 28px);
+    font-weight: 500;
+    margin-bottom: 16px;
+    color: var(--color-text);
+  }
+
+  .privacy-content p {
+    margin-bottom: 16px;
+  }
+
+  .privacy-content ul {
+    margin: 16px 0;
+    padding-left: 24px;
+  }
+
+  .privacy-content li {
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.7;
+    color: color-mix(in srgb, var(--color-text) 80%, transparent);
+    margin-bottom: 12px;
+  }
+
+  .privacy-content a {
+    color: var(--color-accent-700);
+  }
+
+  .updated {
+    margin-top: 48px;
+    font-size: 14px;
+    color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  }
+
+  .back-link {
+    display: inline-block;
+    margin-top: 32px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--color-accent-700);
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .back-link:hover {
+    opacity: 0.7;
+  }
+
+  @media (max-width: 600px) {
+    .privacy-page {
+      padding-top: 100px;
+    }
+
+    .privacy-title {
+      font-size: 32px;
+    }
+
+    .privacy-content section {
+      margin-top: 32px;
+    }
+  }
+</style>
