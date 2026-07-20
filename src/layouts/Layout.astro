@@ -137,32 +137,38 @@ const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.
   <slot />
 
   <script>
-    // Hide page loader
+    // Hide page loader - force hide with display:none as ultimate fallback
     function hideLoader() {
       const loader = document.getElementById('page-loader');
-      loader?.classList.add('is-hidden');
+      if (loader) {
+        loader.classList.add('is-hidden');
+        loader.style.display = 'none';
+      }
     }
 
-    // Check if this is a View Transition navigation
-    const isViewTransition = document.documentElement.hasAttribute('data-astro-transition') ||
-                             sessionStorage.getItem('astro-visited') === 'true';
+    // Check if we've visited before (View Transition or reload)
+    const hasVisited = sessionStorage.getItem('astro-visited') === 'true';
+    sessionStorage.setItem('astro-visited', 'true');
 
-    if (!isViewTransition) {
-      // First visit: show loader briefly, then hide
-      sessionStorage.setItem('astro-visited', 'true');
-      window.addEventListener('load', () => {
-        setTimeout(hideLoader, 400);
-      });
-      // Fallback: hide loader after 3 seconds max
-      setTimeout(hideLoader, 3000);
-    } else {
-      // View Transition: hide immediately
+    if (hasVisited) {
+      // Returning visitor or View Transition: hide immediately
       hideLoader();
+    } else {
+      // First visit: brief loader animation
+      if (document.readyState === 'complete') {
+        setTimeout(hideLoader, 300);
+      } else {
+        window.addEventListener('load', () => setTimeout(hideLoader, 300));
+      }
     }
 
-    // Always hide loader after View Transitions complete
-    document.addEventListener('astro:page-load', hideLoader);
+    // Fallback: always hide after 1.5 seconds max
+    setTimeout(hideLoader, 1500);
+
+    // Hide on all View Transition lifecycle events
+    document.addEventListener('astro:before-swap', hideLoader);
     document.addEventListener('astro:after-swap', hideLoader);
+    document.addEventListener('astro:page-load', hideLoader);
 
     // Initialize scroll animations - runs on every page load
     function initScrollAnimations() {

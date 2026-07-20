@@ -383,6 +383,13 @@ textarea.input { min-height: 90px; resize: vertical; }
   transition: opacity 0.6s ease, visibility 0.6s ease;
 }
 .page-loader.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+/* Hide loader during View Transitions - CSS fallback */
+html[data-astro-transition] .page-loader,
+html[data-astro-transition-fallback] .page-loader {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 .loader-logo {
   font-family: var(--font-heading);
   font-size: 48px;
