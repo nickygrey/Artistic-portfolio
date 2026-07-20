@@ -110,16 +110,63 @@ const base = import.meta.env.BASE_URL;
   :global([data-theme="dark"]) .theme-toggle .icon-moon {
     display: block;
   }
+
+  /* Mobile header adjustments */
+  @media (max-width: 900px) {
+    .header {
+      align-items: center;
+      padding-top: 16px;
+      padding-bottom: 16px;
+    }
+
+    .theme-toggle {
+      padding: 10px;
+      margin-right: 8px;
+    }
+  }
 </style>
 
 <script>
   // Mobile menu toggle
   const navToggle = document.getElementById('nav-toggle');
   const navLinks = document.getElementById('nav-links');
+  const header = document.querySelector('.header');
 
-  navToggle?.addEventListener('click', () => {
+  function closeMobileMenu() {
+    navToggle?.classList.remove('is-open');
+    navLinks?.classList.remove('is-open');
+  }
+
+  navToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
     navToggle.classList.toggle('is-open');
     navLinks?.classList.toggle('is-open');
+  });
+
+  // Close menu when clicking a nav link
+  navLinks?.querySelectorAll('.navlink').forEach(link => {
+    link.addEventListener('click', closeMobileMenu);
+  });
+
+  // Close menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!header?.contains(e.target as Node) && navLinks?.classList.contains('is-open')) {
+      closeMobileMenu();
+    }
+  });
+
+  // Close menu on escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && navLinks?.classList.contains('is-open')) {
+      closeMobileMenu();
+    }
+  });
+
+  // Close menu on resize to desktop
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 900) {
+      closeMobileMenu();
+    }
   });
 
   // Theme toggle with localStorage persistence

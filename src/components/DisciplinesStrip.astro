@@ -39,4 +39,31 @@ const disciplines = ['Cinematography', 'Photography', 'Editing', 'Colour'];
     margin: 0 clamp(16px, 2.5vw, 32px);
     opacity: 0.4;
   }
+
+  /* Mobile styles */
+  @media (max-width: 600px) {
+    .disciplines-section {
+      padding: 20px 0;
+    }
+
+    .disciplines-line {
+      font-size: clamp(14px, 4vw, 18px);
+    }
+
+    .separator {
+      margin: 0 clamp(8px, 2vw, 16px);
+    }
+  }
+
+  @media (max-width: 380px) {
+    .disciplines-line {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .separator {
+      display: none;
+    }
+  }
 </style>

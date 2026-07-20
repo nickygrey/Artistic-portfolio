@@ -46,8 +46,16 @@ html.theme-transitioning * {
 
 /* Reset */
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%; /* Prevent iOS text size adjust */
+}
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* Mobile tap highlight fix */
+a, button, input, textarea, select {
+  -webkit-tap-highlight-color: transparent;
+}
 
 body {
   margin: 0;
@@ -470,12 +478,28 @@ textarea.input { min-height: 90px; resize: vertical; }
 .nav-toggle.is-open span::before { transform: rotate(45deg) translate(4px, 4px); }
 .nav-toggle.is-open span::after { transform: rotate(-45deg) translate(4px, -4px); }
 
-/* Responsive */
+/* Responsive - Tablet and below */
 @media (max-width: 900px) {
+  /* Base typography adjustments */
+  body {
+    font-size: 14px;
+  }
+
+  /* Container padding adjustments */
+  .wrap {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  /* Grid layouts */
   .grid-2 { grid-template-columns: 1fr !important; }
-  .about-split { grid-template-columns: 1fr !important; }
-  .svc-grid { grid-template-columns: 1fr !important; }
-  .hero-h { font-size: 15vw !important; }
+  .about-split { grid-template-columns: 1fr !important; gap: 32px !important; }
+  .svc-grid { grid-template-columns: 1fr !important; gap: 24px !important; }
+
+  /* Hero */
+  .hero-h { font-size: 13vw !important; }
+
+  /* Navigation */
   .nav-links { display: none !important; }
   .nav-toggle { display: flex !important; }
   .nav-links.is-open {
@@ -486,12 +510,278 @@ textarea.input { min-height: 90px; resize: vertical; }
     right: 0;
     flex-direction: column;
     background: var(--color-bg);
-    padding: 24px clamp(24px,5vw,72px);
-    gap: 20px;
+    padding: 24px 20px;
+    gap: 16px;
     border-bottom: 1px solid var(--color-divider);
     box-shadow: var(--shadow-md);
+    animation: mobileMenuSlide 0.3s ease;
   }
+
+  @keyframes mobileMenuSlide {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .nav-links.is-open .navlink {
+    font-size: 16px;
+    padding: 12px 0;
+    display: block;
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .nav-links.is-open .navlink:last-child {
+    border-bottom: none;
+  }
+
+  /* Language toggle in mobile menu */
+  .nav-links.is-open .lang-toggle {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+    padding-top: 12px;
+  }
+
+  .nav-links.is-open .lang-btn {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+
+  /* Contact form */
   .contact-form { grid-template-columns: 1fr !important; }
+
+  /* Form fields - touch friendly */
+  .input {
+    min-height: 48px;
+    padding: 12px 14px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  textarea.input {
+    min-height: 120px;
+  }
+
+  /* Buttons - touch friendly */
+  .btn {
+    min-height: 48px;
+    padding: 12px 20px;
+    font-size: 15px;
+  }
+
+  /* Cards - better spacing */
+  .card-link {
+    margin-bottom: 24px;
+  }
+
+  /* Photo carousel adjustments */
+  .carousel-slide {
+    height: clamp(180px, 45vw, 260px);
+  }
+
+  /* Lightbox mobile optimization */
+  .lightbox img {
+    max-width: 95vw;
+    max-height: 80vh;
+  }
+
+  .lightbox-close {
+    top: 16px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+  }
+
+  /* Play button */
+  .play::before {
+    width: 56px;
+    height: 56px;
+    font-size: 18px;
+  }
+
+  /* Section spacing */
+  section {
+    padding-top: 48px;
+    padding-bottom: 48px;
+  }
+
+  /* Service cards */
+  .service-card {
+    padding: 24px !important;
+  }
+
+  /* Partners grid */
+  .partners-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+  }
+
+  /* Footer adjustments */
+  .footer-grid {
+    grid-template-columns: 1fr !important;
+    text-align: center;
+    gap: 24px !important;
+  }
+
+  .footer-links {
+    justify-content: center !important;
+  }
+
+  /* Disciplines strip */
+  .disciplines-line {
+    font-size: clamp(10px, 2.5vw, 12px) !important;
+    gap: 8px !important;
+  }
+}
+
+/* Responsive - Mobile phones */
+@media (max-width: 600px) {
+  /* Smaller padding on small screens */
+  .wrap {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  /* Hero scaling */
+  .hero-h {
+    font-size: 16vw !important;
+    line-height: 1 !important;
+  }
+
+  .hero-tagline {
+    font-size: 14px !important;
+  }
+
+  /* Carousel smaller on phones */
+  .carousel-slide {
+    height: clamp(140px, 40vw, 200px);
+  }
+
+  /* Featured reel text */
+  .featured-title {
+    font-size: clamp(24px, 6vw, 32px) !important;
+  }
+
+  /* About section */
+  .about-text h2 {
+    font-size: clamp(28px, 7vw, 36px) !important;
+  }
+
+  /* Section headings */
+  .section-title {
+    font-size: clamp(24px, 6vw, 32px) !important;
+  }
+
+  /* Partners 2x2 grid on small phones */
+  .partners-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Lightbox navigation */
+  .lightbox-nav {
+    width: 44px;
+    height: 44px;
+  }
+
+  .lightbox-prev { left: 8px; }
+  .lightbox-next { right: 8px; }
+
+  .lightbox-counter {
+    bottom: 16px;
+    font-size: 12px;
+  }
+
+  /* Logo smaller */
+  .logo {
+    font-size: 22px;
+  }
+
+  /* Section spacing */
+  section {
+    padding-top: 40px;
+    padding-bottom: 40px;
+  }
+
+  /* Service icons */
+  .service-icon {
+    width: 48px !important;
+    height: 48px !important;
+  }
+}
+
+/* Responsive - Very small phones */
+@media (max-width: 380px) {
+  .wrap {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .hero-h {
+    font-size: 18vw !important;
+  }
+
+  .logo {
+    font-size: 20px;
+    letter-spacing: 0.1em;
+  }
+
+  .nav-toggle {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Single column partners on tiny screens */
+  .partners-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove hover effects that don't work well on touch */
+  .card-link:hover { transform: none; }
+  .card-link:hover img { transform: none; }
+  .card-link:hover .plate { box-shadow: var(--shadow-md); }
+
+  /* But keep active states for feedback */
+  .card-link:active { transform: scale(0.98); }
+  .btn:active { transform: scale(0.95); }
+
+  /* Larger tap targets */
+  .navlink {
+    padding: 8px 0;
+  }
+
+  /* Disable parallax effects on touch devices for performance */
+  .parallax { transform: none !important; }
+
+  /* Smoother carousel dragging */
+  .photo-carousel {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Landscape phone adjustments */
+@media (max-width: 900px) and (orientation: landscape) {
+  .hero-h {
+    font-size: 10vw !important;
+  }
+
+  .carousel-slide {
+    height: 35vh;
+  }
+
+  .lightbox img {
+    max-height: 85vh;
+  }
+
+  section {
+    padding-top: 32px;
+    padding-bottom: 32px;
+  }
 }
 
 /* Reduced motion */

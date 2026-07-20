@@ -143,4 +143,55 @@ const projects = [
     gap: 10px;
     margin-top: 40px;
   }
+
+  /* Mobile styles */
+  @media (max-width: 900px) {
+    .work-section {
+      padding-top: 48px;
+      padding-bottom: 40px;
+    }
+
+    .work-header {
+      margin-bottom: 28px;
+    }
+
+    .work-grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .work-section {
+      padding-top: 40px;
+      padding-bottom: 32px;
+    }
+
+    .work-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .project-title {
+      font-size: 22px;
+    }
+
+    .project-info {
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .tags-row {
+      margin-top: 28px;
+      gap: 8px;
+    }
+
+    .tag {
+      font-size: 10px;
+      padding: 4px 8px;
+    }
+  }
 </style>

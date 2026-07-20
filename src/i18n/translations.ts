@@ -57,6 +57,13 @@ export const translations = {
     'contact.success': 'Message sent successfully!',
     'contact.error': 'Something went wrong. Please email me directly.',
 
+    // Testimonials
+    'testimonials.label': 'Kind words',
+    'testimonials.title': 'What people say',
+    'testimonials.quote1': 'I felt comfortable. Wanted to try myself as a model, didn\'t expect anything, but ended up being very happy with the result.',
+    'testimonials.quote2': 'Professional, patient, and truly understands how to capture the essence of a moment. The final film exceeded all expectations.',
+    'testimonials.quote3': 'Working with P.V. was effortless. He has a rare ability to make you feel at ease while delivering stunning visual work.',
+
     // Partner
     'partner': 'General Partner',
 
@@ -114,6 +121,13 @@ export const translations = {
     'contact.success': 'Message envoyé avec succès !',
     'contact.error': 'Une erreur est survenue. Veuillez me contacter par email.',
 
+    // Testimonials
+    'testimonials.label': 'Témoignages',
+    'testimonials.title': 'Ce qu\'ils disent',
+    'testimonials.quote1': 'Je me suis sentie à l\'aise. Je voulais m\'essayer en tant que modèle, je n\'attendais rien, mais j\'ai fini par être très contente du résultat.',
+    'testimonials.quote2': 'Professionnel, patient, et comprend vraiment comment capturer l\'essence d\'un moment. Le film final a dépassé toutes les attentes.',
+    'testimonials.quote3': 'Travailler avec P.V. était sans effort. Il a une capacité rare de vous mettre à l\'aise tout en livrant un travail visuel époustouflant.',
+
     // Partner
     'partner': 'Partenaire Général',
 
@@ -170,6 +184,13 @@ export const translations = {
     'contact.sending': 'Wird gesendet...',
     'contact.success': 'Nachricht erfolgreich gesendet!',
     'contact.error': 'Etwas ist schief gelaufen. Bitte kontaktieren Sie mich direkt per E-Mail.',
+
+    // Testimonials
+    'testimonials.label': 'Kundenstimmen',
+    'testimonials.title': 'Was andere sagen',
+    'testimonials.quote1': 'Ich fühlte mich wohl. Wollte mich als Model ausprobieren, erwartete nichts, war aber am Ende sehr zufrieden mit dem Ergebnis.',
+    'testimonials.quote2': 'Professionell, geduldig und versteht wirklich, wie man die Essenz eines Moments einfängt. Der finale Film übertraf alle Erwartungen.',
+    'testimonials.quote3': 'Die Arbeit mit P.V. war mühelos. Er hat die seltene Fähigkeit, einen sich wohl fühlen zu lassen und gleichzeitig beeindruckende visuelle Arbeit zu liefern.',
 
     // Partner
     'partner': 'Generalpartner',

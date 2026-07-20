@@ -30,4 +30,15 @@ const { lang } = Astro.props;
     font-size: 13px;
     color: color-mix(in srgb, var(--color-text) 55%, transparent);
   }
+
+  /* Mobile styles */
+  @media (max-width: 600px) {
+    .footer {
+      flex-direction: column;
+      text-align: center;
+      gap: 16px;
+      padding-top: 24px;
+      padding-bottom: 32px;
+    }
+  }
 </style>

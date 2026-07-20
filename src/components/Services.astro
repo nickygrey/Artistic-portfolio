@@ -86,4 +86,41 @@ const services = [
     hyphens: auto;
     margin: 14px 0 0;
   }
+
+  /* Mobile styles */
+  @media (max-width: 900px) {
+    .services-inner {
+      padding-top: 48px;
+      padding-bottom: 48px;
+    }
+
+    .svc-grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+      margin-top: 24px;
+    }
+
+    .service-card {
+      padding: 24px;
+      background: var(--color-bg);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-divider);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .services-inner {
+      padding-top: 40px;
+      padding-bottom: 40px;
+    }
+
+    .service-card h3 {
+      font-size: 22px;
+    }
+
+    .service-desc {
+      font-size: 14px;
+      text-align: left;
+    }
+  }
 </style>

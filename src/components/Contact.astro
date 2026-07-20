@@ -145,6 +145,67 @@ const { lang } = Astro.props;
     font-size: 13px;
     color: color-mix(in srgb, var(--color-text) 55%, transparent);
   }
+
+  /* Mobile styles */
+  @media (max-width: 900px) {
+    .contact-section {
+      grid-template-columns: 1fr;
+      gap: 40px;
+      padding-top: 48px;
+      padding-bottom: 48px;
+    }
+
+    .contact-title {
+      font-size: clamp(32px, 8vw, 44px);
+    }
+
+    .contact-links {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .contact-links .btn {
+      justify-content: flex-start;
+    }
+
+    .contact-form {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .field-full {
+      grid-column: 1;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .contact-section {
+      gap: 32px;
+      padding-top: 40px;
+      padding-bottom: 40px;
+    }
+
+    .contact-title {
+      font-size: clamp(28px, 9vw, 36px);
+    }
+
+    .contact-desc {
+      font-size: 15px;
+    }
+
+    .submit-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .submit-row .btn {
+      width: 100%;
+    }
+
+    .form-status {
+      text-align: center;
+    }
+  }
 </style>
 
 <script>

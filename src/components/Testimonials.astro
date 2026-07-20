@@ -1,0 +1,142 @@
+---
+import { type Lang, t } from '../i18n/translations';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+
+const testimonials = [
+  {
+    quoteKey: 'testimonials.quote1' as const,
+    author: 'Maria',
+  },
+  {
+    quoteKey: 'testimonials.quote2' as const,
+    author: 'Thomas',
+  },
+  {
+    quoteKey: 'testimonials.quote3' as const,
+    author: 'Elena',
+  },
+];
+---
+
+<section class="wrap section-reveal testimonials-section">
+  <div class="testimonials-header reveal">
+    <span class="kick">{t(lang, 'testimonials.label')}</span>
+    <h2 class="disp testimonials-title">{t(lang, 'testimonials.title')}</h2>
+  </div>
+
+  <div class="testimonials-grid">
+    {testimonials.map((item, index) => (
+      <blockquote class={`testimonial-card reveal delay-${index + 1}`}>
+        <svg class="quote-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" opacity="0.15">
+          <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/>
+        </svg>
+        <p class="testimonial-quote">{t(lang, item.quoteKey)}</p>
+        <footer class="testimonial-author">— {item.author}</footer>
+      </blockquote>
+    ))}
+  </div>
+</section>
+
+<style>
+  .testimonials-section {
+    padding-top: clamp(56px, 7vw, 96px);
+    padding-bottom: clamp(56px, 7vw, 96px);
+  }
+
+  .testimonials-header {
+    text-align: center;
+    margin-bottom: clamp(36px, 5vw, 56px);
+  }
+
+  .testimonials-title {
+    font-size: clamp(32px, 4vw, 48px);
+    margin: 14px 0 0;
+  }
+
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(24px, 3vw, 40px);
+  }
+
+  .testimonial-card {
+    position: relative;
+    margin: 0;
+    padding: clamp(24px, 3vw, 36px);
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-divider);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .testimonial-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .quote-icon {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: var(--color-accent);
+  }
+
+  .testimonial-quote {
+    font-family: var(--font-body);
+    font-size: clamp(15px, 1.5vw, 17px);
+    font-style: italic;
+    line-height: 1.7;
+    color: var(--color-text);
+    margin: 0;
+    padding-top: 12px;
+  }
+
+  .testimonial-author {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-style: normal;
+    letter-spacing: 0.05em;
+    color: var(--color-accent-700);
+    margin-top: 20px;
+  }
+
+  /* Mobile styles */
+  @media (max-width: 900px) {
+    .testimonials-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    .testimonials-section {
+      padding-top: 48px;
+      padding-bottom: 48px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .testimonials-section {
+      padding-top: 40px;
+      padding-bottom: 40px;
+    }
+
+    .testimonials-title {
+      font-size: clamp(26px, 7vw, 32px);
+    }
+
+    .testimonial-card {
+      padding: 24px;
+    }
+
+    .quote-icon {
+      width: 24px;
+      height: 24px;
+      top: 16px;
+      left: 16px;
+    }
+  }
+</style>

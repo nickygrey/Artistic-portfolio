@@ -64,4 +64,51 @@ const base = import.meta.env.BASE_URL;
   .about-text:first-of-type {
     margin-top: 24px;
   }
+
+  /* Mobile styles */
+  @media (max-width: 900px) {
+    .about-section {
+      grid-template-columns: 1fr;
+      gap: 32px;
+      padding-top: 48px;
+      padding-bottom: 48px;
+    }
+
+    .about-image {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .about-content {
+      text-align: center;
+    }
+
+    .about-text {
+      text-align: left;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .about-section {
+      gap: 24px;
+      padding-top: 40px;
+      padding-bottom: 40px;
+    }
+
+    .about-image {
+      max-width: 100%;
+    }
+
+    .about-image img {
+      aspect-ratio: 3/4;
+    }
+
+    .about-title {
+      font-size: clamp(26px, 7vw, 32px);
+    }
+
+    .about-text {
+      font-size: 15px;
+    }
+  }
 </style>
