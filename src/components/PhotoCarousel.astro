@@ -130,13 +130,18 @@ const base = import.meta.env.BASE_URL;
 </style>
 
 <script>
-  function initPhotoCarousel() {
-    // Photo data
-    const photoCount = 7;
-    const photos = Array.from({ length: photoCount }, (_, i) => i + 1);
-    const base = document.querySelector('.carousel-slide img')?.getAttribute('src')?.replace(/images\/photos\/\d+\.jpg$/, '') || '/';
+  // Global state for lightbox navigation
+  const lightboxState = {
+    currentIndex: 0,
+    photoCount: 7,
+    base: '/',
+    initialized: false
+  };
 
-    // Elements
+  function initPhotoCarousel() {
+    const photos = Array.from({ length: lightboxState.photoCount }, (_, i) => i + 1);
+    lightboxState.base = document.querySelector('.carousel-slide img')?.getAttribute('src')?.replace(/images\/photos\/\d+\.jpg$/, '') || '/';
+
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
     const lightboxClose = document.querySelector('.lightbox-close');
@@ -148,24 +153,24 @@ const base = import.meta.env.BASE_URL;
 
     if (!lightbox || !carousel) return;
 
-    let currentPhotoIndex = 0;
-
-    // Update lightbox image
     function showPhoto(index: number) {
-      currentPhotoIndex = ((index % photoCount) + photoCount) % photoCount;
-      const photoNum = photos[currentPhotoIndex];
+      lightboxState.currentIndex = ((index % lightboxState.photoCount) + lightboxState.photoCount) % lightboxState.photoCount;
+      const photoNum = photos[lightboxState.currentIndex];
       if (lightboxImg) {
-        lightboxImg.src = `${base}images/photos/${photoNum}.jpg`;
+        lightboxImg.src = `${lightboxState.base}images/photos/${photoNum}.jpg`;
         lightboxImg.alt = `Photography by P.V. - ${photoNum}`;
       }
+    }
+
+    function closeLightbox() {
+      lightbox?.classList.remove('is-open');
+      document.body.style.overflow = '';
     }
 
     // Open lightbox on click
     carouselSlides.forEach(slide => {
       slide.addEventListener('click', () => {
-        // Don't open if we just finished dragging
         if (carousel?.classList.contains('just-dragged')) return;
-
         const index = parseInt(slide.getAttribute('data-index') || '0');
         showPhoto(index);
         lightbox?.classList.add('is-open');
@@ -173,45 +178,49 @@ const base = import.meta.env.BASE_URL;
       });
     });
 
-    // Navigation
-    function nextPhoto() {
-      showPhoto(currentPhotoIndex + 1);
-    }
-
-    function prevPhoto() {
-      showPhoto(currentPhotoIndex - 1);
-    }
-
     lightboxPrev?.addEventListener('click', (e) => {
       e.stopPropagation();
-      prevPhoto();
+      showPhoto(lightboxState.currentIndex - 1);
     });
 
     lightboxNext?.addEventListener('click', (e) => {
       e.stopPropagation();
-      nextPhoto();
+      showPhoto(lightboxState.currentIndex + 1);
     });
-
-    // Close lightbox
-    function closeLightbox() {
-      lightbox?.classList.remove('is-open');
-      document.body.style.overflow = '';
-    }
 
     lightboxClose?.addEventListener('click', closeLightbox);
     lightbox?.addEventListener('click', (e) => {
       if (e.target === lightbox) closeLightbox();
     });
 
-    // Keyboard navigation
-    function handleKeydown(e: KeyboardEvent) {
-      if (!lightbox?.classList.contains('is-open')) return;
+    // Keyboard navigation - only add once
+    if (!lightboxState.initialized) {
+      lightboxState.initialized = true;
+      document.addEventListener('keydown', (e: KeyboardEvent) => {
+        const currentLightbox = document.getElementById('lightbox');
+        if (!currentLightbox?.classList.contains('is-open')) return;
 
-      if (e.key === 'Escape') closeLightbox();
-      if (e.key === 'ArrowLeft') prevPhoto();
-      if (e.key === 'ArrowRight') nextPhoto();
+        const img = document.getElementById('lightbox-img') as HTMLImageElement;
+        const photos = Array.from({ length: lightboxState.photoCount }, (_, i) => i + 1);
+
+        if (e.key === 'Escape') {
+          currentLightbox.classList.remove('is-open');
+          document.body.style.overflow = '';
+        }
+        if (e.key === 'ArrowLeft') {
+          lightboxState.currentIndex = ((lightboxState.currentIndex - 1) % lightboxState.photoCount + lightboxState.photoCount) % lightboxState.photoCount;
+          if (img) {
+            img.src = `${lightboxState.base}images/photos/${photos[lightboxState.currentIndex]}.jpg`;
+          }
+        }
+        if (e.key === 'ArrowRight') {
+          lightboxState.currentIndex = (lightboxState.currentIndex + 1) % lightboxState.photoCount;
+          if (img) {
+            img.src = `${lightboxState.base}images/photos/${photos[lightboxState.currentIndex]}.jpg`;
+          }
+        }
+      });
     }
-    document.addEventListener('keydown', handleKeydown);
 
     // Mouse drag for carousel
     if (carousel && track) {
@@ -285,19 +294,21 @@ const base = import.meta.env.BASE_URL;
     // Swipe navigation in lightbox
     if (lightbox) {
       let touchStartX = 0;
-      let touchEndX = 0;
 
       lightbox.addEventListener('touchstart', (e) => {
         touchStartX = e.touches[0].clientX;
       }, { passive: true });
 
       lightbox.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].clientX;
+        const touchEndX = e.changedTouches[0].clientX;
         const diff = touchStartX - touchEndX;
 
         if (Math.abs(diff) > 50) {
-          if (diff > 0) nextPhoto();
-          else prevPhoto();
+          if (diff > 0) {
+            showPhoto(lightboxState.currentIndex + 1);
+          } else {
+            showPhoto(lightboxState.currentIndex - 1);
+          }
         }
       });
     }

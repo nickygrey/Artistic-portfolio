@@ -46,18 +46,87 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
 
 <style>
   .header {
-    position: sticky;
+    position: fixed;
     top: 0;
-    z-index: 20;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    z-index: 100;
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 24px;
     padding-top: 22px;
     padding-bottom: 22px;
-    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--color-divider);
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    transition: background 0.4s ease, border-color 0.4s ease;
+  }
+
+  /* Transparent state - light text over hero */
+  .header:not(.is-scrolled) {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .header:not(.is-scrolled) .logo {
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  .header:not(.is-scrolled) .navlink {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .header:not(.is-scrolled) .navlink:hover {
+    color: rgba(255, 255, 255, 1);
+  }
+
+  .header:not(.is-scrolled) .instagram {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .header:not(.is-scrolled) .theme-toggle {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .header:not(.is-scrolled) .lang-btn {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .header:not(.is-scrolled) .lang-btn.is-active {
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  /* Scrolled state - back to normal colors but still transparent */
+  .header.is-scrolled {
+    /* Keep transparent, just restore normal text colors */
+  }
+
+  .header.is-scrolled .logo {
+    color: var(--color-text);
+  }
+
+  .header.is-scrolled .navlink {
+    color: var(--color-text);
+  }
+
+  .header.is-scrolled .navlink:hover {
+    color: var(--color-accent-700);
+  }
+
+  .header.is-scrolled .instagram {
+    color: var(--color-accent-700);
+  }
+
+  .header.is-scrolled .theme-toggle {
+    color: var(--color-text);
+  }
+
+  .header.is-scrolled .lang-btn {
+    color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  }
+
+  .header.is-scrolled .lang-btn.is-active {
+    color: var(--color-text);
   }
 
   .nav-links {
@@ -68,8 +137,13 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
     font-size: 14px;
   }
 
+  .navlink {
+    transition: color 0.3s ease;
+  }
+
   .instagram {
     color: var(--color-accent-700);
+    transition: color 0.3s ease;
   }
 
   /* Theme Toggle */
@@ -83,7 +157,7 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
     justify-content: center;
     color: var(--color-text);
     opacity: 0.7;
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transition: opacity 0.3s ease, transform 0.3s ease, color 0.3s ease;
   }
 
   .theme-toggle:hover {
@@ -132,106 +206,135 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
 </style>
 
 <script>
-  // Mobile menu toggle
-  const navToggle = document.getElementById('nav-toggle');
-  const navLinks = document.getElementById('nav-links');
-  const header = document.querySelector('.header');
+  // Track if listeners are already set up (prevents duplicates after View Transitions)
+  let headerInitialized = false;
 
-  function closeMobileMenu() {
-    navToggle?.classList.remove('is-open');
-    navLinks?.classList.remove('is-open');
-  }
+  function initHeader() {
+    const navToggle = document.getElementById('nav-toggle');
+    const navLinks = document.getElementById('nav-links');
+    const header = document.querySelector('.header');
+    const themeToggle = document.getElementById('theme-toggle');
+    const langToggle = document.getElementById('lang-toggle');
+    const basePath = (header as HTMLElement)?.dataset.base || '/';
 
-  navToggle?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    navToggle.classList.toggle('is-open');
-    navLinks?.classList.toggle('is-open');
-  });
-
-  // Close menu when clicking a nav link
-  navLinks?.querySelectorAll('.navlink').forEach(link => {
-    link.addEventListener('click', closeMobileMenu);
-  });
-
-  // Close menu when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!header?.contains(e.target as Node) && navLinks?.classList.contains('is-open')) {
-      closeMobileMenu();
-    }
-  });
-
-  // Close menu on escape key
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && navLinks?.classList.contains('is-open')) {
-      closeMobileMenu();
-    }
-  });
-
-  // Close menu on resize to desktop
-  window.addEventListener('resize', () => {
-    if (window.innerWidth > 900) {
-      closeMobileMenu();
-    }
-  });
-
-  // Theme toggle with localStorage persistence
-  const themeToggle = document.getElementById('theme-toggle');
-
-  function getThemePreference(): 'light' | 'dark' {
-    const stored = localStorage.getItem('theme');
-    if (stored === 'dark' || stored === 'light') return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-
-  function setTheme(theme: 'light' | 'dark') {
-    document.documentElement.classList.add('theme-transitioning');
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-
-    // Update meta theme-color
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) {
-      metaTheme.setAttribute('content', theme === 'dark' ? '#141210' : '#f3f2f2');
+    function closeMobileMenu() {
+      navToggle?.classList.remove('is-open');
+      navLinks?.classList.remove('is-open');
     }
 
-    // Remove transition class after animation
-    setTimeout(() => {
-      document.documentElement.classList.remove('theme-transitioning');
-    }, 400);
-  }
-
-  // Initialize theme on load
-  const currentTheme = getThemePreference();
-  if (currentTheme === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  }
-
-  themeToggle?.addEventListener('click', () => {
-    const current = document.documentElement.getAttribute('data-theme');
-    setTheme(current === 'dark' ? 'light' : 'dark');
-  });
-
-  // Listen for system theme changes
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    if (!localStorage.getItem('theme')) {
-      setTheme(e.matches ? 'dark' : 'light');
+    function updateHeaderState() {
+      if (!header) return;
+      const scrolled = window.scrollY > 80;
+      header.classList.toggle('is-scrolled', scrolled);
     }
-  });
 
-  // Language toggle with localStorage persistence
-  const langToggle = document.getElementById('lang-toggle');
-  const nav = document.querySelector('.header') as HTMLElement;
-  const basePath = nav?.dataset.base || '/';
+    function getThemePreference(): 'light' | 'dark' {
+      const stored = localStorage.getItem('theme');
+      if (stored === 'dark' || stored === 'light') return stored;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
 
-  langToggle?.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    if (target.classList.contains('lang-btn')) {
-      const newLang = target.dataset.lang;
-      if (newLang) {
-        localStorage.setItem('lang', newLang);
-        // Redirect to the localized URL with correct base path
-        window.location.href = newLang === 'en' ? basePath : `${basePath}${newLang}/`;
+    function setTheme(theme: 'light' | 'dark') {
+      document.documentElement.classList.add('theme-transitioning');
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) {
+        metaTheme.setAttribute('content', theme === 'dark' ? '#141210' : '#f3f2f2');
       }
+
+      setTimeout(() => {
+        document.documentElement.classList.remove('theme-transitioning');
+      }, 400);
     }
-  });
+
+    // Initialize states
+    updateHeaderState();
+    const currentTheme = getThemePreference();
+    if (currentTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+
+    // Only add event listeners once
+    if (!headerInitialized) {
+      headerInitialized = true;
+
+      // Scroll detection
+      let ticking = false;
+      window.addEventListener('scroll', () => {
+        if (!ticking) {
+          requestAnimationFrame(() => {
+            updateHeaderState();
+            ticking = false;
+          });
+          ticking = true;
+        }
+      });
+
+      // Mobile menu toggle
+      navToggle?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navToggle.classList.toggle('is-open');
+        navLinks?.classList.toggle('is-open');
+      });
+
+      // Close menu when clicking a nav link
+      navLinks?.querySelectorAll('.navlink').forEach(link => {
+        link.addEventListener('click', closeMobileMenu);
+      });
+
+      // Close menu when clicking outside
+      document.addEventListener('click', (e) => {
+        const currentHeader = document.querySelector('.header');
+        const currentNavLinks = document.getElementById('nav-links');
+        if (!currentHeader?.contains(e.target as Node) && currentNavLinks?.classList.contains('is-open')) {
+          closeMobileMenu();
+        }
+      });
+
+      // Close menu on escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeMobileMenu();
+        }
+      });
+
+      // Close menu on resize to desktop
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 900) {
+          closeMobileMenu();
+        }
+      });
+
+      // Theme toggle
+      themeToggle?.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        setTheme(current === 'dark' ? 'light' : 'dark');
+      });
+
+      // System theme changes
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (!localStorage.getItem('theme')) {
+          setTheme(e.matches ? 'dark' : 'light');
+        }
+      });
+
+      // Language toggle
+      langToggle?.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target.classList.contains('lang-btn')) {
+          const newLang = target.dataset.lang;
+          if (newLang) {
+            localStorage.setItem('lang', newLang);
+            window.location.href = newLang === 'en' ? basePath : `${basePath}${newLang}/`;
+          }
+        }
+      });
+    }
+  }
+
+  // Initialize on load and after View Transitions
+  initHeader();
+  document.addEventListener('astro:page-load', initHeader);
 </script>

@@ -6,32 +6,120 @@ interface Props {
 }
 
 const { lang } = Astro.props;
+const base = import.meta.env.BASE_URL;
 ---
 
-<section id="top" class="wrap hero">
-  <span class="kick hero-animate">{t(lang, 'hero.tagline')}</span>
-  <h1 class="disp hero-h hero-animate">
-    <span class="title-line">{t(lang, 'hero.title1')}</span>
-    <span class="title-line">{t(lang, 'hero.title2')}</span>
-  </h1>
-  <p class="prose hero-animate hero-desc">{t(lang, 'hero.desc')}</p>
-  <div class="hero-animate hero-ctas">
-    <a href="#reel" class="btn btn-primary">{t(lang, 'hero.cta')}</a>
-    <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener" class="btn btn-ghost">Instagram</a>
+<section id="top" class="hero-fullscreen">
+  <!-- Background image with parallax -->
+  <div class="hero-bg">
+    <img
+      src={`${base}images/hero.jpg`}
+      alt=""
+      class="hero-img"
+      loading="eager"
+      decoding="async"
+    />
+    <div class="hero-overlay"></div>
+  </div>
+
+  <!-- Content -->
+  <div class="hero-content wrap">
+    <span class="kick hero-tagline">{t(lang, 'hero.tagline')}</span>
+    <h1 class="disp hero-h">
+      <span class="title-line">{t(lang, 'hero.title1')}</span>
+      <span class="title-line">{t(lang, 'hero.title2')}</span>
+    </h1>
+    <p class="prose hero-desc">{t(lang, 'hero.desc')}</p>
+    <div class="hero-ctas">
+      <a href="#reel" class="btn btn-primary">{t(lang, 'hero.cta')}</a>
+      <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener" class="btn btn-ghost">Instagram</a>
+    </div>
+  </div>
+
+  <!-- Scroll indicator -->
+  <div class="scroll-indicator">
+    <div class="scroll-line"></div>
   </div>
 </section>
 
 <style>
-  .hero {
-    padding-top: clamp(64px, 10vw, 120px);
-    padding-bottom: clamp(48px, 7vw, 88px);
+  .hero-fullscreen {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Background image container */
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 30%;
+    transform: scale(1.02);
+    transition: transform 6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Subtle zoom on load */
+  .hero-fullscreen.is-loaded .hero-img {
+    transform: scale(1);
+  }
+
+  /* Mobile: center on subject */
+  @media (max-width: 768px) {
+    .hero-img {
+      object-position: center 25%;
+    }
+  }
+
+  /* Dark overlay for text readability */
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.3) 0%,
+      rgba(0, 0, 0, 0.5) 50%,
+      rgba(0, 0, 0, 0.7) 100%
+    );
+  }
+
+  /* Content styling */
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    padding-top: 120px;
+    padding-bottom: 120px;
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  .hero-tagline {
+    color: rgba(255, 255, 255, 0.7);
+    opacity: 0;
+    transform: translateY(20px);
+    animation: heroFadeUp 0.8s ease forwards;
+    animation-delay: 0.3s;
   }
 
   .hero-h {
-    font-size: clamp(56px, 9vw, 116px);
-    line-height: 1.0;
-    margin: clamp(20px, 3vw, 30px) 0 0;
-    margin-left: -.04em;
+    font-size: clamp(48px, 10vw, 120px);
+    line-height: 0.95;
+    margin: clamp(16px, 2vw, 24px) 0 0;
+    margin-left: -0.04em;
+    color: #fff;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: heroFadeUp 1s ease forwards;
+    animation-delay: 0.5s;
   }
 
   .title-line {
@@ -39,50 +127,122 @@ const { lang } = Astro.props;
   }
 
   .hero-desc {
-    font-size: clamp(17px, 1.6vw, 19px);
-    max-width: 56ch;
-    margin: 32px 0 0;
+    font-size: clamp(16px, 1.5vw, 19px);
+    max-width: 48ch;
+    margin: clamp(24px, 3vw, 36px) 0 0;
+    color: rgba(255, 255, 255, 0.8);
+    opacity: 0;
+    transform: translateY(20px);
+    animation: heroFadeUp 0.8s ease forwards;
+    animation-delay: 0.8s;
   }
 
   .hero-ctas {
     display: flex;
     gap: 14px;
-    margin-top: 36px;
+    margin-top: clamp(28px, 4vw, 40px);
     flex-wrap: wrap;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: heroFadeUp 0.8s ease forwards;
+    animation-delay: 1s;
+  }
+
+  /* Light button styling for dark background */
+  .hero-ctas .btn {
+    border-color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .hero-ctas .btn:hover {
+    border-color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+
+  .hero-ctas .btn-ghost {
+    border-color: transparent;
+  }
+
+  .hero-ctas .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Scroll indicator */
+  .scroll-indicator {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    animation: heroFadeUp 0.8s ease forwards;
+    animation-delay: 1.4s;
+  }
+
+  .scroll-line {
+    width: 1px;
+    height: 48px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.6), transparent);
+    animation: scrollPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes heroFadeUp {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scrollPulse {
+    0%, 100% {
+      opacity: 0.5;
+      transform: scaleY(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scaleY(1.2);
+    }
   }
 
   /* Mobile adjustments */
-  @media (max-width: 600px) {
-    .hero {
-      padding-top: 48px;
-      padding-bottom: 40px;
+  @media (max-width: 768px) {
+    .hero-content {
+      padding-top: 100px;
+      padding-bottom: 100px;
     }
 
     .hero-h {
-      font-size: clamp(40px, 14vw, 56px);
-      margin-top: 16px;
+      font-size: clamp(36px, 12vw, 64px);
     }
 
     .hero-desc {
       font-size: 15px;
-      margin-top: 20px;
-      line-height: 1.6;
+      max-width: 100%;
     }
 
     .hero-ctas {
-      margin-top: 28px;
       gap: 12px;
     }
 
     .hero-ctas .btn {
       flex: 1;
-      min-width: 140px;
+      min-width: 130px;
+      text-align: center;
+      justify-content: center;
+    }
+
+    .scroll-indicator {
+      bottom: 24px;
+    }
+
+    .scroll-line {
+      height: 30px;
     }
   }
 
-  @media (max-width: 380px) {
+  @media (max-width: 480px) {
     .hero-h {
-      font-size: clamp(36px, 16vw, 44px);
+      font-size: clamp(32px, 14vw, 48px);
     }
 
     .hero-ctas {
@@ -93,4 +253,79 @@ const { lang } = Astro.props;
       width: 100%;
     }
   }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .hero-tagline,
+    .hero-h,
+    .hero-desc,
+    .hero-ctas,
+    .scroll-indicator {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+
+    .hero-img {
+      transform: none;
+      transition: none;
+    }
+
+    .scroll-line {
+      animation: none;
+    }
+  }
 </style>
+
+<script>
+  let heroInitialized = false;
+
+  function initHero() {
+    const hero = document.querySelector('.hero-fullscreen');
+    if (!hero) return;
+
+    const heroImg = hero.querySelector('.hero-img') as HTMLImageElement;
+
+    // Add loaded class after image loads for zoom effect
+    if (heroImg) {
+      if (heroImg.complete) {
+        hero.classList.add('is-loaded');
+      } else {
+        heroImg.addEventListener('load', () => {
+          hero.classList.add('is-loaded');
+        }, { once: true });
+      }
+    }
+
+    // Only add scroll listener once
+    if (!heroInitialized) {
+      heroInitialized = true;
+
+      let ticking = false;
+      window.addEventListener('scroll', () => {
+        if (!ticking) {
+          requestAnimationFrame(() => {
+            const currentHero = document.querySelector('.hero-fullscreen');
+            const currentImg = currentHero?.querySelector('.hero-img') as HTMLElement;
+
+            if (currentHero && currentImg) {
+              const scrolled = window.scrollY;
+              const heroHeight = currentHero.clientHeight;
+
+              if (scrolled < heroHeight) {
+                const parallax = scrolled * 0.3;
+                currentImg.style.transform = `translateY(${parallax}px)`;
+              }
+            }
+            ticking = false;
+          });
+          ticking = true;
+        }
+      });
+    }
+  }
+
+  // Initialize on load and after View Transitions
+  initHero();
+  document.addEventListener('astro:page-load', initHero);
+</script>
