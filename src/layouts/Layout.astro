@@ -137,29 +137,32 @@ const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.
   <slot />
 
   <script>
-    // Page loader - only on initial load, skip on view transitions
-    const isInitialLoad = !document.documentElement.hasAttribute('data-astro-transition');
-
-    if (isInitialLoad) {
-      window.addEventListener('load', () => {
-        const loader = document.getElementById('page-loader');
-        setTimeout(() => {
-          loader?.classList.add('is-hidden');
-        }, 400);
-      });
-
-      // Fallback: hide loader after 3 seconds max
-      setTimeout(() => {
-        const loader = document.getElementById('page-loader');
-        if (loader && !loader.classList.contains('is-hidden')) {
-          loader.classList.add('is-hidden');
-        }
-      }, 3000);
-    } else {
-      // Instantly hide loader on view transitions
+    // Hide page loader
+    function hideLoader() {
       const loader = document.getElementById('page-loader');
       loader?.classList.add('is-hidden');
     }
+
+    // Check if this is a View Transition navigation
+    const isViewTransition = document.documentElement.hasAttribute('data-astro-transition') ||
+                             sessionStorage.getItem('astro-visited') === 'true';
+
+    if (!isViewTransition) {
+      // First visit: show loader briefly, then hide
+      sessionStorage.setItem('astro-visited', 'true');
+      window.addEventListener('load', () => {
+        setTimeout(hideLoader, 400);
+      });
+      // Fallback: hide loader after 3 seconds max
+      setTimeout(hideLoader, 3000);
+    } else {
+      // View Transition: hide immediately
+      hideLoader();
+    }
+
+    // Always hide loader after View Transitions complete
+    document.addEventListener('astro:page-load', hideLoader);
+    document.addEventListener('astro:after-swap', hideLoader);
 
     // Initialize scroll animations - runs on every page load
     function initScrollAnimations() {
