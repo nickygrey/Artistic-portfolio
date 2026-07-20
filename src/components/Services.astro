@@ -39,6 +39,24 @@ const services = [
         </div>
       ))}
     </div>
+
+    <div class="book-cta reveal delay-4">
+      <a
+        href="https://calendly.com/ussseryizis/book-a-consultation"
+        target="_blank"
+        rel="noopener"
+        class="btn btn-primary book-btn"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        {t(lang, 'services.book')}
+      </a>
+      <span class="book-hint">{t(lang, 'services.book.desc')}</span>
+    </div>
   </div>
 </section>
 
@@ -87,6 +105,31 @@ const services = [
     margin: 14px 0 0;
   }
 
+  .book-cta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: clamp(40px, 5vw, 56px);
+    padding-top: clamp(32px, 4vw, 48px);
+    border-top: 1px solid var(--color-divider);
+  }
+
+  .book-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .book-btn svg {
+    flex-shrink: 0;
+  }
+
+  .book-hint {
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  }
+
   /* Mobile styles */
   @media (max-width: 900px) {
     .services-inner {
@@ -121,6 +164,24 @@ const services = [
     .service-desc {
       font-size: 14px;
       text-align: left;
+    }
+
+    .book-cta {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      margin-top: 32px;
+      padding-top: 28px;
+    }
+
+    .book-btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .book-hint {
+      text-align: center;
+      width: 100%;
     }
   }
 </style>

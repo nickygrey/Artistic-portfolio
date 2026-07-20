@@ -41,6 +41,8 @@ export const translations = {
     'services.photography.desc': 'Film and digital, from portraiture to reportage. The discipline where the eye was first trained, still practised.',
     'services.editing': 'Editing & Colour',
     'services.editing.desc': 'Rhythm, sound and grade finished in-house, so the cut is part of the shoot rather than an afterthought.',
+    'services.book': 'Book a consultation',
+    'services.book.desc': 'Let\'s discuss your project',
 
     // Contact
     'contact.label': 'Contact',
@@ -123,6 +125,8 @@ export const translations = {
     'services.photography.desc': "Argentique et numérique, du portrait au reportage. La discipline où l'œil a été formé, toujours pratiquée.",
     'services.editing': 'Montage & Couleur',
     'services.editing.desc': "Rythme, son et étalonnage finalisés en interne, pour que le montage fasse partie du tournage plutôt qu'une réflexion après coup.",
+    'services.book': 'Réserver une consultation',
+    'services.book.desc': 'Discutons de votre projet',
 
     // Contact
     'contact.label': 'Contact',
@@ -205,6 +209,8 @@ export const translations = {
     'services.photography.desc': 'Film und Digital, vom Porträt bis zur Reportage. Die Disziplin, in der das Auge zuerst geschult wurde, wird weiterhin praktiziert.',
     'services.editing': 'Schnitt & Farbe',
     'services.editing.desc': 'Rhythmus, Ton und Farbkorrektur werden im Haus fertiggestellt, sodass der Schnitt Teil des Drehs ist und nicht nachträglich.',
+    'services.book': 'Beratung buchen',
+    'services.book.desc': 'Lassen Sie uns über Ihr Projekt sprechen',
 
     // Contact
     'contact.label': 'Kontakt',
