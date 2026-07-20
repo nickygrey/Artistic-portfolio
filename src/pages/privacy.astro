@@ -11,23 +11,27 @@ const lang: Lang = 'en';
   <div>
     <Header lang={lang} />
 
-    <main class="wrap privacy-page">
+    <main id="main-content" class="wrap privacy-page" transition:name="main-content" transition:animate="slide">
       <article class="privacy-content reveal">
         <h1 class="disp privacy-title">{t(lang, 'privacy.title')}</h1>
 
         <p class="prose">{t(lang, 'privacy.intro')}</p>
+        <p class="prose legal-note">{t(lang, 'privacy.legal')}</p>
 
         <section>
           <h2>{t(lang, 'privacy.data.title')}</h2>
+          <p class="prose legal-basis">{t(lang, 'privacy.data.legal')}</p>
           <p class="prose">{t(lang, 'privacy.data.intro')}</p>
           <ul>
             <li>{t(lang, 'privacy.data.list')}</li>
           </ul>
           <p class="prose">{t(lang, 'privacy.data.purpose')}</p>
+          <p class="prose">{t(lang, 'privacy.data.retention')}</p>
         </section>
 
         <section>
           <h2>{t(lang, 'privacy.thirdparty.title')}</h2>
+          <p class="prose legal-basis">{t(lang, 'privacy.thirdparty.legal')}</p>
           <ul>
             <li><strong>Formspree:</strong> {t(lang, 'privacy.thirdparty.formspree')}</li>
             <li><strong>Google Fonts:</strong> {t(lang, 'privacy.thirdparty.fonts')}</li>
@@ -37,18 +41,24 @@ const lang: Lang = 'en';
 
         <section>
           <h2>{t(lang, 'privacy.storage.title')}</h2>
+          <p class="prose legal-basis">{t(lang, 'privacy.storage.legal')}</p>
           <p class="prose">{t(lang, 'privacy.storage.desc')}</p>
         </section>
 
         <section>
           <h2>{t(lang, 'privacy.rights.title')}</h2>
+          <p class="prose">{t(lang, 'privacy.rights.intro')}</p>
+          <ul>
+            <li>{t(lang, 'privacy.rights.list')}</li>
+          </ul>
           <p class="prose">{t(lang, 'privacy.rights.desc')}</p>
           <p class="prose"><a href="mailto:pv@nickygrey.com">pv@nickygrey.com</a></p>
+          <p class="prose">{t(lang, 'privacy.rights.complaint')}</p>
         </section>
 
         <p class="updated">{t(lang, 'privacy.updated')}</p>
 
-        <a href="/" class="back-link">← Back to home</a>
+        <a href="/" class="back-link">{t(lang, 'privacy.back')}</a>
       </article>
     </main>
 
@@ -70,6 +80,21 @@ const lang: Lang = 'en';
     font-size: clamp(36px, 5vw, 52px);
     line-height: 1.1;
     margin-bottom: 32px;
+  }
+
+  .legal-note {
+    font-size: 14px;
+    color: color-mix(in srgb, var(--color-text) 70%, transparent);
+    border-left: 2px solid var(--color-accent-700);
+    padding-left: 16px;
+    margin-top: 24px;
+  }
+
+  .legal-basis {
+    font-size: 13px;
+    color: color-mix(in srgb, var(--color-text) 60%, transparent);
+    font-style: italic;
+    margin-bottom: 12px;
   }
 
   .privacy-content section {
