@@ -11,14 +11,25 @@ const base = import.meta.env.BASE_URL;
 
 <section class="wrap section-reveal partners-section">
   <span class="kick reveal">{t(lang, 'partner')}</span>
-  <div class="reveal delay-1 partner-logo-wrapper">
-    <img
-      src={`${base}images/partners/Main logo Horizontal.png`}
-      alt="General Partner"
-      loading="lazy"
-      decoding="async"
-      class="partner-logo"
-    />
+  <div class="reveal delay-1 partner-logos">
+    <a href="https://lumera.lu" target="_blank" rel="noopener" class="partner-link">
+      <img
+        src={`${base}images/partners/Main logo Horizontal.png`}
+        alt="Lumera"
+        loading="lazy"
+        decoding="async"
+        class="partner-logo"
+      />
+    </a>
+    <a href="#" class="partner-link">
+      <img
+        src={`${base}images/partners/Momentum logo.png`}
+        alt="Momentum"
+        loading="lazy"
+        decoding="async"
+        class="partner-logo"
+      />
+    </a>
   </div>
 </section>
 
@@ -29,32 +40,51 @@ const base = import.meta.env.BASE_URL;
     text-align: center;
   }
 
-  .partner-logo-wrapper {
+  .partner-logos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(32px, 5vw, 64px);
     margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  .partner-link {
+    display: block;
+    transition: transform 0.3s ease;
+  }
+
+  .partner-link:hover {
+    transform: scale(1.02);
   }
 
   .partner-logo {
-    max-width: 280px;
+    max-width: 200px;
+    max-height: 60px;
+    width: auto;
     height: auto;
-    margin: 0 auto;
-    opacity: 0.85;
+    object-fit: contain;
+    opacity: 0.8;
     transition: opacity 0.3s ease;
-    cursor: pointer;
   }
 
-  .partner-logo:hover {
+  .partner-link:hover .partner-logo {
     opacity: 1;
   }
 
-  /* Mobile styles */
   @media (max-width: 600px) {
     .partners-section {
       padding-top: 40px;
       padding-bottom: 40px;
     }
 
+    .partner-logos {
+      gap: 24px;
+    }
+
     .partner-logo {
-      max-width: 200px;
+      max-width: 140px;
+      max-height: 48px;
     }
   }
 </style>

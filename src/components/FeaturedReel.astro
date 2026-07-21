@@ -20,20 +20,22 @@ const base = import.meta.env.BASE_URL;
       {t(lang, 'reel.youtube')}
     </a>
   </div>
-  <a href={youtubeUrl} target="_blank" rel="noopener" class="card-link featured reveal-scale delay-2">
-    <figure class="plate">
-      <div class="reel-thumbnail">
-        <img
-          src={`${base}images/Screenshot 2026-07-19 at 12.25.53.png`}
-          alt="Showreel - UGEGRAAF Documentary"
-          loading="lazy"
-          decoding="async"
-        />
-        <div class="reel-overlay">
-          <span class="play"></span>
-        </div>
+  <a href={youtubeUrl} target="_blank" rel="noopener" class="reel-link reveal-scale delay-2">
+    <div class="reel-thumbnail">
+      <img
+        src={`${base}images/Screenshot 2026-07-19 at 12.25.53.png`}
+        alt="Showreel - UGEGRAAF Documentary"
+        loading="lazy"
+        decoding="async"
+      />
+      <div class="reel-overlay">
+        <span class="play-btn">
+          <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </span>
       </div>
-    </figure>
+    </div>
   </a>
 </section>
 
@@ -62,28 +64,67 @@ const base = import.meta.env.BASE_URL;
     font-size: 14px;
   }
 
+  .reel-link {
+    display: block;
+    text-decoration: none;
+  }
+
   .reel-thumbnail {
-    aspect-ratio: 21/9;
-    overflow: hidden;
     position: relative;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #0a0806;
   }
 
   .reel-thumbnail img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transform: scale(1.02);
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .reel-link:hover .reel-thumbnail img {
+    transform: scale(1.03);
   }
 
   .reel-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(20,18,16,.05), rgba(20,18,16,.35));
-    display: grid;
-    place-items: center;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
   }
 
-  /* Mobile styles */
+  .reel-link:hover .reel-overlay {
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .play-btn {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.95);
+    color: #1a1816;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  .reel-link:hover .play-btn {
+    transform: scale(1.08);
+  }
+
+  .play-icon {
+    width: 28px;
+    height: 28px;
+    margin-left: 3px;
+  }
+
   @media (max-width: 900px) {
     .reel-section {
       padding-top: 48px;
@@ -107,8 +148,14 @@ const base = import.meta.env.BASE_URL;
       font-size: clamp(26px, 7vw, 34px);
     }
 
-    .reel-thumbnail {
-      aspect-ratio: 16/9;
+    .play-btn {
+      width: 56px;
+      height: 56px;
+    }
+
+    .play-icon {
+      width: 22px;
+      height: 22px;
     }
   }
 </style>
