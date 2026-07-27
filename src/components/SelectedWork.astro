@@ -50,13 +50,15 @@ const projects = [
         class="card-link"
       >
         <figure class="plate">
-          <div class="project-thumbnail" data-animation="scale" data-from="1.15" data-to="1" data-scrub>
-            <img
-              src={project.image}
-              alt={project.title}
-              loading="lazy"
-              decoding="async"
-            />
+          <div class="project-thumbnail">
+            <div class="project-scale" data-animation="scale" data-from="1.15" data-to="1" data-scrub>
+              <img
+                src={project.image}
+                alt={project.title}
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
           </div>
         </figure>
         <div class="project-info">
@@ -107,7 +109,12 @@ const projects = [
     overflow: hidden;
   }
 
-  .project-thumbnail img {
+  .project-scale {
+    width: 100%;
+    height: 100%;
+  }
+
+  .project-scale img {
     width: 100%;
     height: 100%;
     object-fit: cover;
