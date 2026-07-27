@@ -124,6 +124,10 @@ function applyPrimitive(el: HTMLElement, name: string): void {
   gsap.fromTo(targets, spec.from, {
     ...spec.to,
     scrollTrigger: { trigger: el, ...st },
+    // Clear transform inline style after animation completes, so CSS hover
+    // effects can work again. Only for non-scrub tweens; scrub-linked tweens
+    // are continuously driven by scroll and must keep the inline transform.
+    ...(st.scrub === undefined && { clearProps: 'transform' }),
   });
 }
 

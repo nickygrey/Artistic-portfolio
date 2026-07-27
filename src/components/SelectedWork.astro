@@ -30,7 +30,7 @@ const projects = [
 
 <section id="work" class="wrap work-section">
   <div class="work-header">
-    <span class="kick" data-animation="split" data-stagger>Selected work</span>
+    <span class="kick" data-animation="split">Selected work</span>
     <a
       href="https://drive.google.com/drive/folders/1-yi1D4Q1SOvcCpneOJlK946MZpk0sRJo?usp=sharing"
       target="_blank"
@@ -50,16 +50,12 @@ const projects = [
         class="card-link"
       >
         <figure class="plate">
-          <div class="project-thumbnail">
+          <div class="project-thumbnail" data-animation="scale" data-from="1.15" data-to="1" data-scrub>
             <img
               src={project.image}
               alt={project.title}
               loading="lazy"
               decoding="async"
-              data-animation="scale"
-              data-from="1.15"
-              data-to="1"
-              data-scrub
             />
           </div>
         </figure>
