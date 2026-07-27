@@ -3,8 +3,8 @@ const disciplines = ['Cinematography', 'Photography', 'Editing', 'Colour'];
 ---
 
 <div class="wrap"><div class="divider"></div></div>
-<div class="wrap section-reveal disciplines-section">
-  <p class="disciplines-line reveal">
+<div class="wrap disciplines-section">
+  <p class="disciplines-line" data-animation="split" data-stagger>
     {disciplines.map((discipline, index) => (
       <>
         <span>{discipline}</span>

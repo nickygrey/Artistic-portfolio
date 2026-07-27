@@ -8,10 +8,10 @@ interface Props {
 const { lang } = Astro.props;
 ---
 
-<section id="contact" class="wrap about-split section-reveal contact-section">
-  <div class="reveal contact-info">
+<section id="contact" class="wrap about-split contact-section">
+  <div class="contact-info">
     <span class="kick">{t(lang, 'contact.label')}</span>
-    <h2 class="disp contact-title" set:html={t(lang, 'contact.title')} />
+    <h2 class="disp contact-title" data-animation="split" data-stagger set:html={t(lang, 'contact.title')} />
     <p class="prose contact-desc">{t(lang, 'contact.desc')}</p>
     <div class="contact-links">
       <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener" class="btn btn-ghost">
@@ -31,7 +31,9 @@ const { lang } = Astro.props;
     id="contact-form"
     action="https://formspree.io/f/xwvgojzz"
     method="POST"
-    class="contact-form reveal delay-2"
+    class="contact-form"
+    data-animation="moveUp"
+    data-stagger
   >
     <input type="hidden" name="_subject" value="New project enquiry from portfolio">
 

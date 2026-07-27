@@ -10,24 +10,26 @@ const youtubeUrl = 'https://www.youtube.com/watch?v=0Wb-eaG1Vio&t=71s';
 const base = import.meta.env.BASE_URL;
 ---
 
-<section id="reel" class="wrap section-reveal reel-section">
-  <div class="reveal reel-header">
+<section id="reel" class="wrap reel-section">
+  <div class="reel-header">
     <div>
       <span class="kick">{t(lang, 'reel.label')}</span>
-      <h2 class="disp reel-title">{t(lang, 'reel.title')}</h2>
+      <h2 class="disp reel-title" data-animation="split" data-stagger>{t(lang, 'reel.title')}</h2>
     </div>
     <a href={youtubeUrl} target="_blank" rel="noopener" class="youtube-link">
       {t(lang, 'reel.youtube')}
     </a>
   </div>
-  <a href={youtubeUrl} target="_blank" rel="noopener" class="reel-link reveal-scale delay-2">
-    <div class="reel-thumbnail">
-      <img
-        src={`${base}images/Screenshot 2026-07-19 at 12.25.53.png`}
-        alt="Showreel - UGEGRAAF Documentary"
-        loading="lazy"
-        decoding="async"
-      />
+  <a href={youtubeUrl} target="_blank" rel="noopener" class="reel-link">
+    <div class="reel-frame">
+      <div class="reel-thumbnail" data-animation="parallax" data-speed="0.6">
+        <img
+          src={`${base}images/Screenshot 2026-07-19 at 12.25.53.png`}
+          alt="Showreel - UGEGRAAF Documentary"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
       <div class="reel-overlay">
         <span class="play-btn">
           <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -69,12 +71,24 @@ const base = import.meta.env.BASE_URL;
     text-decoration: none;
   }
 
-  .reel-thumbnail {
+  /* Untransformed clip owner: .reel-thumbnail is scrub-parallaxed (GSAP
+     writes an inline transform continuously), so it cannot own the overflow
+     clip on itself — its own boundary would translate in lockstep and never
+     mask the excursion. .reel-frame sits between it and the visible frame,
+     stays untransformed, and does the clipping. */
+  .reel-frame {
     position: relative;
     aspect-ratio: 16/9;
     overflow: hidden;
     border-radius: 4px;
     background: #0a0806;
+  }
+
+  /* Oversized and inset beyond the frame so the ±48px scroll-driven travel
+     (DISTANCE.lg * speed = 80 * 0.6) never uncovers the frame's background. */
+  .reel-thumbnail {
+    position: absolute;
+    inset: -60px 0;
   }
 
   .reel-thumbnail img {
