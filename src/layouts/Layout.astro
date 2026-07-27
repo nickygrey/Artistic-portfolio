@@ -179,6 +179,13 @@ const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.
     document.addEventListener('astro:after-swap', hideLoader);
     document.addEventListener('astro:page-load', hideLoader);
 
+    // Both calls are intentional, not redundant. The astro:page-load listener
+    // is what actually guarantees correctness: that event is spec-guaranteed
+    // to fire only after every deferred/module script on the page has run, so
+    // it always sees every registerMotion() call — including ones from
+    // components, regardless of where their <script> lands relative to this
+    // one in the emitted HTML. The synchronous call just avoids waiting for
+    // that event on first load. Do not remove either call.
     initMotion();
     document.addEventListener('astro:page-load', initMotion);
     document.addEventListener('astro:before-swap', teardownMotion);

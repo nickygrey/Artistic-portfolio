@@ -263,7 +263,11 @@ const base = import.meta.env.BASE_URL;
     })
       .fromTo(img, { scale: 1.08, yPercent: 0 }, { scale: 1, yPercent: 12, ease: 'none' }, 0);
 
-    const indicator = document.querySelector('.scroll-indicator');
+    // .scroll-indicator is a sibling of el (both live under .hero-fullscreen),
+    // not a descendant of el itself — scope from the shared ancestor rather
+    // than document so this can't silently pick up an unrelated element if
+    // .scroll-indicator is ever reused elsewhere or Hero renders twice.
+    const indicator = el.closest('.hero-fullscreen')?.querySelector('.scroll-indicator');
     if (indicator) {
       gsap.to(indicator, {
         opacity: 0,
