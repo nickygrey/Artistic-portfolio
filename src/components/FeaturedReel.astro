@@ -85,10 +85,28 @@ const base = import.meta.env.BASE_URL;
   }
 
   /* Oversized and inset beyond the frame so the ±48px scroll-driven travel
-     (DISTANCE.lg * speed = 80 * 0.6) never uncovers the frame's background. */
+     (DISTANCE.lg * speed = 80 * 0.6) never uncovers the frame's background.
+     Percentage, not a fixed px, so the overscan scales with the frame: for
+     position:absolute, top/bottom percentages resolve against the
+     containing block's (.reel-frame's) height, not .reel-thumbnail's own.
+     A fixed px overscan is a much bigger fraction of a short mobile frame
+     than a tall desktop one, so it crops the image tighter on small
+     screens purely as a side effect -- this must hold at the smallest
+     supported frame, not just at a desktop preview:
+       320px viewport, .wrap padding 12px (<=380px breakpoint) ->
+       frame width  = 320 - 2*12       = 296px
+       frame height = 296 * 9/16       = 166.5px
+       required overscan (each side)   >= 48px
+       48 / 166.5                      = 28.83%
+     32% clears that with ~11% headroom (0.32 * 166.5 = 53.3px), and clears
+     the 375px case even more easily (0.32 * 197.4 = 63.2px). Because the
+     frame's own aspect-ratio is fixed at 16/9, this percentage yields the
+     *same* box-height : frame-height ratio at every viewport, so the
+     resulting object-fit: cover crop is identical at 375px and 1440px
+     (verified live -- see task-9-report.md). */
   .reel-thumbnail {
     position: absolute;
-    inset: -60px 0;
+    inset: -32% 0;
   }
 
   .reel-thumbnail img {

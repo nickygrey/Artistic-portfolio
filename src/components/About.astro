@@ -23,11 +23,13 @@ const base = import.meta.env.BASE_URL;
       data-scrub
     />
   </figure>
-  <div class="about-content" data-animation="moveUp" data-stagger>
+  <div class="about-content">
     <span class="kick">{t(lang, 'about.label')}</span>
     <h2 class="disp about-title" data-animation="split" data-stagger>{t(lang, 'about.title')}</h2>
-    <p class="prose about-text">{t(lang, 'about.p1')}</p>
-    <p class="prose about-text">{t(lang, 'about.p2')}</p>
+    <div class="about-body" data-animation="moveUp" data-stagger>
+      <p class="prose about-text">{t(lang, 'about.p1')}</p>
+      <p class="prose about-text">{t(lang, 'about.p2')}</p>
+    </div>
   </div>
 </section>
 
