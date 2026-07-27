@@ -63,39 +63,6 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
     transition: background 0.4s ease, border-color 0.4s ease;
   }
 
-  /* Transparent state - light text over hero */
-  .header:not(.is-scrolled) {
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  .header:not(.is-scrolled) .logo {
-    color: rgba(255, 255, 255, 0.95);
-  }
-
-  .header:not(.is-scrolled) .navlink {
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  .header:not(.is-scrolled) .navlink:hover {
-    color: rgba(255, 255, 255, 1);
-  }
-
-  .header:not(.is-scrolled) .instagram {
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  .header:not(.is-scrolled) .theme-toggle {
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  .header:not(.is-scrolled) .lang-btn {
-    color: rgba(255, 255, 255, 0.6);
-  }
-
-  .header:not(.is-scrolled) .lang-btn.is-active {
-    color: rgba(255, 255, 255, 0.95);
-  }
-
   /* Scrolled state - back to normal colors but still transparent */
   .header.is-scrolled {
     /* Keep transparent, just restore normal text colors */
@@ -127,6 +94,47 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
 
   .header.is-scrolled .lang-btn.is-active {
     color: var(--color-text);
+  }
+
+  /*
+   * Over a dark section - light text. Declared *after* the .is-scrolled
+   * block on purpose: both classes carry equal selector specificity, and
+   * the hero (a dark section) spans well past the 80px scroll threshold,
+   * so .is-scrolled and .is-over-dark are both active for most of the
+   * hero's height. Source order is what makes "what's behind the header"
+   * win over "how far the page has scrolled" during that overlap — that
+   * is the actual fix for the contrast bug this task addresses.
+   */
+  .header.is-over-dark {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .header.is-over-dark .logo {
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  .header.is-over-dark .navlink {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .header.is-over-dark .navlink:hover {
+    color: rgba(255, 255, 255, 1);
+  }
+
+  .header.is-over-dark .instagram {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .header.is-over-dark .theme-toggle {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .header.is-over-dark .lang-btn {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .header.is-over-dark .lang-btn.is-active {
+    color: rgba(255, 255, 255, 0.95);
   }
 
   .nav-links {
@@ -209,6 +217,38 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
   // Track if listeners are already set up (prevents duplicates after View Transitions)
   let headerInitialized = false;
 
+  let themeObserver: IntersectionObserver | null = null;
+  let themeResizeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function initHeaderTheme() {
+    const header = document.querySelector('.header');
+    if (!header) return;
+
+    themeObserver?.disconnect();
+
+    const darkSections = document.querySelectorAll('[data-header-theme="dark"]');
+    if (!darkSections.length) {
+      header.classList.remove('is-over-dark');
+      return;
+    }
+
+    const band = header.getBoundingClientRect().height || 64;
+    const active = new Set<Element>();
+
+    themeObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) active.add(entry.target);
+          else active.delete(entry.target);
+        }
+        header.classList.toggle('is-over-dark', active.size > 0);
+      },
+      { rootMargin: `0px 0px -${Math.max(0, window.innerHeight - band)}px 0px`, threshold: 0 }
+    );
+
+    darkSections.forEach((s) => themeObserver!.observe(s));
+  }
+
   function initHeader() {
     const navToggle = document.getElementById('nav-toggle');
     const navLinks = document.getElementById('nav-links');
@@ -251,6 +291,7 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
 
     // Initialize states
     updateHeaderState();
+    initHeaderTheme();
     const currentTheme = getThemePreference();
     if (currentTheme === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
@@ -305,6 +346,15 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
         if (window.innerWidth > 900) {
           closeMobileMenu();
         }
+      });
+
+      // Rebuild the theme observer on resize (its rootMargin depends on
+      // window.innerHeight). Debounced since resize fires rapidly.
+      window.addEventListener('resize', () => {
+        clearTimeout(themeResizeTimer);
+        themeResizeTimer = setTimeout(() => {
+          initHeaderTheme();
+        }, 150);
       });
 
       // Theme toggle
