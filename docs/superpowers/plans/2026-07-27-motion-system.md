@@ -1097,6 +1097,23 @@ applies depends on whether the animation is scrub-linked:
 and `.partner-link:hover` are unaffected — but verify that in the browser rather
 than assuming, since GSAP's `force3D` can touch transform in some cases.
 
+**Second rule, learned the same way: a scrub-scaled node needs an untransformed
+ancestor with `overflow: hidden`.** Transforming an element transforms its own
+clip boundary in lockstep, so an element cannot clip itself. Scaling a node whose
+only `overflow: hidden` lives on that same node clips nothing, and the content
+bleeds past whatever frame surrounds it.
+
+This bites `About.astro` specifically: `.plate` sets a 6px border and an outline
+but **no `overflow`** (`global.css:132-137`), and `About.astro` sets none either.
+So scaling `.about-image img` to 1.08 will spill past the plate's frame with
+nothing to clip it — visible for the whole scrub range, settling only at scale 1.
+
+Before applying the `scale` attribute in `About.astro`, establish a clip owner:
+give the untransformed `.about-image` figure `overflow: hidden`, then scale the
+`img` inside it. Verify by measuring the `img`'s bounding rect against the
+figure's at a **mid-scrub** scale — a check sampling only the settled `scale(1)`
+state passes regardless and proves nothing.
+
 | file | element | attributes |
 | ---- | ------- | ---------- |
 | `DisciplinesStrip.astro` | `.disciplines-line` | `data-animation="split" data-stagger` |
