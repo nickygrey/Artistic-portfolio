@@ -75,6 +75,11 @@ function destroyLenis(): void {
   gsap.ticker.remove(tick);
   lenis.destroy();
   lenis = null;
+  // lagSmoothing(0) in ensureLenis() is a page-wide gsap.ticker setting,
+  // not scoped to Lenis — restore GSAP's own defaults (threshold 500ms,
+  // adjustment 33ms) so disabling lag compensation doesn't outlive Lenis
+  // and degrade unrelated animations for the rest of the session.
+  gsap.ticker.lagSmoothing(500, 33);
 }
 
 function applyPrimitive(el: HTMLElement, name: string): void {
