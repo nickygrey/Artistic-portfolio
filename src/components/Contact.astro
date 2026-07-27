@@ -35,8 +35,6 @@ const { lang } = Astro.props;
     data-animation="moveUp"
     data-stagger
   >
-    <input type="hidden" name="_subject" value="New project enquiry from portfolio">
-
     <div class="field">
       <label for="cf-name">{t(lang, 'contact.name')}</label>
       <input class="input" id="cf-name" name="name" type="text" placeholder="Your name" required>
@@ -76,6 +74,11 @@ const { lang } = Astro.props;
       </button>
       <span id="form-status" class="form-status"></span>
     </div>
+
+    <!-- Last child so it doesn't consume stagger index 0 ahead of the -->
+    <!-- visible fields above (data-stagger targets .contact-form's direct -->
+    <!-- children, and this input is invisible so animating it is wasted). -->
+    <input type="hidden" name="_subject" value="New project enquiry from portfolio">
   </form>
 </section>
 

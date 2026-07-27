@@ -454,13 +454,6 @@ html[data-astro-transition-fallback] .page-loader {
   50% { opacity: 1; transform: scale(1.02); }
 }
 
-/* Stagger delays */
-.delay-1 { animation-delay: 0.1s !important; }
-.delay-2 { animation-delay: 0.2s !important; }
-.delay-3 { animation-delay: 0.3s !important; }
-.delay-4 { animation-delay: 0.4s !important; }
-.delay-5 { animation-delay: 0.5s !important; }
-
 /* Mobile menu */
 .nav-toggle {
   display: none;
@@ -809,16 +802,6 @@ html[data-astro-transition-fallback] .page-loader {
 @media (prefers-reduced-motion: reduce) {
   .page-loader { transition: opacity 0.1s; }
   .loader-logo { animation: none; opacity: 1; }
-  .hero-animate { animation: none; opacity: 1; }
-  .animate-on-scroll, .reveal, .section-reveal {
-    opacity: 1;
-    transform: none;
-    animation: none;
-    transition: none;
-  }
-  .animate-on-scroll.is-visible,
-  .reveal.is-visible,
-  .section-reveal.is-visible { animation: none; }
   .card-link:hover { transform: none; }
   .card-link:hover img { transform: none; }
 }

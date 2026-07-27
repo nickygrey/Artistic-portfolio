@@ -14,6 +14,7 @@ const base = import.meta.env.BASE_URL;
             alt={`Photography by P.V. - ${num}`}
             loading="lazy"
             decoding="async"
+            draggable="false"
           />
         </div>
       ))}
@@ -25,6 +26,7 @@ const base = import.meta.env.BASE_URL;
             alt={`Photography by P.V. - ${num}`}
             loading="lazy"
             decoding="async"
+            draggable="false"
           />
         </div>
       ))}
@@ -61,10 +63,6 @@ const base = import.meta.env.BASE_URL;
 
   .photo-carousel.is-dragging {
     cursor: grabbing;
-  }
-
-  .photo-carousel.is-dragging .carousel-track {
-    animation-play-state: paused;
   }
 
   /* Lightbox navigation */
@@ -133,6 +131,13 @@ const base = import.meta.env.BASE_URL;
   import { registerMotion } from '../motion';
   import { num } from '../motion/tokens';
 
+  // The track element gains this property so the separate drag-handling
+  // script below (a different module scope) can reach the same pause/resume
+  // pair used for hover, instead of holding a second reference to the loop.
+  type MarqueeTrackEl = HTMLElement & {
+    __marquee?: { pause: () => void; resume: () => void };
+  };
+
   registerMotion('marquee', (el, { gsap, ScrollTrigger }) => {
     const duration = num(el.getAttribute('data-speed'), 40);
     const direction = num(el.getAttribute('data-marquee'), 1) === 0 ? 1 : -1;
@@ -152,6 +157,14 @@ const base = import.meta.env.BASE_URL;
     const resume = () => loop.play();
     el.addEventListener('mouseenter', pause);
     el.addEventListener('mouseleave', resume);
+
+    // Expose the same pause/resume pair used for hover so the drag script
+    // below (a separate module scope) can freeze the strip while dragging
+    // instead of standing up a second GSAP reference to the loop. This
+    // replaces the old `.is-dragging .carousel-track { animation-play-state:
+    // paused }` CSS rule, which went dead when the marquee moved from a CSS
+    // animation to this GSAP timeline — the rule had nothing left to pause.
+    (el as MarqueeTrackEl).__marquee = { pause, resume };
 
     // This whole handler runs inside the engine's gsap.matchMedia() scope, so
     // `loop` (created via a plain gsap.to(), not scrollTrigger-bound) is
@@ -179,6 +192,7 @@ const base = import.meta.env.BASE_URL;
         loop.kill();
         el.removeEventListener('mouseenter', pause);
         el.removeEventListener('mouseleave', resume);
+        delete (el as MarqueeTrackEl).__marquee;
       },
     });
   });
@@ -284,9 +298,23 @@ const base = import.meta.env.BASE_URL;
       let scrollLeft = 0;
       let dragDistance = 0;
 
+      // Same track element the 'marquee' registerMotion handler in the
+      // script above attaches __marquee to. Reused here rather than a second
+      // GSAP reference so drag freezes the actual auto-scroll timeline —
+      // otherwise the GSAP xPercent tween keeps advancing underneath the
+      // user's scrollLeft drag and the strip visibly slides under their
+      // finger. Optional-chained because __marquee is only set when the
+      // 'no-preference' matchMedia branch ran (i.e. not under reduced motion).
+      type MarqueeTrackEl = HTMLElement & {
+        __marquee?: { pause: () => void; resume: () => void };
+      };
+      const pauseMarquee = () => (track as MarqueeTrackEl).__marquee?.pause();
+      const resumeMarquee = () => (track as MarqueeTrackEl).__marquee?.resume();
+
       carousel.addEventListener('mousedown', (e) => {
         isDragging = true;
         carousel.classList.add('is-dragging');
+        pauseMarquee();
         startX = e.pageX - carousel.offsetLeft;
         scrollLeft = carousel.scrollLeft;
         dragDistance = 0;
@@ -296,12 +324,14 @@ const base = import.meta.env.BASE_URL;
         if (isDragging) {
           isDragging = false;
           carousel.classList.remove('is-dragging');
+          resumeMarquee();
         }
       });
 
       carousel.addEventListener('mouseup', () => {
         isDragging = false;
         carousel.classList.remove('is-dragging');
+        resumeMarquee();
 
         // Prevent click if we dragged more than 5px
         if (Math.abs(dragDistance) > 5) {
@@ -323,6 +353,7 @@ const base = import.meta.env.BASE_URL;
       carousel.addEventListener('touchstart', (e) => {
         isDragging = true;
         carousel.classList.add('is-dragging');
+        pauseMarquee();
         startX = e.touches[0].pageX - carousel.offsetLeft;
         scrollLeft = carousel.scrollLeft;
         dragDistance = 0;
@@ -331,6 +362,7 @@ const base = import.meta.env.BASE_URL;
       carousel.addEventListener('touchend', () => {
         isDragging = false;
         carousel.classList.remove('is-dragging');
+        resumeMarquee();
         if (Math.abs(dragDistance) > 5) {
           carousel.classList.add('just-dragged');
           setTimeout(() => carousel.classList.remove('just-dragged'), 100);
