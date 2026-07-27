@@ -5,7 +5,7 @@ const base = import.meta.env.BASE_URL;
 
 <section id="photos" class="section-reveal photo-section">
   <div class="photo-carousel" id="photo-carousel">
-    <div class="carousel-track" id="carousel-track">
+    <div class="carousel-track" id="carousel-track" data-animation="marquee" data-speed="40">
       {/* Original set */}
       {photos.map((num, index) => (
         <div class="carousel-slide" data-index={index}>
@@ -128,6 +128,61 @@ const base = import.meta.env.BASE_URL;
     }
   }
 </style>
+
+<script>
+  import { registerMotion } from '../motion';
+  import { num } from '../motion/tokens';
+
+  registerMotion('marquee', (el, { gsap, ScrollTrigger }) => {
+    const duration = num(el.getAttribute('data-speed'), 40);
+    const direction = num(el.getAttribute('data-marquee'), 1) === 0 ? 1 : -1;
+
+    // The track holds two copies of the strip, so -50% is one seamless cycle.
+    const loop = gsap.to(el, {
+      xPercent: 50 * direction,
+      repeat: -1,
+      duration,
+      ease: 'none',
+    });
+
+    // Smooth the timeScale rather than snapping it to raw velocity.
+    const setSpeed = gsap.quickTo(loop, 'timeScale', { duration: 0.4, ease: 'power2.out' });
+
+    const pause = () => loop.pause();
+    const resume = () => loop.play();
+    el.addEventListener('mouseenter', pause);
+    el.addEventListener('mouseleave', resume);
+
+    // This whole handler runs inside the engine's gsap.matchMedia() scope, so
+    // `loop` (created via a plain gsap.to(), not scrollTrigger-bound) is
+    // already reverted by that matchMedia's own context when teardownMotion()
+    // calls mm.revert() — verified by comparing gsap.globalTimeline's tween
+    // count across repeated View Transitions, with and without the onKill
+    // hook below: it stays flat either way, so the tween itself was never
+    // actually the leak.
+    // The mouseenter/mouseleave listeners are a different story: matchMedia's
+    // context only tracks GSAP objects, not raw addEventListener calls. Layout
+    // calls initMotion() twice on the very first load (see AGENTS.md) — a
+    // sync call, then again on astro:page-load — and the first pass's
+    // ScrollTrigger gets killed by the second pass's teardown before the
+    // second pass adds its own listeners. Without onKill undoing the first
+    // pass's addEventListener calls too, CDP's getEventListeners() shows the
+    // track ending up with 2 mouseenter/2 mouseleave listeners instead of 1
+    // right after the initial load. onKill fixes that, and also makes the
+    // loop's cleanup explicit instead of relying on matchMedia internals.
+    ScrollTrigger.create({
+      onUpdate: (self) => {
+        const boost = 1 + Math.min(Math.abs(self.getVelocity()) / 1200, 2);
+        setSpeed(boost);
+      },
+      onKill: () => {
+        loop.kill();
+        el.removeEventListener('mouseenter', pause);
+        el.removeEventListener('mouseleave', resume);
+      },
+    });
+  });
+</script>
 
 <script>
   // Global state for lightbox navigation

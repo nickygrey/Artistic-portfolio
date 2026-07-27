@@ -337,13 +337,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 .carousel-track {
   display: flex;
   gap: 8px;
-  animation: seamlessScroll 40s linear infinite;
   width: max-content;
-}
-.carousel-track:hover { animation-play-state: paused; }
-@keyframes seamlessScroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
 }
 .carousel-slide {
   flex: 0 0 auto;
@@ -827,7 +821,6 @@ html[data-astro-transition-fallback] .page-loader {
   .section-reveal.is-visible { animation: none; }
   .card-link:hover { transform: none; }
   .card-link:hover img { transform: none; }
-  .carousel-track { animation: none; }
 }
 
 /* Print */
