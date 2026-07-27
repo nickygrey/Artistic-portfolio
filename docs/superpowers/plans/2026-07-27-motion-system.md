@@ -21,6 +21,11 @@
 - The site builds to **6 pages**: `/`, `/privacy`, and `fr`/`de` variants of each.
 - `npm run build` must pass at the end of every task.
 - Never introduce a second RAF loop. Lenis is driven by `gsap.ticker` only.
+- **Line numbers in this plan are indicative, not authoritative.** They were
+  accurate at `c456a33`, but earlier tasks delete lines and shift everything
+  below them. Always locate the target by its content — `grep -n` for the
+  selector or identifier named in the step — and edit what you find there. If
+  a cited line does not contain what the step describes, the content wins.
 
 ---
 
