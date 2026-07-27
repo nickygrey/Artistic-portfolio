@@ -53,9 +53,11 @@ Animate by attribute, not by writing a timeline:
 ```
 
 Primitives: `moveUp`, `split`, `parallax`, `fade`, `scale`, `marquee`.
-Modifiers: `data-delay`, `data-stagger`, `data-start`, `data-end`, `data-scrub`, `data-speed`, `data-from`, `data-to`.
+Modifiers: `data-delay`, `data-stagger`, `data-start`, `data-end`, `data-scrub`, `data-speed`, `data-from`, `data-to`, `data-min-width`.
 
 `data-stagger` is presence-as-true — bare uses the base token, an explicit number overrides, absent means no stagger. When present, the engine targets the element's *children*.
+
+`data-min-width` skips the primitive entirely below the given viewport width, leaving the element's DOM untouched. Use it when a small-viewport CSS layout depends on the element's original children — `split` in particular replaces its target's children with SplitText's wrapper, which breaks any layout counting on them (see `DisciplinesStrip.astro`). Checked once per scan (page load / navigation), not on live resize.
 
 For anything the primitives cannot express, register a custom handler rather than bypassing the system:
 

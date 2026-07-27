@@ -4,7 +4,17 @@ const disciplines = ['Cinematography', 'Photography', 'Editing', 'Colour'];
 
 <div class="wrap"><div class="divider"></div></div>
 <div class="wrap disciplines-section">
-  <p class="disciplines-line" data-animation="split" data-stagger>
+  <!--
+    data-min-width="381": below this, the `@media (max-width: 380px)` rule
+    in this file's <style> block stacks the four disciplines as separate
+    rows, which depends on the element's original <span> children being
+    present and countable. SplitText's `split` primitive replaces those
+    children with a single wrapper div, collapsing the stack into one
+    unpunctuated run-on line. Skipping `split` below 381px leaves the
+    original spans (and this layout) intact; at 381px and above the
+    single-line layout applies and the split reveal runs normally.
+  -->
+  <p class="disciplines-line" data-animation="split" data-stagger data-min-width="381">
     {disciplines.map((discipline, index) => (
       <>
         <span>{discipline}</span>

@@ -1,4 +1,4 @@
-import { DISTANCE, DURATION, EASE, SCROLL, STAGGER, flag, num } from './tokens';
+import { DISTANCE, DURATION, EASE, SCALE_FROM, SCROLL, STAGGER, flag, num } from './tokens';
 
 export type MotionName = 'moveUp' | 'split' | 'parallax' | 'fade' | 'scale' | 'marquee';
 
@@ -57,7 +57,7 @@ export function buildFade(el: Element): TweenSpec {
 
 export function buildScale(el: Element): TweenSpec {
   return {
-    from: { scale: num(el.getAttribute('data-from'), 1.08) },
+    from: { scale: num(el.getAttribute('data-from'), SCALE_FROM) },
     to: {
       scale: num(el.getAttribute('data-to'), 1),
       duration: DURATION.slow,

@@ -129,7 +129,7 @@ const base = import.meta.env.BASE_URL;
 
 <script>
   import { registerMotion } from '../motion';
-  import { num } from '../motion/tokens';
+  import { DURATION, EASE, MARQUEE_DURATION, num } from '../motion/tokens';
 
   // The track element gains this property so the separate drag-handling
   // script below (a different module scope) can reach the same pause/resume
@@ -139,7 +139,7 @@ const base = import.meta.env.BASE_URL;
   };
 
   registerMotion('marquee', (el, { gsap, ScrollTrigger }) => {
-    const duration = num(el.getAttribute('data-speed'), 40);
+    const duration = num(el.getAttribute('data-speed'), MARQUEE_DURATION);
     const direction = num(el.getAttribute('data-marquee'), 1) === 0 ? 1 : -1;
 
     // The track holds two copies of the strip, so -50% is one seamless cycle.
@@ -147,11 +147,11 @@ const base = import.meta.env.BASE_URL;
       xPercent: 50 * direction,
       repeat: -1,
       duration,
-      ease: 'none',
+      ease: EASE.none,
     });
 
     // Smooth the timeScale rather than snapping it to raw velocity.
-    const setSpeed = gsap.quickTo(loop, 'timeScale', { duration: 0.4, ease: 'power2.out' });
+    const setSpeed = gsap.quickTo(loop, 'timeScale', { duration: DURATION.quickTo, ease: EASE.smooth });
 
     const pause = () => loop.pause();
     const resume = () => loop.play();

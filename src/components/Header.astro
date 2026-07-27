@@ -210,6 +210,50 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
       padding: 10px;
       margin-right: 8px;
     }
+
+    /*
+     * C1 fix: the open mobile dropdown (.nav-links.is-open, styled in
+     * global.css) is an opaque panel with background: var(--color-bg). The
+     * .header.is-over-dark inversion above is tuned for text sitting
+     * directly on the dark hero photo — applied to this panel instead it
+     * paints near-white text on a near-white (light theme) panel.
+     * is-over-dark is true at scroll 0 on every page (the hero is the dark
+     * section), so this is the default state a phone user sees on first
+     * tapping the hamburger.
+     *
+     * Fix: revert every inverted token back to its plain, un-inverted
+     * value whenever the dropdown is open, regardless of what's behind the
+     * header band. Each selector below adds `.nav-links.is-open` on top of
+     * `.header.is-over-dark .X`, so it is strictly more specific than the
+     * rule it overrides — this doesn't depend on source order the way
+     * .is-over-dark vs .is-scrolled does (see the comment above
+     * .header.is-over-dark). Dark theme was already fine (near-white text
+     * over a near-black panel); reverting to var(--color-text) here keeps
+     * it fine since --color-text is near-white in dark theme too.
+     */
+    .header.is-over-dark .nav-links.is-open .navlink {
+      color: var(--color-text);
+    }
+
+    .header.is-over-dark .nav-links.is-open .navlink:hover {
+      color: var(--color-accent-700);
+    }
+
+    .header.is-over-dark .nav-links.is-open .instagram {
+      color: var(--color-accent-700);
+    }
+
+    .header.is-over-dark .nav-links.is-open .theme-toggle {
+      color: var(--color-text);
+    }
+
+    .header.is-over-dark .nav-links.is-open .lang-btn {
+      color: color-mix(in srgb, var(--color-text) 50%, transparent);
+    }
+
+    .header.is-over-dark .nav-links.is-open .lang-btn.is-active {
+      color: var(--color-accent-700);
+    }
   }
 </style>
 
