@@ -35,7 +35,6 @@
 - Modify: `package.json`
 - Create: `vitest.config.ts`
 - Create: `playwright.config.ts`
-- Create: `tests/unit/smoke.test.ts`
 
 **Interfaces:**
 - Consumes: nothing
@@ -94,33 +93,31 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 5: Write the smoke test**
+- [ ] **Step 5: Verify the toolchain resolves**
 
-```ts
-// tests/unit/smoke.test.ts
-import { describe, it, expect } from 'vitest';
+Do **not** write a placeholder smoke test — an assertion like
+`expect(true).toBe(true)` verifies nothing and is a review defect. The Vitest
+runner is proven by Task 2's tokens test, which is the first real test.
 
-describe('test infrastructure', () => {
-  it('runs', () => {
-    expect(true).toBe(true);
-  });
-});
+Confirm the binaries resolve and the config parses:
+
+```bash
+npx vitest --version
+npx playwright --version
 ```
 
-- [ ] **Step 6: Run it**
+Expected: both print a version. `npm test` will report "no test files found"
+at this stage, which is correct — Task 2 supplies the first suite.
 
-Run: `npm test`
-Expected: PASS, 1 test.
-
-- [ ] **Step 7: Verify the build still passes**
+- [ ] **Step 6: Verify the build still passes**
 
 Run: `npm run build`
 Expected: `6 page(s) built`.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add package.json package-lock.json vitest.config.ts playwright.config.ts tests/
+git add package.json package-lock.json vitest.config.ts playwright.config.ts
 git commit -m "chore: add gsap, lenis, and test infrastructure"
 ```
 
