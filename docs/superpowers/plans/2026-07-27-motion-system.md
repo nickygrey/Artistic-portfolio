@@ -1078,14 +1078,33 @@ Attribute application only, per the spec's section table. No new code.
 
 All selectors below are verified to exist in these files.
 
+**Read this before placing any attribute — it is the rule Task 8 was fixed for.**
+GSAP writes transforms as inline styles, and an inline style always beats a
+stylesheet rule for the same property. So a `:hover` rule that sets `transform`
+is permanently dead on any element GSAP animates. Two mitigations, and which one
+applies depends on whether the animation is scrub-linked:
+
+- **Non-scrub reveals** (`moveUp`, `fade`) complete, so the engine now applies
+  `clearProps: 'transform'` on completion and hands the property back to CSS.
+  These need no retargeting. This covers `.service-card:hover` under
+  `Services.astro`'s `.svc-grid` stagger, and `.contact-form`'s fields.
+- **Scrub-linked effects** (`parallax`, and `scale` with `data-scrub`) never
+  complete — they are continuously driven by scroll — so `clearProps` cannot
+  help. These must target a *different node* from the one CSS hovers. Hence the
+  wrapper retargeting for `FeaturedReel` and `About` in the table below.
+
+`fade` animates opacity only and writes no transform, so `.testimonial-card:hover`
+and `.partner-link:hover` are unaffected — but verify that in the browser rather
+than assuming, since GSAP's `force3D` can touch transform in some cases.
+
 | file | element | attributes |
 | ---- | ------- | ---------- |
 | `DisciplinesStrip.astro` | `.disciplines-line` | `data-animation="split" data-stagger` |
 | `FeaturedReel.astro` | `.reel-title` | `data-animation="split" data-stagger` |
-| `FeaturedReel.astro` | the `img` inside `.reel-thumbnail` | `data-animation="parallax" data-speed="0.6"` |
+| `FeaturedReel.astro` | `.reel-thumbnail` (the wrapper, **not** the `img`) | `data-animation="parallax" data-speed="0.6"` |
 | `About.astro` | the `.disp` heading in `.about-content` | `data-animation="split" data-stagger` |
 | `About.astro` | `.about-content` | `data-animation="moveUp" data-stagger` |
-| `About.astro` | `.about-image` | `data-animation="scale" data-from="1.08" data-to="1" data-scrub` |
+| `About.astro` | the `img` inside `.about-image` (**not** the `.about-image` figure) | `data-animation="scale" data-from="1.08" data-to="1" data-scrub` |
 | `Services.astro` | the `.disp` heading in `.services-inner` | `data-animation="split" data-stagger` |
 | `Services.astro` | `.svc-grid` | `data-animation="moveUp" data-stagger` |
 | `Testimonials.astro` | `.testimonials-title` | `data-animation="split" data-stagger` |
