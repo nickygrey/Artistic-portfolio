@@ -1243,6 +1243,129 @@ git commit -m "chore: remove dead motion CSS and broken font preload"
 
 ---
 
+### Task 11: Header theme inversion
+
+Implements a spec requirement (spec line 134, `data-header-theme="dark"`) that the
+original plan omitted. It fixes a real pre-existing contrast bug.
+
+**Files:**
+- Modify: `src/components/Header.astro` — the eight light-text rules, plus its `<script>`
+- Modify: `src/components/Hero.astro` — add the marker attribute
+
+**Interfaces:**
+- Consumes: nothing from the motion engine — deliberately independent (see below)
+- Produces: `.header.is-over-dark` as the light-text state
+
+**The bug.** The header's light-text rules are written as `.header:not(.is-scrolled)`,
+and `.is-scrolled` toggles at `window.scrollY > 80`. The hero is ~900px tall, so from
+80px to ~900px of scroll the header shows near-black text (`rgb(32,31,29)`) over a dark
+photograph with no background behind it — `.header.is-scrolled` is an empty rule whose
+comment reads "Keep transparent, just restore normal text colors". Measured: at scrollY
+200 and 700, nav colour is `rgb(32,31,29)` and header background is `rgba(0,0,0,0)`.
+
+The fix is to drive the light state from **what is behind the header**, not from how far
+the page has scrolled.
+
+**Do not use the motion engine for this.** Header contrast is state, not animation, and it
+must work when the engine never initialises — under `prefers-reduced-motion` the engine
+returns early, and a GSAP-driven header theme would leave reduced-motion users with the
+original contrast bug. Use an `IntersectionObserver`, which is unaffected by that gate and
+works normally under Lenis (Lenis scrolls the real window).
+
+- [ ] **Step 1: Mark the dark section**
+
+On the `<section id="top" class="hero-fullscreen">` element in `Hero.astro`, add
+`data-header-theme="dark"`. Do not put it on `.hero-bg` — that element already carries
+`data-animation="hero"` and the two concerns should stay separate.
+
+- [ ] **Step 2: Rewrite the light-text rules**
+
+In `Header.astro`, change the eight `.header:not(.is-scrolled)` selectors to
+`.header.is-over-dark`. They are: the base `.header`, `.logo`, `.navlink`,
+`.navlink:hover`, `.instagram`, `.theme-toggle`, `.lang-btn`, `.lang-btn.is-active`.
+
+Leave the `.header.is-scrolled` rules alone — `.is-scrolled` keeps its existing job of
+restoring normal colours and driving the background/border transition. The two classes are
+now independent: `is-scrolled` means "page has moved", `is-over-dark` means "a dark
+section is behind me".
+
+- [ ] **Step 3: Drive the class from an observer**
+
+Add to `Header.astro`'s existing `initHeader()`. The observer shrinks the viewport to just
+the header band, so an observed element "intersects" only while it is actually behind the
+header:
+
+```ts
+let themeObserver: IntersectionObserver | null = null;
+
+function initHeaderTheme() {
+  const header = document.querySelector('.header');
+  if (!header) return;
+
+  themeObserver?.disconnect();
+
+  const darkSections = document.querySelectorAll('[data-header-theme="dark"]');
+  if (!darkSections.length) {
+    header.classList.remove('is-over-dark');
+    return;
+  }
+
+  const band = header.getBoundingClientRect().height || 64;
+  const active = new Set<Element>();
+
+  themeObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) active.add(entry.target);
+        else active.delete(entry.target);
+      }
+      header.classList.toggle('is-over-dark', active.size > 0);
+    },
+    { rootMargin: `0px 0px -${Math.max(0, window.innerHeight - band)}px 0px`, threshold: 0 }
+  );
+
+  darkSections.forEach((s) => themeObserver!.observe(s));
+}
+```
+
+`rootMargin` is computed from the current viewport height, so it must be rebuilt on
+resize. Debounce that — recreating the observer on every resize event is wasteful.
+
+Call `initHeaderTheme()` from wherever `initHeader()` already runs, so it re-initialises
+on `astro:page-load` alongside the rest of the header logic. Pages with no dark section
+(`/privacy`) correctly get no `is-over-dark` class and keep dark text throughout.
+
+- [ ] **Step 4: Verify the contrast actually changes**
+
+Measure computed colour, do not eyeball it. At scroll positions 0, 200 and 700 the nav
+must be light (`rgba(255,255,255,…)`) because the hero is still behind the header. Past
+the hero (~1000px+) it must return to `rgb(32,31,29)`.
+
+The specific regression to prove gone: at scrollY 200 the nav must NOT be `rgb(32,31,29)`.
+
+- [ ] **Step 5: Verify reduced motion**
+
+Emulate `prefers-reduced-motion: reduce` and reload. The header must still invert over the
+hero — this is the case a GSAP-driven implementation would have broken, and the reason for
+using `IntersectionObserver`.
+
+- [ ] **Step 6: Verify across navigation and locales**
+
+Check `/`, `/fr/`, `/de/` all invert over their heroes, and that `/privacy` (no dark
+section) keeps dark text. Navigate index → privacy → back repeatedly and confirm the class
+still toggles correctly, i.e. the observer was rebuilt rather than left pointing at
+swapped-away nodes.
+
+- [ ] **Step 7: Run the suite and commit**
+
+```bash
+npm test && npm run test:e2e && npm run build
+git add src/components/Header.astro src/components/Hero.astro
+git commit -m "feat: invert header over dark sections"
+```
+
+---
+
 ## Verification Summary
 
 Run before considering the work complete:
