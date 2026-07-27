@@ -1187,6 +1187,20 @@ git commit -m "feat: apply motion primitives to remaining sections"
 
 Delete `.delay-1` through `.delay-5` (lines 500-504) and the now-orphaned `.animate-on-scroll` selectors in the reduced-motion block (lines 855-863) from `global.css`. Confirm with `grep -n "reveal\|animate-on-scroll\|hero-animate\|delay-" src/styles/global.css` that only intentional rules remain.
 
+- [ ] **Step 1b: Restore drag-pause on the photo marquee**
+
+`PhotoCarousel.astro` has `.photo-carousel.is-dragging .carousel-track { animation-play-state: paused; }`. That rule is now dead — Task 7 replaced the CSS animation with a GSAP timeline, and `animation-play-state` has nothing to act on. The result is a small real regression: dragging the strip used to visibly freeze it, and now the strip keeps sliding under the user's finger.
+
+Delete the dead rule and restore the behaviour properly by pausing and resuming the GSAP timeline alongside the existing `is-dragging` class toggle in that component's drag script. The marquee handler already keeps a reference to the loop for its hover pause — reuse that mechanism rather than introducing a second one.
+
+Verify by dragging in a browser: the strip must hold still for the duration of the drag and resume afterwards.
+
+- [ ] **Step 1c: Fix the stagger offset from the hidden form input**
+
+`Contact.astro`'s `.contact-form` carries `data-stagger`, which targets direct children. Its first direct child is `<input type="hidden" name="_subject">`, which occupies stagger index 0. It is invisible, so it animates nothing, but it delays every visible field by one extra `STAGGER.base` step.
+
+Move the hidden input so it is not the first staggered child — placing it last, or outside the staggered container, both work. Confirm the form still submits with the `_subject` field intact; do not simply delete it.
+
 - [ ] **Step 2: Fix the dead font preload**
 
 `Layout.astro:74` preloads a Cormorant Garamond `v16` gstatic URL that returns 404 — Google rotated the version. The font still loads via the stylesheet further down, so the preload is a wasted request and the page's only console error. Delete that single `<link rel="preload">` line. Leave the Lora preload on line 75, which still resolves, and the `hero.jpg` image preload on line 65.
