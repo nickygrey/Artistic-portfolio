@@ -132,44 +132,60 @@ test.describe('mobile layout', () => {
     await ctx.close();
   });
 
-  test('tap targets meet the 44px minimum', async ({ browser }) => {
-    const ctx = await browser.newContext(MOBILE);
-    const page = await ctx.newPage();
-    await page.goto('/');
-    await page.waitForTimeout(1500);
+  // Standalone controls only. A link inside a paragraph of body copy inherits
+  // the line height of its prose, and forcing it to 44px would break the text
+  // flow it lives in — so a blanket rule over every anchor would produce
+  // false failures and train people to weaken this test.
+  const TAP_TARGET_SELECTORS = [
+    '.logo',
+    '.nav-toggle',
+    '.youtube-link',
+    '.archive-link',
+    'footer a',
+  ];
 
-    // Standalone controls only. A link inside a paragraph of body copy inherits
-    // the line height of its prose, and forcing it to 44px would break the text
-    // flow it lives in — so a blanket rule over every anchor would produce
-    // false failures and train people to weaken this test.
-    const SELECTORS = [
-      '.logo',
-      '.nav-toggle',
-      '.youtube-link',
-      '.archive-link',
-      'footer a',
-    ];
+  // 390 is the iPhone 13 the rest of this suite already uses. The other
+  // three exist because a fixed padding tuned to only 390px passed there
+  // and silently failed everywhere global.css's 380px breakpoint shrinks
+  // .logo's font-size and .nav-toggle's own size — an iPhone SE (375),
+  // a very common Android width (360), and the smallest width this site
+  // supports (320) are what actually caught that. Every width below the
+  // breakpoint (375/360/320) shares the same shrunk font-size, but they're
+  // asserted individually rather than collapsed into "one representative
+  // narrow width" so a regression at any specific width fails by name.
+  const WIDTHS = [390, 375, 360, 320];
 
-    const undersized = await page.evaluate((sels) => {
-      const out: Array<{ sel: string; text: string; w: number; h: number }> = [];
-      for (const sel of sels) {
-        for (const el of Array.from(document.querySelectorAll(sel))) {
-          const r = el.getBoundingClientRect();
-          if (r.width === 0 || r.height === 0) continue;
-          if (r.width < 44 || r.height < 44) {
-            out.push({
-              sel,
-              text: (el.textContent || '').trim().slice(0, 20),
-              w: Math.round(r.width),
-              h: Math.round(r.height),
-            });
+  for (const width of WIDTHS) {
+    test(`tap targets meet the 44px minimum at ${width}px`, async ({ browser }) => {
+      const ctx = await browser.newContext({
+        ...MOBILE,
+        viewport: { width, height: 844 },
+      });
+      const page = await ctx.newPage();
+      await page.goto('/');
+      await page.waitForTimeout(1500);
+
+      const undersized = await page.evaluate((sels) => {
+        const out: Array<{ sel: string; text: string; w: number; h: number }> = [];
+        for (const sel of sels) {
+          for (const el of Array.from(document.querySelectorAll(sel))) {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) continue;
+            if (r.width < 44 || r.height < 44) {
+              out.push({
+                sel,
+                text: (el.textContent || '').trim().slice(0, 20),
+                w: Math.round(r.width),
+                h: Math.round(r.height),
+              });
+            }
           }
         }
-      }
-      return out;
-    }, SELECTORS);
+        return out;
+      }, TAP_TARGET_SELECTORS);
 
-    expect(undersized).toEqual([]);
-    await ctx.close();
-  });
+      expect(undersized).toEqual([]);
+      await ctx.close();
+    });
+  }
 });
