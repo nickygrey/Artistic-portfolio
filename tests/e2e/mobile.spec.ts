@@ -131,4 +131,45 @@ test.describe('mobile layout', () => {
     expect(state.moved).toBe(true);
     await ctx.close();
   });
+
+  test('tap targets meet the 44px minimum', async ({ browser }) => {
+    const ctx = await browser.newContext(MOBILE);
+    const page = await ctx.newPage();
+    await page.goto('/');
+    await page.waitForTimeout(1500);
+
+    // Standalone controls only. A link inside a paragraph of body copy inherits
+    // the line height of its prose, and forcing it to 44px would break the text
+    // flow it lives in — so a blanket rule over every anchor would produce
+    // false failures and train people to weaken this test.
+    const SELECTORS = [
+      '.logo',
+      '.nav-toggle',
+      '.youtube-link',
+      '.archive-link',
+      'footer a',
+    ];
+
+    const undersized = await page.evaluate((sels) => {
+      const out: Array<{ sel: string; text: string; w: number; h: number }> = [];
+      for (const sel of sels) {
+        for (const el of Array.from(document.querySelectorAll(sel))) {
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          if (r.width < 44 || r.height < 44) {
+            out.push({
+              sel,
+              text: (el.textContent || '').trim().slice(0, 20),
+              w: Math.round(r.width),
+              h: Math.round(r.height),
+            });
+          }
+        }
+      }
+      return out;
+    }, SELECTORS);
+
+    expect(undersized).toEqual([]);
+    await ctx.close();
+  });
 });

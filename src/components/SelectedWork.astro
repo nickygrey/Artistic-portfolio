@@ -201,4 +201,14 @@ const projects = [
       padding: 4px 8px;
     }
   }
+
+  /* Tap target: grow the hit region to the 44px minimum with padding,
+     absorbed by an equal negative margin so the link renders in the same
+     place at the same size — only the invisible touch area grows. */
+  @media (hover: none) and (pointer: coarse) {
+    .archive-link {
+      padding: 12px 0;
+      margin: -12px 0;
+    }
+  }
 </style>

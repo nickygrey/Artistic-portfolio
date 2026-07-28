@@ -46,4 +46,14 @@ const privacyUrl = lang === 'en' ? '/privacy' : `/${lang}/privacy`;
       padding-bottom: 32px;
     }
   }
+
+  /* Tap targets: grow the hit region to the 44px minimum with padding,
+     absorbed by an equal negative margin so each link renders in the same
+     place at the same size — only the invisible touch area grows. */
+  @media (hover: none) and (pointer: coarse) {
+    .footer a {
+      padding: 14px 0;
+      margin: -14px 0;
+    }
+  }
 </style>

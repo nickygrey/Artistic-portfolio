@@ -255,6 +255,41 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
       color: var(--color-accent-700);
     }
   }
+
+  /*
+   * Tap targets: grow the touchable region to the 44px minimum without
+   * changing how anything renders. Padding expands the hit box; an equal
+   * negative margin absorbs it back out of the flex flow so .header's
+   * `justify-content: space-between` siblings don't reflow.
+   *
+   * .nav-toggle is the one exception that needs more than padding+margin:
+   * it has a visible border and an explicit `width/height: 40px` under the
+   * site-wide `box-sizing: border-box` reset (see global.css), so plain
+   * padding is absorbed into that fixed box and changes nothing (verified
+   * empirically). Switching just this element to content-box and stating
+   * the width/height as the original *content* size (40px box − 1px border
+   * each side = 38px) lets the same padding+margin trick apply: the border
+   * box grows to the 44px minimum while the margin box — what the flex
+   * layout actually reserves — stays 40×40, so the row's height and the
+   * logo's position are unaffected. The one honest trade-off: because
+   * .nav-toggle's border is real (not decorative-only like the text links),
+   * its visible outline grows by ~2px per edge along with the hit area —
+   * unlike the other six targets, this one is not perfectly pixel-identical.
+   */
+  @media (hover: none) and (pointer: coarse) {
+    .logo {
+      padding: 5px 2px;
+      margin: -5px -2px;
+    }
+
+    .nav-toggle {
+      box-sizing: content-box;
+      width: 38px;
+      height: 38px;
+      padding: 2px;
+      margin: -2px;
+    }
+  }
 </style>
 
 <script>
