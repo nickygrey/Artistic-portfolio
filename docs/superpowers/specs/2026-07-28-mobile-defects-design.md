@@ -94,38 +94,52 @@ scrollbar width, so this can reintroduce a small overflow on platforms with
 classic scrollbars. The implementation must confirm no horizontal scroll appears
 at desktop widths as well as mobile.
 
-### 2. Native swipe on touch
+### 2. Infinite native swipe on touch
 
-On touch devices the carousel becomes natively scrollable:
+On touch devices the carousel becomes natively scrollable, keeps auto-advancing,
+and never reaches an end.
 
 ```css
 overflow-x: auto;
-scroll-snap-type: x mandatory;
 -webkit-overflow-scrolling: touch;
 ```
 
-with `scroll-snap-align: start` on each slide, giving momentum scrolling that
-settles cleanly photo to photo.
+**The auto-advance drives `scrollLeft`, not `transform`.** This is the decision
+that makes everything else work. The original conflict was two independent
+mechanisms driving one visual axis — the marquee translating `.carousel-track`
+while scrolling moved the container. `PhotoCarousel.astro` documents it at the
+drag handler: *"otherwise the GSAP xPercent tween keeps advancing underneath the
+user's scrollLeft drag and the strip visibly slides under their [finger]"*.
 
-Two things must change alongside it, or they will fight:
+Driving the mobile auto-advance through `scrollLeft` collapses the two
+mechanisms into one. The user's finger and the automatic motion move the same
+property, so they cannot fight, and the strip can auto-scroll *and* be swipeable
+at the same time.
+
+**The loop is seamless because the track is already duplicated.**
+`PhotoCarousel.astro` renders `photos.map(...)` twice (lines 10 and 22) — two
+identical copies of the seven photographs, which is why the desktop marquee
+travels `xPercent: 50`. When `scrollLeft` passes half of `scrollWidth`, subtract
+half: the content at that position is pixel-identical, so the reset is invisible
+and the strip never ends. The same wrap runs in both directions, so a user
+swiping backwards past zero also continues seamlessly.
+
+**No scroll-snap.** Snapping fights a continuously running auto-advance, and
+this is a photo strip rather than a paged carousel. Momentum alone is the right
+feel.
 
 **The JavaScript drag handler is disabled on touch.** It sets
-`carousel.scrollLeft` manually. With native scrolling also active, both would
+`carousel.scrollLeft` manually; with native scrolling also active both would
 move the strip and it would travel roughly double the intended distance. Native
-scroll replaces it. Desktop keeps the drag handler unchanged.
+scroll replaces it. Desktop is untouched — it keeps the `transform` marquee and
+the drag handler exactly as they are.
 
-**The marquee stops on touch.** The marquee translates `.carousel-track` via
-`transform` while scrolling moves the container via `scrollLeft` — two
-independent mechanisms driving the same visual axis. `PhotoCarousel.astro`
-already documents this conflict in a comment at the drag handler: *"otherwise
-the GSAP xPercent tween keeps advancing underneath the user's scrollLeft drag
-and the strip visibly slides under their [finger]"*. The existing code avoids it
-by pausing the marquee during a drag; running it against continuous native
-scrolling would reintroduce it.
+**Auto-advance pauses while the finger is down** and resumes shortly after
+release, reusing the pause/resume mechanism the marquee handler already exposes.
 
-On phones, swipe becomes the interaction and the auto-scroll remains a desktop
-behaviour. This also resolves the reduced-motion case that motivated the
-decision: with no marquee at all, swipe still reaches every photograph.
+Under `prefers-reduced-motion` the auto-advance does not run at all, but the
+strip remains natively swipeable — so every photograph stays reachable, which is
+the case that is currently broken.
 
 ### 3. Hit areas, not visual sizes
 
@@ -153,8 +167,12 @@ codebase.
 A new Playwright spec at 390×844 with `isMobile` and `hasTouch`, asserting:
 
 - `document.documentElement.scrollWidth <= clientWidth` — no sideways scroll
-- every carousel slide is reachable by scrolling `#photo-carousel` to its
-  `scrollWidth`
+- every carousel slide is reachable by scrolling `#photo-carousel`
+- the loop wraps: scrolling past half of `scrollWidth` returns `scrollLeft` to
+  the first half without the visible content changing, and scrolling backwards
+  past zero wraps the other way — asserted by comparing the rendered position of
+  a known slide before and after a wrap, not merely by checking that
+  `scrollLeft` changed
 - the seven named targets each measure at least 44px in both dimensions
 
 **On the scope of the tap-target assertion.** It covers standalone controls —
@@ -180,9 +198,14 @@ The existing suites must stay green: 56 unit, 42 build-output, 6 Playwright.
 2. **Native scroll and the drag handler double-moving.** Mitigated by disabling
    the handler on touch, which must be verified on a real touch emulation rather
    than reasoned about.
-3. **Scroll-snap fighting momentum.** `mandatory` snapping can feel stiff with
-   fast flicks. If it does, `proximity` is the fallback — a judgement call to be
-   made against the real strip.
+3. **iOS momentum and the seam.** On iOS, setting `scrollLeft` programmatically
+   during momentum scrolling can cancel the momentum. A fast flick that crosses
+   the halfway wrap point could therefore stop dead at the seam instead of
+   gliding through it. This is the one risk that cannot be reasoned away and
+   must be tested on a real device or a faithful touch emulation. If it does
+   interrupt, the fallback is to defer the wrap until scrolling settles —
+   accepting that the strip can briefly reach its true end during a very fast
+   flick, rather than visibly stuttering on every one.
 
 ## Expected outcome
 
