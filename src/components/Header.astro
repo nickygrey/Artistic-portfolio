@@ -63,39 +63,6 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
     transition: background 0.4s ease, border-color 0.4s ease;
   }
 
-  /* Transparent state - light text over hero */
-  .header:not(.is-scrolled) {
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  .header:not(.is-scrolled) .logo {
-    color: rgba(255, 255, 255, 0.95);
-  }
-
-  .header:not(.is-scrolled) .navlink {
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  .header:not(.is-scrolled) .navlink:hover {
-    color: rgba(255, 255, 255, 1);
-  }
-
-  .header:not(.is-scrolled) .instagram {
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  .header:not(.is-scrolled) .theme-toggle {
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  .header:not(.is-scrolled) .lang-btn {
-    color: rgba(255, 255, 255, 0.6);
-  }
-
-  .header:not(.is-scrolled) .lang-btn.is-active {
-    color: rgba(255, 255, 255, 0.95);
-  }
-
   /* Scrolled state - back to normal colors but still transparent */
   .header.is-scrolled {
     /* Keep transparent, just restore normal text colors */
@@ -127,6 +94,47 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
 
   .header.is-scrolled .lang-btn.is-active {
     color: var(--color-text);
+  }
+
+  /*
+   * Over a dark section - light text. Declared *after* the .is-scrolled
+   * block on purpose: both classes carry equal selector specificity, and
+   * the hero (a dark section) spans well past the 80px scroll threshold,
+   * so .is-scrolled and .is-over-dark are both active for most of the
+   * hero's height. Source order is what makes "what's behind the header"
+   * win over "how far the page has scrolled" during that overlap — that
+   * is the actual fix for the contrast bug this task addresses.
+   */
+  .header.is-over-dark {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .header.is-over-dark .logo {
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  .header.is-over-dark .navlink {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .header.is-over-dark .navlink:hover {
+    color: rgba(255, 255, 255, 1);
+  }
+
+  .header.is-over-dark .instagram {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .header.is-over-dark .theme-toggle {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .header.is-over-dark .lang-btn {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .header.is-over-dark .lang-btn.is-active {
+    color: rgba(255, 255, 255, 0.95);
   }
 
   .nav-links {
@@ -202,12 +210,88 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
       padding: 10px;
       margin-right: 8px;
     }
+
+    /*
+     * C1 fix: the open mobile dropdown (.nav-links.is-open, styled in
+     * global.css) is an opaque panel with background: var(--color-bg). The
+     * .header.is-over-dark inversion above is tuned for text sitting
+     * directly on the dark hero photo — applied to this panel instead it
+     * paints near-white text on a near-white (light theme) panel.
+     * is-over-dark is true at scroll 0 on every page (the hero is the dark
+     * section), so this is the default state a phone user sees on first
+     * tapping the hamburger.
+     *
+     * Fix: revert every inverted token back to its plain, un-inverted
+     * value whenever the dropdown is open, regardless of what's behind the
+     * header band. Each selector below adds `.nav-links.is-open` on top of
+     * `.header.is-over-dark .X`, so it is strictly more specific than the
+     * rule it overrides — this doesn't depend on source order the way
+     * .is-over-dark vs .is-scrolled does (see the comment above
+     * .header.is-over-dark). Dark theme was already fine (near-white text
+     * over a near-black panel); reverting to var(--color-text) here keeps
+     * it fine since --color-text is near-white in dark theme too.
+     */
+    .header.is-over-dark .nav-links.is-open .navlink {
+      color: var(--color-text);
+    }
+
+    .header.is-over-dark .nav-links.is-open .navlink:hover {
+      color: var(--color-accent-700);
+    }
+
+    .header.is-over-dark .nav-links.is-open .instagram {
+      color: var(--color-accent-700);
+    }
+
+    .header.is-over-dark .nav-links.is-open .theme-toggle {
+      color: var(--color-text);
+    }
+
+    .header.is-over-dark .nav-links.is-open .lang-btn {
+      color: color-mix(in srgb, var(--color-text) 50%, transparent);
+    }
+
+    .header.is-over-dark .nav-links.is-open .lang-btn.is-active {
+      color: var(--color-accent-700);
+    }
   }
 </style>
 
 <script>
   // Track if listeners are already set up (prevents duplicates after View Transitions)
   let headerInitialized = false;
+
+  let themeObserver: IntersectionObserver | null = null;
+  let themeResizeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function initHeaderTheme() {
+    const header = document.querySelector('.header');
+    if (!header) return;
+
+    themeObserver?.disconnect();
+
+    const darkSections = document.querySelectorAll('[data-header-theme="dark"]');
+    if (!darkSections.length) {
+      header.classList.remove('is-over-dark');
+      return;
+    }
+
+    const band = header.getBoundingClientRect().height || 64;
+    const active = new Set<Element>();
+
+    themeObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) active.add(entry.target);
+          else active.delete(entry.target);
+        }
+        header.classList.toggle('is-over-dark', active.size > 0);
+      },
+      { rootMargin: `0px 0px -${Math.max(0, window.innerHeight - band)}px 0px`, threshold: 0 }
+    );
+
+    darkSections.forEach((s) => themeObserver!.observe(s));
+  }
 
   function initHeader() {
     const navToggle = document.getElementById('nav-toggle');
@@ -251,6 +335,7 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
 
     // Initialize states
     updateHeaderState();
+    initHeaderTheme();
     const currentTheme = getThemePreference();
     if (currentTheme === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
@@ -305,6 +390,15 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
         if (window.innerWidth > 900) {
           closeMobileMenu();
         }
+      });
+
+      // Rebuild the theme observer on resize (its rootMargin depends on
+      // window.innerHeight). Debounced since resize fires rapidly.
+      window.addEventListener('resize', () => {
+        clearTimeout(themeResizeTimer);
+        themeResizeTimer = setTimeout(() => {
+          initHeaderTheme();
+        }, 150);
       });
 
       // Theme toggle

@@ -47,10 +47,25 @@ html.theme-transitioning * {
 /* Reset */
 *, *::before, *::after { box-sizing: border-box; }
 html {
-  scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%; /* Prevent iOS text size adjust */
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/*
+ * Lenis (src/motion/engine.ts) is deliberately never constructed on touch
+ * devices — it degrades native scrolling there — so its `anchors: true`
+ * option can't animate in-page hash links (header nav, hero #reel CTA) on
+ * touch. This is the fallback for that path only: native smooth scrolling.
+ * `prefers-reduced-motion: no-preference` is required in the same query
+ * rather than left to the rule above: without it, a touch device with
+ * reduced motion enabled matches both this rule and the one above (same
+ * specificity, same element), leaving the outcome to source order instead
+ * of intent. Requiring no-preference here makes the two queries mutually
+ * exclusive so a reduced-motion touch user always gets the instant jump.
+ */
+@media (hover: none) and (pointer: coarse) and (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
 
 /* Mobile tap highlight fix */
 a, button, input, textarea, select {
@@ -338,13 +353,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 .carousel-track {
   display: flex;
   gap: 8px;
-  animation: seamlessScroll 40s linear infinite;
   width: max-content;
-}
-.carousel-track:hover { animation-play-state: paused; }
-@keyframes seamlessScroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
 }
 .carousel-slide {
   flex: 0 0 auto;
@@ -460,48 +469,6 @@ html[data-astro-transition-fallback] .page-loader {
   0%, 100% { opacity: 0.3; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.02); }
 }
-
-/* Section reveals */
-@keyframes revealUp {
-  from { opacity: 0; transform: translateY(60px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes revealScale {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-@keyframes revealBlur {
-  from { opacity: 0; filter: blur(10px); transform: translateY(20px); }
-  to { opacity: 1; filter: blur(0); transform: translateY(0); }
-}
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.reveal { opacity: 0; }
-.reveal.is-visible { animation: revealUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.reveal-scale.is-visible { animation: revealScale 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.reveal-blur.is-visible { animation: revealBlur 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.section-reveal {
-  opacity: 0;
-  transform: translateY(40px);
-  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.section-reveal.is-visible { opacity: 1; transform: translateY(0); }
-
-.hero-animate { opacity: 0; animation: fadeInUp 1s ease forwards; }
-.hero-animate:nth-child(1) { animation-delay: 0.1s; }
-.hero-animate:nth-child(2) { animation-delay: 0.2s; }
-.hero-animate:nth-child(3) { animation-delay: 0.4s; }
-.hero-animate:nth-child(4) { animation-delay: 0.6s; }
-
-/* Stagger delays */
-.delay-1 { animation-delay: 0.1s !important; }
-.delay-2 { animation-delay: 0.2s !important; }
-.delay-3 { animation-delay: 0.3s !important; }
-.delay-4 { animation-delay: 0.4s !important; }
-.delay-5 { animation-delay: 0.5s !important; }
 
 /* Mobile menu */
 .nav-toggle {
@@ -851,19 +818,8 @@ html[data-astro-transition-fallback] .page-loader {
 @media (prefers-reduced-motion: reduce) {
   .page-loader { transition: opacity 0.1s; }
   .loader-logo { animation: none; opacity: 1; }
-  .hero-animate { animation: none; opacity: 1; }
-  .animate-on-scroll, .reveal, .section-reveal {
-    opacity: 1;
-    transform: none;
-    animation: none;
-    transition: none;
-  }
-  .animate-on-scroll.is-visible,
-  .reveal.is-visible,
-  .section-reveal.is-visible { animation: none; }
   .card-link:hover { transform: none; }
   .card-link:hover img { transform: none; }
-  .carousel-track { animation: none; }
 }
 
 /* Print */

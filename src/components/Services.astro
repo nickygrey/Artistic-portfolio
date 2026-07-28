@@ -26,12 +26,12 @@ const services = [
 ];
 ---
 
-<section id="services" class="section-reveal services-section">
+<section id="services" class="services-section">
   <div class="wrap services-inner">
-    <span class="kick reveal">{t(lang, 'services.label')}</span>
-    <div class="svc-grid">
+    <span class="kick">{t(lang, 'services.label')}</span>
+    <div class="svc-grid" data-animation="moveUp" data-stagger>
       {services.map((service, index) => (
-        <div class={`service-card reveal delay-${index + 1}`}>
+        <div class="service-card">
           <div class="service-number">{service.number}</div>
           <div class="service-divider"></div>
           <h3>{t(lang, service.titleKey)}</h3>
@@ -40,7 +40,7 @@ const services = [
       ))}
     </div>
 
-    <div class="book-cta reveal delay-4">
+    <div class="book-cta">
       <a
         href="https://calendly.com/ussseryizis/book-a-consultation"
         target="_blank"

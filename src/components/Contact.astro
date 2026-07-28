@@ -8,10 +8,10 @@ interface Props {
 const { lang } = Astro.props;
 ---
 
-<section id="contact" class="wrap about-split section-reveal contact-section">
-  <div class="reveal contact-info">
+<section id="contact" class="wrap about-split contact-section">
+  <div class="contact-info">
     <span class="kick">{t(lang, 'contact.label')}</span>
-    <h2 class="disp contact-title" set:html={t(lang, 'contact.title')} />
+    <h2 class="disp contact-title" data-animation="split" data-stagger set:html={t(lang, 'contact.title')} />
     <p class="prose contact-desc">{t(lang, 'contact.desc')}</p>
     <div class="contact-links">
       <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener" class="btn btn-ghost">
@@ -31,10 +31,10 @@ const { lang } = Astro.props;
     id="contact-form"
     action="https://formspree.io/f/xwvgojzz"
     method="POST"
-    class="contact-form reveal delay-2"
+    class="contact-form"
+    data-animation="moveUp"
+    data-stagger
   >
-    <input type="hidden" name="_subject" value="New project enquiry from portfolio">
-
     <div class="field">
       <label for="cf-name">{t(lang, 'contact.name')}</label>
       <input class="input" id="cf-name" name="name" type="text" placeholder="Your name" required>
@@ -74,6 +74,11 @@ const { lang } = Astro.props;
       </button>
       <span id="form-status" class="form-status"></span>
     </div>
+
+    <!-- Last child so it doesn't consume stagger index 0 ahead of the -->
+    <!-- visible fields above (data-stagger targets .contact-form's direct -->
+    <!-- children, and this input is invisible so animating it is wasted). -->
+    <input type="hidden" name="_subject" value="New project enquiry from portfolio">
   </form>
 </section>
 

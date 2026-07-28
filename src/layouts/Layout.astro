@@ -71,7 +71,6 @@ const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.
   <link rel="dns-prefetch" href="https://i.ytimg.com">
 
   <!-- Preload critical fonts -->
-  <link rel="preload" href="https://fonts.gstatic.com/s/cormorantgaramond/v16/co3YmX5slCNuHLi8bLeY9MK7whWMhyjQAllvuQ6GvRrT.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="https://fonts.gstatic.com/s/lora/v35/0QI6MX1D_JOuGQbT0gvTJPa787weuxJBkq0.woff2" as="font" type="font/woff2" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 
@@ -144,6 +143,8 @@ const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.
   <slot />
 
   <script>
+    import { initMotion, teardownMotion } from '../motion';
+
     // Hide page loader - force hide with display:none as ultimate fallback
     function hideLoader() {
       const loader = document.getElementById('page-loader');
@@ -177,71 +178,16 @@ const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.
     document.addEventListener('astro:after-swap', hideLoader);
     document.addEventListener('astro:page-load', hideLoader);
 
-    // Initialize scroll animations - runs on every page load
-    function initScrollAnimations() {
-      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-      const observerOptions = {
-        root: null,
-        rootMargin: '0px 0px -50px 0px',
-        threshold: 0.1
-      };
-
-      const revealObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-            revealObserver.unobserve(entry.target);
-          }
-        });
-      }, observerOptions);
-
-      const revealElements = document.querySelectorAll('.animate-on-scroll, .reveal, .reveal-scale, .reveal-blur, .section-reveal');
-
-      if (!prefersReducedMotion) {
-        revealElements.forEach(el => {
-          // Reset animation state for view transitions
-          el.classList.remove('is-visible');
-          revealObserver.observe(el);
-        });
-      } else {
-        revealElements.forEach(el => el.classList.add('is-visible'));
-      }
-    }
-
-    // Initialize parallax - only set up once
-    function initParallax() {
-      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-      if (!prefersReducedMotion) {
-        let ticking = false;
-        window.addEventListener('scroll', () => {
-          if (!ticking) {
-            window.requestAnimationFrame(() => {
-              document.querySelectorAll('.plate img').forEach(img => {
-                const rect = img.getBoundingClientRect();
-                if (rect.top < window.innerHeight && rect.bottom > 0) {
-                  const speed = 0.03;
-                  const yPos = (rect.top - window.innerHeight / 2) * speed;
-                  (img as HTMLElement).style.transform = `scale(1.05) translateY(${yPos}px)`;
-                }
-              });
-              ticking = false;
-            });
-            ticking = true;
-          }
-        }, { passive: true });
-      }
-    }
-
-    // Run on initial load
-    initScrollAnimations();
-    initParallax();
-
-    // Re-run scroll animations on view transitions
-    document.addEventListener('astro:page-load', () => {
-      initScrollAnimations();
-    });
+    // Both calls are intentional, not redundant. The astro:page-load listener
+    // is what actually guarantees correctness: that event is spec-guaranteed
+    // to fire only after every deferred/module script on the page has run, so
+    // it always sees every registerMotion() call — including ones from
+    // components, regardless of where their <script> lands relative to this
+    // one in the emitted HTML. The synchronous call just avoids waiting for
+    // that event on first load. Do not remove either call.
+    initMotion();
+    document.addEventListener('astro:page-load', initMotion);
+    document.addEventListener('astro:before-swap', teardownMotion);
   </script>
 </body>
 </html>

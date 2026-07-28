@@ -9,9 +9,9 @@ const { lang } = Astro.props;
 const base = import.meta.env.BASE_URL;
 ---
 
-<section class="wrap section-reveal partners-section">
-  <span class="kick reveal">{t(lang, 'partner')}</span>
-  <div class="reveal delay-1 partner-logos">
+<section class="wrap partners-section">
+  <span class="kick">{t(lang, 'partner')}</span>
+  <div class="partner-logos" data-animation="fade" data-stagger>
     <a href="https://lumera.lu" target="_blank" rel="noopener" class="partner-link">
       <img
         src={`${base}images/partners/Main logo Horizontal.png`}

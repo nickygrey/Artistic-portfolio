@@ -23,15 +23,15 @@ const testimonials = [
 ];
 ---
 
-<section class="wrap section-reveal testimonials-section">
-  <div class="testimonials-header reveal">
+<section class="wrap testimonials-section">
+  <div class="testimonials-header">
     <span class="kick">{t(lang, 'testimonials.label')}</span>
-    <h2 class="disp testimonials-title">{t(lang, 'testimonials.title')}</h2>
+    <h2 class="disp testimonials-title" data-animation="split" data-stagger>{t(lang, 'testimonials.title')}</h2>
   </div>
 
-  <div class="testimonials-grid">
+  <div class="testimonials-grid" data-animation="fade" data-stagger>
     {testimonials.map((item, index) => (
-      <blockquote class={`testimonial-card reveal delay-${index + 1}`}>
+      <blockquote class="testimonial-card">
         <svg class="quote-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" opacity="0.15">
           <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/>
         </svg>
