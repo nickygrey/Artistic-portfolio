@@ -138,7 +138,140 @@ const base = import.meta.env.BASE_URL;
     __marquee?: { pause: () => void; resume: () => void };
   };
 
+  /**
+   * Mobile carousel: auto-advance and user swipe both drive scrollLeft, so the
+   * two can never fight the way a transform-based marquee does against a scroll.
+   * The track holds two identical copies of the photo set, so wrapping by one
+   * period lands on pixel-identical content and the strip never ends.
+   */
+  function setupTouchCarousel(
+    track: HTMLElement,
+    scroller: HTMLElement,
+    gsap: typeof import('gsap').gsap,
+    ScrollTrigger: typeof import('gsap/ScrollTrigger').ScrollTrigger
+  ) {
+    const RESUME_DELAY_MS = 1200;
+
+    /**
+     * Exact loop period: the distance from the first slide to the first slide of
+     * the second copy. Measured from the DOM rather than derived from
+     * scrollWidth, because the flex `gap` means scrollWidth/2 is half a gap short
+     * and the seam would drift a few pixels every cycle.
+     */
+    function period(): number {
+      const slides = track.children;
+      if (slides.length < 2) return 0;
+      const first = slides[0] as HTMLElement;
+      const secondCopy = slides[Math.floor(slides.length / 2)] as HTMLElement;
+      return secondCopy.offsetLeft - first.offsetLeft;
+    }
+
+    function wrap() {
+      const p = period();
+      if (p <= 0) return;
+      // Forward uses a *strict* `>`, backward an *inclusive* `<= 0`, and that
+      // asymmetry is load-bearing, not stylistic. Native touch scrolling
+      // clamps scrollLeft at exactly 0 rather than ever going negative, so
+      // the backward branch must fire on that clamped floor itself (`<= 0`)
+      // or it can never trigger at all. But jumping backward adds exactly
+      // `p`, landing at exactly `p` — and a forward condition of `>= p`
+      // treats that landing spot as *also* over the forward threshold,
+      // immediately undoing the jump back to 0, which re-triggers the
+      // backward branch again, forever. Verified live: with `>= p` here,
+      // one backward-wrapping swipe put the strip into a permanent 0/p
+      // ping-pong that never settled, long after the touch had ended.
+      // `> p` excludes that exact landing value from re-triggering forward,
+      // which breaks the cycle; a value that's over by a genuine frame's
+      // worth of scroll is never exactly equal to `p` in practice.
+      if (scroller.scrollLeft > p) scroller.scrollLeft -= p;
+      else if (scroller.scrollLeft <= 0) scroller.scrollLeft += p;
+    }
+
+    // px/sec chosen so a full cycle takes the same time as the desktop marquee.
+    function speed(): number {
+      const p = period();
+      return p > 0 ? p / MARQUEE_DURATION : 0;
+    }
+
+    let paused = false;
+    let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+
+    /**
+     * Fractional scroll position, tracked independently of `scroller.scrollLeft`.
+     *
+     * `Element.scrollLeft` rounds to the nearest integer CSS pixel on both read
+     * and write in Chromium (verified directly: `el.scrollLeft += 0.3` in a
+     * loop reads back the same integer every time, because each write recomputes
+     * off the *already-rounded* value rather than an internally retained float).
+     * At this carousel's speed — period/MARQUEE_DURATION ≈ 19.6px/s, i.e. well
+     * under 1px per 60fps frame — accumulating directly into `scroller.scrollLeft`
+     * as the brief's original draft did never crosses the 0.5px rounding
+     * threshold, so the auto-advance silently never moves at all. Keeping the
+     * accumulator here in JS and only ever writing the running total to
+     * scrollLeft (never reading it back as the next base) avoids losing that
+     * sub-pixel progress every frame.
+     */
+    let position = scroller.scrollLeft;
+
+    // Named so it can be handed to gsap.ticker.remove() on teardown.
+    function advance(_time: number, deltaMs: number) {
+      if (paused) return;
+      const p = period();
+      position += (speed() * deltaMs) / 1000;
+      if (p > 0) {
+        // Strict `>` / inclusive `<= 0` split mirrors wrap() above — see its
+        // comment for why the asymmetry is necessary to avoid an infinite
+        // 0/p ping-pong.
+        if (position > p) position -= p;
+        else if (position <= 0) position += p;
+      }
+      scroller.scrollLeft = position;
+    }
+
+    function onTouchStart() {
+      paused = true;
+      if (resumeTimer) clearTimeout(resumeTimer);
+    }
+
+    function onTouchEnd() {
+      if (resumeTimer) clearTimeout(resumeTimer);
+      resumeTimer = setTimeout(() => {
+        // Adopt wherever the user's swipe (or the native-scroll wrap() below)
+        // left scrollLeft, so auto-advance continues from there instead of
+        // snapping back to the stale pre-swipe position.
+        position = scroller.scrollLeft;
+        paused = false;
+      }, RESUME_DELAY_MS);
+    }
+
+    gsap.ticker.add(advance);
+    scroller.addEventListener('scroll', wrap, { passive: true });
+    scroller.addEventListener('touchstart', onTouchStart, { passive: true });
+    scroller.addEventListener('touchend', onTouchEnd, { passive: true });
+    scroller.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    ScrollTrigger.create({
+      onKill: () => {
+        gsap.ticker.remove(advance);
+        if (resumeTimer) clearTimeout(resumeTimer);
+        scroller.removeEventListener('scroll', wrap);
+        scroller.removeEventListener('touchstart', onTouchStart);
+        scroller.removeEventListener('touchend', onTouchEnd);
+        scroller.removeEventListener('touchcancel', onTouchEnd);
+      },
+    });
+  }
+
   registerMotion('marquee', (el, { gsap, ScrollTrigger }) => {
+    const scroller = el.closest('.photo-carousel') as HTMLElement | null;
+    const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
+    if (isTouch && scroller) {
+      setupTouchCarousel(el, scroller, gsap, ScrollTrigger);
+      return;
+    }
+
+    // --- existing desktop transform marquee continues unchanged from here ---
     const duration = num(el.getAttribute('data-speed'), MARQUEE_DURATION);
     const direction = num(el.getAttribute('data-marquee'), 1) === 0 ? 1 : -1;
 
@@ -291,8 +424,9 @@ const base = import.meta.env.BASE_URL;
       });
     }
 
-    // Mouse drag for carousel
-    if (carousel && track) {
+    // Mouse drag for carousel — desktop only. On touch, native overflow scrolling
+    // moves the strip, and running this too would double every gesture.
+    if (carousel && track && !window.matchMedia('(hover: none) and (pointer: coarse)').matches) {
       let isDragging = false;
       let startX = 0;
       let scrollLeft = 0;

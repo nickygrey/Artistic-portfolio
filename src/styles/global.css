@@ -790,10 +790,18 @@ html[data-astro-transition-fallback] .page-loader {
   /* Disable parallax effects on touch devices for performance */
   .parallax { transform: none !important; }
 
-  /* Smoother carousel dragging */
+  /* Carousel is natively scrollable on touch: the JS auto-advance drives
+   * scrollLeft (see PhotoCarousel.astro's setupTouchCarousel), and native
+   * overflow scrolling is what lets a swipe reach the rest of the strip.
+   * No scroll-snap: snapping would fight the continuously running
+   * auto-advance, and this is a photo strip, not a paged carousel. */
   .photo-carousel {
+    overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .photo-carousel::-webkit-scrollbar { display: none; }
 }
 
 /* Landscape phone adjustments */
