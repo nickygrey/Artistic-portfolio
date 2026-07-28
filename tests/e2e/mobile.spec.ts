@@ -188,4 +188,76 @@ test.describe('mobile layout', () => {
       await ctx.close();
     });
   }
+
+  // .nav-toggle's touch-only rule paints a decorative resting ring via
+  // `outline` (see Header.astro) rather than a real `border`, so that its
+  // hit region can grow to 44px without visually growing what's painted.
+  // A first version of that rule set `outline` unconditionally, which —
+  // scoped by Astro to a specificity higher than global.css's
+  // `button:focus-visible` rule — painted the decorative divider-colour
+  // ring even while keyboard/switch-device focused, silently erasing the
+  // focus indicator (WCAG 2.4.7) for anyone tabbing to this button on a
+  // touchscreen laptop, tablet-with-keyboard, or Chromebook — all of which
+  // match this same `(hover: none) and (pointer: coarse)` query. Checked
+  // at one width from each side of the 380px breakpoint, since the resting
+  // ring's own outline-offset differs across it (-2px / -4px) and either
+  // could independently reintroduce the bug.
+  for (const width of [390, 375]) {
+    test(`nav-toggle shows the accent focus ring, not the decorative one, when focused at ${width}px`, async ({ browser }) => {
+      const ctx = await browser.newContext({
+        ...MOBILE,
+        viewport: { width, height: 844 },
+      });
+      const page = await ctx.newPage();
+      await page.goto('/');
+      await page.waitForTimeout(1500);
+
+      const result = await page.evaluate(() => {
+        // Resolve the two custom properties into actual computed colours
+        // via a throwaway probe element, so the assertion doesn't hardcode
+        // a colour value that would silently drift from the design tokens.
+        const probe = document.createElement('div');
+        probe.style.position = 'absolute';
+        probe.style.visibility = 'hidden';
+        document.body.appendChild(probe);
+        probe.style.color = 'var(--color-accent)';
+        const accentColor = getComputedStyle(probe).color;
+        probe.style.color = 'var(--color-divider)';
+        const dividerColor = getComputedStyle(probe).color;
+        probe.remove();
+
+        const btn = document.getElementById('nav-toggle') as HTMLElement;
+        const restOutlineColor = getComputedStyle(btn).outlineColor;
+
+        btn.focus();
+        const isFocusVisible = btn.matches(':focus-visible');
+        const focusOutlineColor = getComputedStyle(btn).outlineColor;
+        const focusOutlineWidth = getComputedStyle(btn).outlineWidth;
+        btn.blur();
+
+        return {
+          accentColor,
+          dividerColor,
+          restOutlineColor,
+          focusOutlineColor,
+          focusOutlineWidth,
+          isFocusVisible,
+        };
+      });
+
+      // Sanity check on the harness itself: if this is false, the assertions
+      // below aren't testing what they claim to.
+      expect(result.isFocusVisible).toBe(true);
+
+      expect(result.restOutlineColor).toBe(result.dividerColor);
+      expect(result.focusOutlineColor).toBe(result.accentColor);
+      expect(result.focusOutlineColor).not.toBe(result.dividerColor);
+      // The sitewide focus ring is 2px (global.css); the decorative resting
+      // ring is 1px. Width is a second, independent signal that the real
+      // focus rule — not the decorative one — is what's rendering.
+      expect(result.focusOutlineWidth).toBe('2px');
+
+      await ctx.close();
+    });
+  }
 });

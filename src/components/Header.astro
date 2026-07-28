@@ -312,6 +312,28 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
    * layout or in getBoundingClientRect() at all, so this gets a real,
    * uniform 44x44 tap target *and* keeps the compact design and the icon
    * centered exactly where they were — verified below, not just asserted.
+   *
+   * That decorative outline has one further constraint: it must yield to
+   * the keyboard focus ring. global.css:82-86 sets
+   * `button:focus-visible { outline: 2px solid var(--color-accent);
+   * outline-offset: 3px }` at specificity (0,1,1); Astro scopes this
+   * component's `.nav-toggle` selector to `.nav-toggle[data-astro-cid-*]`,
+   * specificity (0,2,0) — which outranks it regardless of source order, so
+   * an earlier version of this rule painted the resting divider-colour ring
+   * even while focus-visible, silently erasing the focus indicator for
+   * anyone tabbing to this button on a touchscreen laptop, a tablet with a
+   * keyboard case, or a Chromebook (all of which match this same touch
+   * media query) — a WCAG 2.4.7 failure, caught in review, not written
+   * this way from the start. Fixed by scoping the decorative outline to
+   * `:not(:focus-visible)`: while focused it simply doesn't match (not a
+   * specificity contest to lose), so `button:focus-visible` is the only
+   * remaining rule setting `outline`/`outline-offset` and paints
+   * uncontested, at its own `outline-offset: 3px` (outside the box, not
+   * fighting this rule's negative offsets, since this rule isn't part of
+   * the cascade at that state at all). width/height/border/margin stay on
+   * the unconditional `.nav-toggle` rule — the tap target and layout
+   * stability must hold whether or not the button is focused, only the
+   * decorative ring itself is conditional.
    */
   @media (hover: none) and (pointer: coarse) {
     .logo {
@@ -325,9 +347,12 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
       width: 44px;
       height: 44px;
       border: none;
+      margin: -2px;
+    }
+
+    .nav-toggle:not(:focus-visible) {
       outline: 1px solid var(--color-divider);
       outline-offset: -2px;
-      margin: -2px;
     }
   }
 
@@ -337,8 +362,11 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
      still reads as the compact 36x36 button that breakpoint intends. */
   @media (hover: none) and (pointer: coarse) and (max-width: 380px) {
     .nav-toggle {
-      outline-offset: -4px;
       margin: -4px;
+    }
+
+    .nav-toggle:not(:focus-visible) {
+      outline-offset: -4px;
     }
   }
 </style>
