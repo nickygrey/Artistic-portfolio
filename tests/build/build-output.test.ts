@@ -19,6 +19,18 @@ beforeAll(() => {
 
 const read = (f: string) => readFileSync(f, 'utf8');
 
+// The title-length budget is about what a person sees in a browser tab or a
+// search result, not the byte count of escaped markup. Astro escapes text
+// content when it serializes to HTML (e.g. `&` -> `&amp;`), so the raw
+// <title> match must be decoded back to displayed text before counting.
+const decodeEntities = (s: string) =>
+  s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+
 describe('built pages', () => {
   it.each(PAGES)('$file has the right canonical', ({ file, canonical }) => {
     expect(read(file)).toContain(`<link rel="canonical" href="${canonical}">`);
@@ -42,7 +54,8 @@ describe('built pages', () => {
   });
 
   it.each(PAGES.filter((p) => p.home))('$file title is 50-60 characters', ({ file }) => {
-    const title = read(file).match(/<title>([^<]*)<\/title>/)?.[1] ?? '';
+    const raw = read(file).match(/<title>([^<]*)<\/title>/)?.[1] ?? '';
+    const title = decodeEntities(raw);
     expect(title).toContain('Vyacheslav Plotnikov');
     expect([...title].length).toBeGreaterThanOrEqual(50);
     expect([...title].length).toBeLessThanOrEqual(60);
