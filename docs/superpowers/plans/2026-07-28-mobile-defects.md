@@ -406,7 +406,7 @@ Open a touch-emulated context at `http://localhost:4341/#photos` and confirm:
 - [ ] **Step 7: Verify the full suite and commit**
 
 Run: `npm test && npm run build && npm run test:build && npm run test:e2e`
-Expected: 56 unit, 42 build, 9 Playwright, `6 page(s) built`.
+Expected: 56 unit, 42 build, 10 Playwright, `6 page(s) built`.
 
 ```bash
 git add src/components/PhotoCarousel.astro src/styles/global.css tests/e2e/mobile.spec.ts
@@ -529,7 +529,7 @@ Then confirm nothing moved: compare a screenshot of the header and footer at 390
 - [ ] **Step 5: Verify the full suite and commit**
 
 Run: `npm test && npm run build && npm run test:build && npm run test:e2e`
-Expected: 56 unit, 42 build, 10 Playwright, `6 page(s) built`.
+Expected: 56 unit, 42 build, 11 Playwright, `6 page(s) built`.
 
 ```bash
 git add src/components/ tests/e2e/mobile.spec.ts
