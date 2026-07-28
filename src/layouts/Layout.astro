@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import { type Lang, defaultLang } from '../i18n/translations';
 import { ClientRouter } from 'astro:transitions';
+import { stripLocale, canonicalUrl, hreflangAlternates, ogLocale, siteJsonLd } from '../lib/seo';
 
 interface Props {
   title?: string;
@@ -10,13 +11,22 @@ interface Props {
 }
 
 const {
-  title = 'P.V. — Cinematographer & Photographer',
+  title = 'Vyacheslav Plotnikov — Cinematographer in Luxembourg',
   description = 'Professional cinematographer, photographer and editor based in Luxembourg. Specializing in short films, documentaries, commercial work, and photography with a film-trained eye.',
   lang = defaultLang
 } = Astro.props;
 
 // Use full site URL for social media images (OG/Twitter require absolute URLs)
 const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.com';
+
+// Derive canonical/hreflang/JSON-LD from the actual pathname only — never
+// Astro.url.href or a constructed string, since stripLocale does not defend
+// against query strings or hash fragments.
+const { path } = stripLocale(Astro.url.pathname);
+const canonical = canonicalUrl(path, lang);
+const alternates = hreflangAlternates(path);
+const jsonLd = siteJsonLd();
+const isHome = path === '/';
 ---
 
 <!DOCTYPE html>
@@ -39,19 +49,29 @@ const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.
   <meta name="description" content={description}>
   <meta name="keywords" content="cinematographer, photographer, editor, Luxembourg, documentary, short film, commercial, videographer">
   <meta name="author" content="Vyacheslav Plotnikov">
+  <link rel="canonical" href={canonical}>
+  {alternates.map((a) => (
+    <link rel="alternate" hreflang={a.hreflang} href={a.href} />
+  ))}
+  {isHome && (
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  )}
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="P.V.">
+  <meta property="og:title" content={title}>
   <meta property="og:description" content="Professional cinematographer and photographer based in Luxembourg. Short films, documentaries, and commercial projects shot with a still photographer's eye.">
-  <meta property="og:image" content={`${siteUrl}/images/slava%20new-6%20(1).jpg`}>
-  <meta property="og:locale" content="en_US">
+  <meta property="og:url" content={canonical}>
+  <meta property="og:image" content={`${siteUrl}/images/og.jpg`}>
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content={ogLocale(lang)}>
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="P.V.">
+  <meta name="twitter:title" content={title}>
   <meta name="twitter:description" content="Professional cinematographer and photographer based in Luxembourg.">
-  <meta name="twitter:image" content={`${siteUrl}/images/slava%20new-6%20(1).jpg`}>
+  <meta name="twitter:image" content={`${siteUrl}/images/og.jpg`}>
 
   <!-- Theme Color -->
   <meta name="theme-color" content="#f3f2f2">
