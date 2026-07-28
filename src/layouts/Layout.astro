@@ -22,15 +22,31 @@ const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.
 // Derive canonical/hreflang/JSON-LD from the actual pathname only — never
 // Astro.url.href or a constructed string, since stripLocale does not defend
 // against query strings or hash fragments.
-const { path } = stripLocale(Astro.url.pathname);
-const canonical = canonicalUrl(path, lang);
+const { locale, path } = stripLocale(Astro.url.pathname);
+
+// The URL is the ground truth for where a page renders — a page cannot lie
+// about its own path, but it can easily forget to pass `lang` (which then
+// silently defaults to 'en'). Trust the URL-derived locale for every piece
+// of SEO metadata below, and fail the build loudly if a page's `lang` prop
+// disagrees with it, so a forgotten or wrong prop is caught at build time
+// instead of shipping a canonical/hreflang/html-lang mismatch to production.
+if (lang !== locale) {
+  throw new Error(
+    `Layout: lang prop "${lang}" does not match the locale "${locale}" implied by ` +
+    `the URL "${Astro.url.pathname}". Pass lang={'${locale}'} to <Layout>, or omit ` +
+    `the prop and let it default — canonical, hreflang and html-lang must reflect ` +
+    `where the page actually renders, not what it was told.`
+  );
+}
+
+const canonical = canonicalUrl(path, locale);
 const alternates = hreflangAlternates(path);
 const jsonLd = siteJsonLd();
 const isHome = path === '/';
 ---
 
 <!DOCTYPE html>
-<html lang={lang}>
+<html lang={locale}>
 <head>
   <meta charset="utf-8">
   <!-- Prevent flash of wrong theme -->
@@ -65,7 +81,7 @@ const isHome = path === '/';
   <meta property="og:image" content={`${siteUrl}/images/og.jpg`}>
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:locale" content={ogLocale(lang)}>
+  <meta property="og:locale" content={ogLocale(locale)}>
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">

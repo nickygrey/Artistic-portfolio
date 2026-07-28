@@ -123,7 +123,7 @@ describe('siteJsonLd', () => {
   it('names the person exactly as decided', () => {
     const person = ld['@graph'].find((n: any) => n['@type'] === 'Person');
     expect(person.name).toBe('Vyacheslav Plotnikov');
-    expect(person.email).toBe('mailto:pv@nickygrey.com');
+    expect(person.email).toBe('pv@nickygrey.com');
     expect(person.sameAs).toContain('https://instagram.com/nickygreys');
   });
 

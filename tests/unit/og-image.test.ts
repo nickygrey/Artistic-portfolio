@@ -26,7 +26,7 @@ describe('og:image', () => {
     expect(jpegSize(readFileSync(OG))).toEqual({ width: 1200, height: 630 });
   });
 
-  it('is comfortably under the 5MB platform limit', () => {
+  it('is under 1MB, comfortably inside the 5MB platform limit', () => {
     const kb = statSync(OG).size / 1024;
     expect(kb).toBeLessThan(1024);
   });
