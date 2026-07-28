@@ -150,7 +150,15 @@ const base = import.meta.env.BASE_URL;
     gsap: typeof import('gsap').gsap,
     ScrollTrigger: typeof import('gsap/ScrollTrigger').ScrollTrigger
   ) {
-    const RESUME_DELAY_MS = 1200;
+    // How long native 'scroll' events must stop arriving before autoplay
+    // resumes — see scheduleResume() below. Not a fixed "wait N seconds and
+    // resume regardless" delay: every scroll event (active drag or momentum)
+    // pushes this back out, so it only ever fires once scrolling has
+    // genuinely stopped. 150ms is comfortably longer than the gap between
+    // consecutive scroll events during any active drag or momentum decay
+    // (observed well under 30ms apart on this project's touch emulation),
+    // and comfortably shorter than the gap between two separate gestures.
+    const SETTLE_MS = 150;
 
     /**
      * Exact loop period: the distance from the first slide to the first slide of
@@ -166,7 +174,33 @@ const base = import.meta.env.BASE_URL;
       return secondCopy.offsetLeft - first.offsetLeft;
     }
 
+    let paused = false;
+
+    /**
+     * Corrects native-scroll-driven boundary crossings: the user's own touch
+     * drag, or its momentum, carrying scrollLeft past either end while
+     * `advance()` (below) isn't running. Gated to a no-op while `!paused` —
+     * that gate is load-bearing, not defensive.
+     *
+     * Without it, every write `advance()` makes to `scroller.scrollLeft`
+     * fires a native 'scroll' event, which invokes this same function. But
+     * `advance()`'s authoritative position is the float `position` below;
+     * this function only ever sees the *rounded* `scroller.scrollLeft`
+     * (Chromium rounds to the nearest integer CSS pixel — see `position`'s
+     * doc comment). Right after every forward wrap, `position` sits under
+     * 0.5 for several consecutive ticks, which reads back as scrollLeft=0 —
+     * and unmodified, this function would treat that rounding artifact as
+     * "the user scrolled backward past the start" and add a full period
+     * back, a spurious jump that advance()'s next tick immediately
+     * overwrites. Instrumenting `Element.prototype.scrollLeft`'s setter over
+     * a real autoplay session showed this firing 3-4 times per wrap cycle —
+     * entirely self-inflicted, no user input involved. Autoplay wraps its
+     * own `position` internally and needs no help from this function; this
+     * function's only job is the native-scroll case, which only happens
+     * while autoplay is paused for touch.
+     */
     function wrap() {
+      if (!paused) return;
       const p = period();
       if (p <= 0) return;
       // Forward uses a *strict* `>`, backward an *inclusive* `<= 0`, and that
@@ -192,9 +226,6 @@ const base = import.meta.env.BASE_URL;
       const p = period();
       return p > 0 ? p / MARQUEE_DURATION : 0;
     }
-
-    let paused = false;
-    let resumeTimer: ReturnType<typeof setTimeout> | undefined;
 
     /**
      * Fractional scroll position, tracked independently of `scroller.scrollLeft`.
@@ -228,24 +259,49 @@ const base = import.meta.env.BASE_URL;
       scroller.scrollLeft = position;
     }
 
+    /**
+     * Resume is a settle check, not a fixed delay. This used to be a flat
+     * 1200ms after touchend, but native momentum from a strong flick
+     * commonly runs 1-3s — long enough that `paused` could flip back to
+     * false while momentum was still actively moving scrollLeft. At that
+     * point advance() would start writing from a stale `position` snapshot
+     * and cut the user's momentum dead: the same "script write kills
+     * momentum" conflict the brief warns about specifically for the wrap
+     * seam, but reachable this way on *any* flick, seam or not.
+     *
+     * scheduleResume() is called from every 'scroll' event while paused, and
+     * again from touchend as a fallback for a touch that produces no scroll
+     * events at all (a tap, or a drag released exactly at rest). Each call
+     * pushes the timer back out, so it only fires once scrolling has
+     * genuinely stopped for SETTLE_MS — however long that takes — and
+     * re-seeds `position` from the real scrollLeft at that moment so
+     * autoplay continues from wherever the user actually left the strip.
+     */
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    function scheduleResume() {
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        position = scroller.scrollLeft;
+        paused = false;
+      }, SETTLE_MS);
+    }
+
+    function onScroll() {
+      wrap();
+      if (paused) scheduleResume();
+    }
+
     function onTouchStart() {
       paused = true;
-      if (resumeTimer) clearTimeout(resumeTimer);
+      if (settleTimer) clearTimeout(settleTimer);
     }
 
     function onTouchEnd() {
-      if (resumeTimer) clearTimeout(resumeTimer);
-      resumeTimer = setTimeout(() => {
-        // Adopt wherever the user's swipe (or the native-scroll wrap() below)
-        // left scrollLeft, so auto-advance continues from there instead of
-        // snapping back to the stale pre-swipe position.
-        position = scroller.scrollLeft;
-        paused = false;
-      }, RESUME_DELAY_MS);
+      scheduleResume();
     }
 
     gsap.ticker.add(advance);
-    scroller.addEventListener('scroll', wrap, { passive: true });
+    scroller.addEventListener('scroll', onScroll, { passive: true });
     scroller.addEventListener('touchstart', onTouchStart, { passive: true });
     scroller.addEventListener('touchend', onTouchEnd, { passive: true });
     scroller.addEventListener('touchcancel', onTouchEnd, { passive: true });
@@ -253,8 +309,8 @@ const base = import.meta.env.BASE_URL;
     ScrollTrigger.create({
       onKill: () => {
         gsap.ticker.remove(advance);
-        if (resumeTimer) clearTimeout(resumeTimer);
-        scroller.removeEventListener('scroll', wrap);
+        if (settleTimer) clearTimeout(settleTimer);
+        scroller.removeEventListener('scroll', onScroll);
         scroller.removeEventListener('touchstart', onTouchStart);
         scroller.removeEventListener('touchend', onTouchEnd);
         scroller.removeEventListener('touchcancel', onTouchEnd);

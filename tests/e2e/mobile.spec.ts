@@ -44,30 +44,65 @@ test.describe('mobile layout', () => {
     await page.goto('/');
     await page.waitForTimeout(1500);
 
-    // Compare the rendered position of a known slide either side of a wrap.
-    // Asserting only that scrollLeft changed would pass even if the wrap were
-    // visibly jarring, so measure where the content actually lands.
-    const result = await page.evaluate(() => {
+    // Drives the component's actual wrap() function rather than asserting
+    // static DOM geometry. A version of this test that only checked
+    // offsetLeft-based positions after manually setting scrollLeft passed
+    // even with the entire wrap implementation deleted — nothing forced the
+    // app's own listener to run at all. This dispatches a real 'touchstart'
+    // (which the component's own listener uses to pause autoplay, exactly as
+    // a real touch would — wrap() is gated to a no-op while autoplay is
+    // running, see PhotoCarousel.astro), then a real scrollLeft change past
+    // each boundary, and waits for the resulting native 'scroll' event
+    // (which is what actually invokes wrap()) before reading the outcome.
+    //
+    // The offset injected past each boundary (5px) is asserted back with a
+    // tight tolerance rather than just "somewhere in range": wrap() must
+    // subtract/add *exactly* one period, or a drifting seam (the flex `gap`
+    // trap `period()` is designed to avoid) would show up here as several
+    // px of error rather than passing.
+    const result = await page.evaluate(async () => {
       const el = document.querySelector('#photo-carousel') as HTMLElement;
       const slides = document.querySelectorAll('#carousel-track > *');
       const first = slides[0] as HTMLElement;
       const secondCopy = slides[Math.floor(slides.length / 2)] as HTMLElement;
-      const p = secondCopy.offsetLeft - first.offsetLeft;
+      const period = secondCopy.offsetLeft - first.offsetLeft;
 
+      function nextScroll(): Promise<void> {
+        return new Promise((resolve) => {
+          el.addEventListener('scroll', () => resolve(), { once: true });
+          // Fallback in case the assignment below doesn't change the rounded
+          // scrollLeft value and so never fires a 'scroll' event at all.
+          setTimeout(resolve, 200);
+        });
+      }
+
+      // Pause autoplay the same way a real touch does, so the component's
+      // scroll listener (and the wrap() it calls) is actually live — it is a
+      // deliberate no-op while autoplay is running.
+      el.dispatchEvent(new Event('touchstart'));
+
+      // Forward: land 5px past the boundary, as a real drag or its momentum
+      // would, and let the app's own listener correct it.
+      el.scrollLeft = period + 5;
+      await nextScroll();
+      const afterForward = el.scrollLeft;
+
+      // Backward: land at the clamped floor (native scrolling never reports
+      // negative), and let the app wrap us to the equivalent tail position.
       el.scrollLeft = 0;
-      const before = first.getBoundingClientRect().left;
+      await nextScroll();
+      const afterBackward = el.scrollLeft;
 
-      // Land exactly one period along: the second copy's first slide should now
-      // sit where the first slide sat.
-      el.scrollLeft = p;
-      const after = secondCopy.getBoundingClientRect().left;
+      el.dispatchEvent(new Event('touchend'));
 
-      return { period: p, before, after, delta: Math.abs(after - before) };
+      return { period, afterForward, afterBackward };
     });
 
     expect(result.period).toBeGreaterThan(0);
-    // Sub-pixel tolerance only — a drifting seam would show up as several px.
-    expect(result.delta).toBeLessThan(2);
+    // Forward: period + 5 should have been corrected to exactly ~5.
+    expect(Math.abs(result.afterForward - 5)).toBeLessThan(2);
+    // Backward: 0 should have been corrected to exactly ~period.
+    expect(Math.abs(result.afterBackward - result.period)).toBeLessThan(2);
     await ctx.close();
   });
 
