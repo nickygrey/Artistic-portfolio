@@ -71,6 +71,19 @@ function tick(time: number): void {
  * properly. Detection mirrors Lenis's own same-host/same-pathname/has-hash
  * check so this only intercepts the exact clicks `anchors: true` also
  * handles.
+ *
+ * Modifier-clicks and non-primary mouse buttons are explicitly excluded:
+ * a cmd-click (macOS) or ctrl-click (Windows/Linux) on one of these same
+ * links means "open in a new background tab", not "follow it here", and
+ * must fall through to the browser's native handling untouched — same for
+ * shift-click (new window) and alt-click (download). Without this guard
+ * the capture-phase preventDefault() below fired for those too, silently
+ * cancelling the new tab and leaving Lenis's bubble-phase handler (which
+ * has no modifier check of its own) to smooth-scroll the current tab
+ * instead — a regression this same fix introduced. `event.button !== 0`
+ * catches non-primary buttons the same way; middle-click is not in scope
+ * here since Chromium and Firefox fire `auxclick`, not `click`, for the
+ * middle button, so this listener never observes it regardless.
  */
 function preventNativeAnchorJump(event: MouseEvent): void {
   const link = (event.target as Element | null)?.closest?.('a[href]');
@@ -84,9 +97,75 @@ function preventNativeAnchorJump(event: MouseEvent): void {
   }
 
   const current = new URL(window.location.href);
-  if (url.host === current.host && url.pathname === current.pathname && url.hash) {
-    event.preventDefault();
+  if (url.host !== current.host || url.pathname !== current.pathname || !url.hash) return;
+
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+    suppressNextLenisAnchorClick = true;
+    return;
   }
+
+  event.preventDefault();
+}
+
+/**
+ * Set synchronously, from preventNativeAnchorJump above, only when a click
+ * matched Lenis's own anchor criteria *and* carried a modifier/non-primary
+ * button. Consumed once by suppressLenisAnchorClick() below, on the very
+ * next 'click' Lenis itself would otherwise act on.
+ */
+let suppressNextLenisAnchorClick = false;
+
+/**
+ * Lenis's own onClick (lenis.mjs, registered on `window` at the bubble
+ * phase) runs the identical host/pathname/hash match with no modifier
+ * check of its own, and it runs regardless of what preventNativeAnchorJump
+ * does — bailing out of preventDefault() there only stops *our* side
+ * effect, it does not stop Lenis from also matching this same click and
+ * calling its scrollTo. Verified in a real browser: without this,
+ * cmd-clicking a nav link correctly opened the target in a background tab
+ * *but also* smooth-scrolled the current tab out from under it.
+ *
+ * Two approaches were tried and rejected before this one:
+ *
+ * 1. event.stopPropagation() in preventNativeAnchorJump's capture-phase
+ *    listener. Rejected: it would also silence every *other* bubble-phase
+ *    listener on this same click — Header.astro's own "close the mobile
+ *    menu" handlers, one attached directly to each nav link and one on
+ *    `document` for outside-clicks — which have nothing to do with Lenis
+ *    and should still run on a modifier-click.
+ *
+ * 2. Flipping lenis.options.anchors to false in the capture-phase
+ *    listener and restoring it on a queueMicrotask() right after.
+ *    Rejected: verified in a real browser (via a temporary
+ *    console.trace() in lenis.scrollTo) that this does *not* work — the
+ *    HTML event-loop spec runs a microtask checkpoint after *each
+ *    individual listener invocation* during dispatch, not just once after
+ *    the whole capture→target→bubble sequence finishes. So the
+ *    queueMicrotask() callback ran and restored `anchors` back to `true`
+ *    immediately after our own capture-phase listener returned — still
+ *    several listeners *before* Lenis's bubble-phase onClick was reached
+ *    — and onClick then read `anchors: true` and called scrollTo as
+ *    normal. A plain boolean flag read once, synchronously, by a listener
+ *    that fires and is fully done before Lenis's own runs sidesteps this
+ *    entirely; there is no restore step, hence no window for it to fire
+ *    at the wrong time.
+ *
+ * This listener is what makes that possible: registered on `window` in
+ * ensureLenis() *before* `new Lenis(...)` constructs and adds its own
+ * bubble-phase 'click' listener on the same `window` object. Same node,
+ * same phase, listeners run in registration order — so this one always
+ * runs first. When it finds the flag set (only true for the one click
+ * that just set it, in the same synchronous dispatch), it calls
+ * event.stopImmediatePropagation(), which prevents any *other* listener
+ * registered on this exact node from running for this dispatch — here,
+ * that is solely Lenis's onClick. Every listener on every other node
+ * (the link itself, `document`, etc.) has already run by this point in
+ * the bubble phase and is unaffected either way.
+ */
+function suppressLenisAnchorClick(event: MouseEvent): void {
+  if (!suppressNextLenisAnchorClick) return;
+  suppressNextLenisAnchorClick = false;
+  event.stopImmediatePropagation();
 }
 
 /**
@@ -111,6 +190,11 @@ function preventNativeAnchorJump(event: MouseEvent): void {
  */
 function ensureLenis(): void {
   if (lenis || shouldDisableLenis()) return;
+
+  // Registered before `new Lenis` below — see suppressLenisAnchorClick()'s
+  // doc comment for why registration order against Lenis's own bubble-phase
+  // 'click' listener on this same `window` object matters.
+  window.addEventListener('click', suppressLenisAnchorClick);
 
   lenis = new Lenis({
     duration: LENIS.duration,
@@ -137,6 +221,8 @@ function destroyLenis(): void {
   lenis.destroy();
   lenis = null;
   window.removeEventListener('click', preventNativeAnchorJump, true);
+  window.removeEventListener('click', suppressLenisAnchorClick);
+  suppressNextLenisAnchorClick = false;
   // lagSmoothing(0) in ensureLenis() is a page-wide gsap.ticker setting,
   // not scoped to Lenis — restore GSAP's own defaults (threshold 500ms,
   // adjustment 33ms) so disabling lag compensation doesn't outlive Lenis
