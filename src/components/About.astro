@@ -1,20 +1,26 @@
 ---
+import { Image } from 'astro:assets';
 import { type Lang, t } from '../i18n/translations';
+import portraitImage from '../assets/portrait.jpg';
 
 interface Props {
   lang: Lang;
 }
 
 const { lang } = Astro.props;
-const base = import.meta.env.BASE_URL;
 ---
 
 <div class="wrap"><div class="divider"></div></div>
 <section id="about" class="wrap about-split about-section">
   <figure class="plate about-image">
-    <img
-      src={`${base}images/slava new-6 (1).jpg`}
+    <Image
+      src={portraitImage}
       alt="Vyacheslav Plotnikov"
+      width={1200}
+      widths={[400, 800, 1200]}
+      sizes="(max-width: 900px) 90vw, 40vw"
+      format="webp"
+      quality={82}
       loading="lazy"
       decoding="async"
       data-animation="scale"

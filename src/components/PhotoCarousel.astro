@@ -1,6 +1,6 @@
 ---
-const photos = [1, 2, 3, 4, 5, 6, 7];
-const base = import.meta.env.BASE_URL;
+import { Image } from 'astro:assets';
+import { photos } from '../lib/photos';
 ---
 
 <section id="photos" class="photo-section">
@@ -13,11 +13,16 @@ const base = import.meta.env.BASE_URL;
       data-original-count={photos.length}
     >
       {/* Original set */}
-      {photos.map((num, index) => (
+      {photos.map((photo, index) => (
         <div class="carousel-slide" data-index={index}>
-          <img
-            src={`${base}images/photos/${num}.jpg`}
-            alt={`Photography by P.V. - ${num}`}
+          <Image
+            src={photo}
+            alt={`Photography by P.V. - ${index + 1}`}
+            width={1066}
+            widths={[320, 640, 1066]}
+            sizes="(max-width: 480px) 140px, (max-width: 900px) 180px, 230px"
+            format="webp"
+            quality={80}
             loading="lazy"
             decoding="async"
             draggable="false"
@@ -25,11 +30,16 @@ const base = import.meta.env.BASE_URL;
         </div>
       ))}
       {/* Duplicate for seamless loop */}
-      {photos.map((num, index) => (
+      {photos.map((photo, index) => (
         <div class="carousel-slide" data-index={index}>
-          <img
-            src={`${base}images/photos/${num}.jpg`}
-            alt={`Photography by P.V. - ${num}`}
+          <Image
+            src={photo}
+            alt={`Photography by P.V. - ${index + 1}`}
+            width={1066}
+            widths={[320, 640, 1066]}
+            sizes="(max-width: 480px) 140px, (max-width: 900px) 180px, 230px"
+            format="webp"
+            quality={80}
             loading="lazy"
             decoding="async"
             draggable="false"
@@ -563,15 +573,11 @@ const base = import.meta.env.BASE_URL;
   // Global state for lightbox navigation
   const lightboxState = {
     currentIndex: 0,
-    photoCount: 7,
-    base: '/',
+    photoCount: 0,
     initialized: false
   };
 
   function initPhotoCarousel() {
-    const photos = Array.from({ length: lightboxState.photoCount }, (_, i) => i + 1);
-    lightboxState.base = document.querySelector('.carousel-slide img')?.getAttribute('src')?.replace(/images\/photos\/\d+\.jpg$/, '') || '/';
-
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
     const lightboxClose = document.querySelector('.lightbox-close');
@@ -583,12 +589,33 @@ const base = import.meta.env.BASE_URL;
 
     if (!lightbox || !carousel) return;
 
+    // Same source the marquee loop-period math above reads: the number of
+    // slides in one copy of the strip, fixed at build time from
+    // photos.length rather than "however many .carousel-slide elements
+    // exist right now" — that count can include extra clones appended by
+    // ensureScrollableRange().
+    lightboxState.photoCount = Number(track?.dataset.originalCount) || carouselSlides.length / 2 || 0;
+
+    /**
+     * Shows the photo at `index` by copying the src of the already-rendered
+     * <img> for that slide, rather than rebuilding a URL from a numeric
+     * filename convention. Astro's <Image> emits a hashed, optimised path
+     * (and a srcset of several) — there is no `images/photos/N.jpg`
+     * filename pattern left to reconstruct, so this reuses whatever src the
+     * browser already resolved for the clicked (or arrowed-to) slide.
+     * currentSrc reflects the exact srcset candidate the browser picked;
+     * it falls back to .src (always present, even before srcset selection
+     * has run) for a slide the browser hasn't gotten to yet.
+     */
     function showPhoto(index: number) {
+      if (lightboxState.photoCount <= 0) return;
       lightboxState.currentIndex = ((index % lightboxState.photoCount) + lightboxState.photoCount) % lightboxState.photoCount;
-      const photoNum = photos[lightboxState.currentIndex];
-      if (lightboxImg) {
-        lightboxImg.src = `${lightboxState.base}images/photos/${photoNum}.jpg`;
-        lightboxImg.alt = `Photography by P.V. - ${photoNum}`;
+      const slideImg = document.querySelector(
+        `.carousel-slide[data-index="${lightboxState.currentIndex}"] img`
+      ) as HTMLImageElement | null;
+      if (lightboxImg && slideImg) {
+        lightboxImg.src = slideImg.currentSrc || slideImg.src;
+        lightboxImg.alt = slideImg.alt;
       }
     }
 
@@ -630,24 +657,15 @@ const base = import.meta.env.BASE_URL;
         const currentLightbox = document.getElementById('lightbox');
         if (!currentLightbox?.classList.contains('is-open')) return;
 
-        const img = document.getElementById('lightbox-img') as HTMLImageElement;
-        const photos = Array.from({ length: lightboxState.photoCount }, (_, i) => i + 1);
-
         if (e.key === 'Escape') {
           currentLightbox.classList.remove('is-open');
           document.body.style.overflow = '';
         }
         if (e.key === 'ArrowLeft') {
-          lightboxState.currentIndex = ((lightboxState.currentIndex - 1) % lightboxState.photoCount + lightboxState.photoCount) % lightboxState.photoCount;
-          if (img) {
-            img.src = `${lightboxState.base}images/photos/${photos[lightboxState.currentIndex]}.jpg`;
-          }
+          showPhoto(lightboxState.currentIndex - 1);
         }
         if (e.key === 'ArrowRight') {
-          lightboxState.currentIndex = (lightboxState.currentIndex + 1) % lightboxState.photoCount;
-          if (img) {
-            img.src = `${lightboxState.base}images/photos/${photos[lightboxState.currentIndex]}.jpg`;
-          }
+          showPhoto(lightboxState.currentIndex + 1);
         }
       });
     }

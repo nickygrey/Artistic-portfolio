@@ -1,5 +1,7 @@
 ---
+import { Image } from 'astro:assets';
 import { type Lang, t } from '../i18n/translations';
+import workAudienceImage from '../assets/work-audience.png';
 
 interface Props {
   lang: Lang;
@@ -7,7 +9,6 @@ interface Props {
 
 const { lang } = Astro.props;
 const youtubeUrl = 'https://www.youtube.com/watch?v=0Wb-eaG1Vio&t=71s';
-const base = import.meta.env.BASE_URL;
 ---
 
 <section id="reel" class="wrap reel-section">
@@ -23,9 +24,14 @@ const base = import.meta.env.BASE_URL;
   <a href={youtubeUrl} target="_blank" rel="noopener" class="reel-link">
     <div class="reel-frame">
       <div class="reel-thumbnail" data-animation="parallax" data-speed="0.6">
-        <img
-          src={`${base}images/Screenshot 2026-07-19 at 12.25.53.png`}
+        <Image
+          src={workAudienceImage}
           alt="Showreel - UGEGRAAF Documentary"
+          width={1800}
+          widths={[600, 1200, 1800]}
+          sizes="(max-width: 900px) 100vw, 1200px"
+          format="webp"
+          quality={82}
           loading="lazy"
           decoding="async"
         />

@@ -1,30 +1,40 @@
 ---
+import { Image } from 'astro:assets';
 import { type Lang, t } from '../i18n/translations';
+import lumeraLogo from '../assets/partners/Main logo Horizontal.png';
+import momentumLogo from '../assets/partners/Momentum logo.png';
 
 interface Props {
   lang: Lang;
 }
 
 const { lang } = Astro.props;
-const base = import.meta.env.BASE_URL;
 ---
 
 <section class="wrap partners-section">
   <span class="kick">{t(lang, 'partner')}</span>
   <div class="partner-logos" data-animation="fade" data-stagger>
     <a href="https://lumera.lu" target="_blank" rel="noopener" class="partner-link">
-      <img
-        src={`${base}images/partners/Main logo Horizontal.png`}
+      <Image
+        src={lumeraLogo}
         alt="Lumera"
+        width={400}
+        widths={[200, 400]}
+        sizes="200px"
+        format="webp"
         loading="lazy"
         decoding="async"
         class="partner-logo"
       />
     </a>
     <a href="#" class="partner-link">
-      <img
-        src={`${base}images/partners/Momentum logo.png`}
+      <Image
+        src={momentumLogo}
         alt="Momentum"
+        width={400}
+        widths={[200, 400]}
+        sizes="200px"
+        format="webp"
         loading="lazy"
         decoding="async"
         class="partner-logo"

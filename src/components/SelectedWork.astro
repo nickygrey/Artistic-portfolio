@@ -1,9 +1,11 @@
 ---
-const base = import.meta.env.BASE_URL;
+import { Image } from 'astro:assets';
+import workAudienceImage from '../assets/work-audience.png';
+
 const projects = [
   {
     url: 'https://www.youtube.com/watch?v=0Wb-eaG1Vio&t=71s',
-    image: `${base}images/Screenshot 2026-07-19 at 12.25.53.png`,
+    image: workAudienceImage,
     category: 'Documentary',
     title: 'Audience',
   },
@@ -52,12 +54,26 @@ const projects = [
         <figure class="plate">
           <div class="project-thumbnail">
             <div class="project-scale" data-animation="scale" data-from="1.15" data-to="1" data-scrub>
-              <img
-                src={project.image}
-                alt={project.title}
-                loading="lazy"
-                decoding="async"
-              />
+              {typeof project.image === 'string' ? (
+                <img
+                  src={project.image}
+                  alt={project.title}
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <Image
+                  src={project.image}
+                  alt={project.title}
+                  width={1200}
+                  widths={[400, 800, 1200]}
+                  sizes="(max-width: 900px) 90vw, 45vw"
+                  format="webp"
+                  quality={82}
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
             </div>
           </div>
         </figure>
