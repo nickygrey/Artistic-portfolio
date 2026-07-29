@@ -236,17 +236,90 @@ const base = import.meta.env.BASE_URL;
      * image set, or breakpoint that shrinks the strip, not just the ones
      * measured for this fix. `guard` only defends against a pathological
      * future case (e.g. a single copy narrower than the append step
-     * itself); every viewport measured for this fix settles in one pass.
+     * itself); every viewport measured for this fix settles in one pass —
+     * *provided* the slides being measured are real, decoded geometry, not
+     * the near-0 width an unloaded image collapses to (see
+     * originalsAreMeasured() below, which this depends on).
+     *
+     * CRITICAL, found by the whole-branch re-review: on a client-side
+     * navigation (Astro's View Transitions swap), the freshly-inserted
+     * slides' `<img>` elements have not necessarily started loading at the
+     * exact synchronous tick this runs on. A hard reload's native HTML
+     * parser discovers `<img src>` and starts fetching during the initial
+     * streaming parse, well before any module script executes; a subtree
+     * inserted by the client router gets no equivalent head start. Every
+     * slide then measures ~0px wide, `period()` reads as only the flex
+     * `gap` contributions (a few tens of px, not real image width), and the
+     * loop below used to read that as "nowhere close to satisfied" and burn
+     * through every one of its 8 guard iterations trying to out-clone a
+     * width that wasn't really there — reproduced live: 70 children in
+     * landscape, 63 in portrait, against the correct 14/21, recurring on
+     * every navigation into a page holding this carousel. `guard` was never
+     * a backstop in that state; it was the ceiling actually being hit.
+     *
+     * Fixed by refusing to decide anything until the real geometry is
+     * knowable (originalsAreMeasured()) and by re-deriving the decision
+     * from a clean baseline every time (trimToOriginalCopies()) rather than
+     * layering more clones on top of a possibly-already-wrong prior
+     * decision. The ResizeObserver already watching `track` is what
+     * re-invokes this once the images actually finish loading and the
+     * track's real content size changes — there is nothing useful to do
+     * here in the meantime except wait for that, which is exactly what
+     * bailing out early does.
      */
     function ensureScrollableRange(): void {
-      const p = period();
-      if (p <= 0) return;
       const originals = Array.from(track.children).slice(0, originalCount) as HTMLElement[];
       if (!originals.length) return;
+
+      trimToOriginalCopies();
+      if (!originalsAreMeasured(originals)) return;
+
+      const p = period();
+      if (p <= 0) return;
+
       let guard = 0;
       while (scroller.scrollWidth - scroller.clientWidth <= p && guard < 8) {
         for (const slide of originals) track.appendChild(slide.cloneNode(true));
         guard++;
+      }
+    }
+
+    /**
+     * True once every original slide's <img> has actually finished
+     * loading — `complete && naturalWidth > 0`, the standard DOM signal for
+     * "this image resource has decoded and its intrinsic size is known,"
+     * independent of any layout-timing quirk. Slide width follows the
+     * image's aspect ratio (`.carousel-slide img { height: 100%; width:
+     * auto }`), so an unmeasured image collapses its slide toward 0 width
+     * regardless of what `period()` or `scrollWidth` happen to report at
+     * that instant — see ensureScrollableRange()'s CRITICAL comment above
+     * for why deciding anything from that reading is actively harmful, not
+     * just imprecise.
+     */
+    function originalsAreMeasured(originals: HTMLElement[]): boolean {
+      return originals.every((slide) => {
+        const img = slide.querySelector('img');
+        return !img || (img.complete && img.naturalWidth > 0);
+      });
+    }
+
+    /**
+     * Removes any copies beyond the canonical two (everything from index
+     * `originalCount * 2` onward), so every call to ensureScrollableRange()
+     * re-decides "how many copies does the *current* geometry need" from
+     * the same known baseline, rather than "how many MORE on top of
+     * whatever a previous call already appended." That is what makes
+     * repeated calls against the same track converge instead of compound —
+     * and they are repeated, by design: Layout.astro calls initMotion()
+     * synchronously and again on `astro:page-load` on every load (see
+     * AGENTS.md), and the ResizeObserver above re-invokes
+     * ensureScrollableRange() again whenever the track's size changes
+     * later (an image finishing load, a rotation). Cheap when there is
+     * nothing to trim (the common case, once measurements are stable).
+     */
+    function trimToOriginalCopies(): void {
+      while (track.children.length > originalCount * 2) {
+        track.lastElementChild?.remove();
       }
     }
 
@@ -401,6 +474,13 @@ const base = import.meta.env.BASE_URL;
       onKill: () => {
         gsap.ticker.remove(advance);
         rangeObserver.disconnect();
+        // Closes the accumulation path: without this, clones this instance
+        // appended survive its own teardown. Harmless on a hard swap (the
+        // whole subtree is discarded), but load-bearing for the documented
+        // double sync + astro:page-load init on every single load, where a
+        // second setupTouchCarousel() call runs against this exact same
+        // track right after this onKill fires.
+        trimToOriginalCopies();
         if (settleTimer) clearTimeout(settleTimer);
         scroller.removeEventListener('scroll', onScroll);
         scroller.removeEventListener('touchstart', onTouchStart);

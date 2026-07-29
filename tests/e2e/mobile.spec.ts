@@ -3,6 +3,12 @@ import { MARQUEE_DURATION } from '../../src/motion/tokens';
 
 const MOBILE = { ...devices['iPhone 13'] };
 
+// 844x390 (iPhone 13/14 landscape) is the clearest case for the landscape
+// carousel invariant — short of the scrollable range by 160px pre-fix — so
+// it's reused across every landscape-specific test in this file, including
+// the soft-navigation one below.
+const LANDSCAPE_VIEWPORT = { width: 844, height: 390 };
+
 /**
  * Samples scrollLeft over `sampleMs` on an untouched touch page — no
  * simulated interaction at all — and returns how far the strip moved on
@@ -62,6 +68,47 @@ function expectApproxOneCycleRate(
 
   expect(moved).toBeGreaterThan(expectedDelta * 0.5);
   expect(moved).toBeLessThan(expectedDelta * 1.5 + 10);
+}
+
+/**
+ * Navigates home -> /privacy -> home twice via real in-app link clicks and
+ * a real browser back, i.e. genuine client-side (Astro View Transitions)
+ * swaps, not `page.goto()`. Every test elsewhere in this file only ever
+ * calls `page.goto()`, which is a hard navigation — the footer's privacy
+ * link is what actually exercises the ClientRouter swap path, which is the
+ * one place a freshly-inserted track's slide images get no native-parser
+ * head start on loading (see PhotoCarousel.astro's ensureScrollableRange()
+ * CRITICAL comment). Repeated twice because the bug this guards against
+ * compounds per navigation, not just on the first one.
+ */
+async function roundTripToPrivacyTwice(page: Page): Promise<void> {
+  for (let i = 0; i < 2; i++) {
+    await page.click('.footer a[href="/privacy"]');
+    await page.waitForURL('**/privacy');
+    await page.waitForTimeout(600);
+    await page.goBack();
+    await page.waitForURL((url) => url.pathname === '/');
+    await page.waitForTimeout(1500);
+  }
+}
+
+/**
+ * Reads back the track's child count and scrollable width, plus the
+ * `data-original-count` the Astro template emits (one copy's slide count —
+ * 7 today), so callers can assert the count is a sane whole multiple of it
+ * rather than hardcoding "7" or "14" here.
+ */
+async function measureTrackBloat(page: Page) {
+  return page.evaluate(() => {
+    const track = document.getElementById('carousel-track') as HTMLElement;
+    const el = document.getElementById('photo-carousel') as HTMLElement;
+    return {
+      originalCount: Number(track.dataset.originalCount),
+      childCount: track.children.length,
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+    };
+  });
 }
 
 test.describe('mobile layout', () => {
@@ -349,10 +396,8 @@ test.describe('mobile layout', () => {
   // so it's what's covered here. See PhotoCarousel.astro's
   // ensureScrollableRange() for the fix.
   test.describe('landscape phones', () => {
-    const LANDSCAPE = { width: 844, height: 390 };
-
     test('the carousel has enough range to loop without freezing or a backward jump', async ({ browser }) => {
-      const ctx = await browser.newContext({ ...MOBILE, viewport: LANDSCAPE });
+      const ctx = await browser.newContext({ ...MOBILE, viewport: LANDSCAPE_VIEWPORT });
       const page = await ctx.newPage();
       await page.goto('/');
       await page.waitForTimeout(1500);
@@ -409,7 +454,7 @@ test.describe('mobile layout', () => {
     });
 
     test('auto-advance moves at the same ~1x rate in landscape too', async ({ browser }) => {
-      const ctx = await browser.newContext({ ...MOBILE, viewport: LANDSCAPE });
+      const ctx = await browser.newContext({ ...MOBILE, viewport: LANDSCAPE_VIEWPORT });
       const page = await ctx.newPage();
       await page.goto('/');
       await page.waitForTimeout(1500);
@@ -417,6 +462,57 @@ test.describe('mobile layout', () => {
       const SAMPLE_MS = 3000;
       const sample = await measureAutoAdvance(page, SAMPLE_MS);
       expectApproxOneCycleRate(sample, SAMPLE_MS);
+
+      await ctx.close();
+    });
+  });
+
+  // Every test above (and every one of the 19 tests already in this suite
+  // before this fix wave) reaches the page via `page.goto()` — a hard
+  // navigation. None of them exercised Astro's client-side View
+  // Transitions swap, which is exactly the gap that let a real Critical
+  // through: ensureScrollableRange() ballooned the track to 70 children
+  // (landscape) / 63 (portrait) — against the correct 21/14 — on every
+  // client-side navigation into a page holding this carousel, because a
+  // freshly swapped-in track's slide images have no native-parser head
+  // start on loading and so measure ~0px wide at the moment this runs.
+  test.describe('client-side navigation', () => {
+    test('the track does not balloon across repeated client-side navigations (portrait)', async ({ browser }) => {
+      const ctx = await browser.newContext(MOBILE);
+      const page = await ctx.newPage();
+      await page.goto('/');
+      await page.waitForTimeout(1500);
+
+      await roundTripToPrivacyTwice(page);
+      const result = await measureTrackBloat(page);
+
+      expect(result.originalCount).toBeGreaterThan(0);
+      // A sane copy count is always a whole multiple of one copy — never a
+      // half-cloned remainder — and comfortably below the guard-capped
+      // ceiling this bug actually produced (63/70 children, ~9-10x
+      // originalCount). Portrait never needs more than the original two
+      // copies (see the main invariant comment in PhotoCarousel.astro), so
+      // 4x is generous headroom, not a tight bound tuned to today's numbers.
+      expect(result.childCount % result.originalCount).toBe(0);
+      expect(result.childCount).toBeLessThanOrEqual(result.originalCount * 4);
+      expect(result.scrollWidth).toBeLessThan(result.clientWidth * 6);
+
+      await ctx.close();
+    });
+
+    test('the track does not balloon across repeated client-side navigations (landscape)', async ({ browser }) => {
+      const ctx = await browser.newContext({ ...MOBILE, viewport: LANDSCAPE_VIEWPORT });
+      const page = await ctx.newPage();
+      await page.goto('/');
+      await page.waitForTimeout(1500);
+
+      await roundTripToPrivacyTwice(page);
+      const result = await measureTrackBloat(page);
+
+      expect(result.originalCount).toBeGreaterThan(0);
+      expect(result.childCount % result.originalCount).toBe(0);
+      expect(result.childCount).toBeLessThanOrEqual(result.originalCount * 4);
+      expect(result.scrollWidth).toBeLessThan(result.clientWidth * 6);
 
       await ctx.close();
     });
