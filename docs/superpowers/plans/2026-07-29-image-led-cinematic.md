@@ -50,6 +50,7 @@ git mv public/images/hero.jpg src/assets/hero.jpg
 git mv "public/images/slava new-6 (1).jpg" src/assets/portrait.jpg
 git mv public/images/photos/*.jpg src/assets/photos/
 git mv public/images/partners/*.png src/assets/partners/
+git mv "public/images/Screenshot 2026-07-19 at 12.25.53.png" src/assets/work-audience.png
 ```
 
 Leave `public/images/og.jpg` where it is — the OpenGraph image must be a stable, absolute, unhashed URL, and Astro would fingerprint it. Leave `public/favicon.*` and `public/CNAME` alone.
@@ -105,6 +106,14 @@ For `PhotoCarousel.astro`, import `photos` from `../lib/photos` and map over it.
 
 For `About.astro` use `portrait.jpg`; for `Partners.astro` the two logos. Keep every existing class name so the CSS and the motion attributes keep matching.
 
+**`SelectedWork.astro` is a mixed case.** Its `projects` array holds one local
+image (now `src/assets/work-audience.png`) and three remote `img.youtube.com`
+URLs. Convert only the local one to `<Image>`. Leave the three remote URLs as
+plain `<img>` tags: optimising remote images requires configuring
+`image.remotePatterns`, and these are placeholders the owner will replace with
+chosen film frames anyway. Adding that configuration for assets about to be
+deleted is work with a negative lifespan.
+
 **Preserve `loading="lazy"` on everything below the fold**, and keep `decoding="async"`.
 
 - [ ] **Step 4: Write the build-output test**
@@ -126,6 +135,8 @@ const html = () => readFileSync('dist/index.html', 'utf8');
 describe('image pipeline', () => {
   it('serves no page photograph from public/images', () => {
     // og.jpg is referenced only in meta tags, never rendered, so it is exempt.
+    // Remote img.youtube.com thumbnails are also out of scope — they are
+    // placeholders the owner replaces, and are not served from public/.
     const imgTags = html().match(/<img[^>]*>/g) || [];
     const fromPublic = imgTags.filter(t => /src="\/images\//.test(t));
     expect(fromPublic).toEqual([]);
