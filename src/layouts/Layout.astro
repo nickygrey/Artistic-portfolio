@@ -1,8 +1,10 @@
 ---
 import '../styles/global.css';
+import { getImage } from 'astro:assets';
 import { type Lang, defaultLang } from '../i18n/translations';
 import { ClientRouter } from 'astro:transitions';
 import { stripLocale, canonicalUrl, hreflangAlternates, ogLocale, siteJsonLd } from '../lib/seo';
+import { HERO_IMAGE, HERO_WIDTHS, HERO_QUALITY, HERO_FORMAT, HERO_SIZES } from '../lib/hero-image';
 
 interface Props {
   title?: string;
@@ -43,6 +45,31 @@ const canonical = canonicalUrl(path, locale);
 const alternates = hreflangAlternates(path);
 const jsonLd = siteJsonLd();
 const isHome = path === '/';
+
+// The hero is the single above-the-fold photograph on the homepage and its
+// likely LCP element. fetchpriority="high" + loading="eager" on the <img>
+// itself gets picked up by the preload scanner, but a head-level preload
+// still resolves earlier — before the body has streamed in at all. Built
+// from the exact same widths/format/quality as Hero.astro's own <Image>
+// (see ../lib/hero-image.ts) so this always references files that really
+// get requested, never a stray extra one. Only computed for the homepage:
+// Hero.astro never renders on /privacy, so preloading it there would just
+// be a wasted fetch.
+const heroPreload = isHome
+  ? await getImage({
+      src: HERO_IMAGE,
+      // Explicit width, matching Hero.astro's own <Image> call: without it,
+      // Astro's getTargetDimensions() defaults the base (non-srcset)
+      // transform to the source's full native resolution regardless of
+      // `widths` — the exact bug already fixed once for <Image> (see
+      // task-1-report.md) and silently reintroduced here for the same
+      // reason if omitted.
+      width: HERO_WIDTHS[HERO_WIDTHS.length - 1],
+      widths: HERO_WIDTHS,
+      format: HERO_FORMAT,
+      quality: HERO_QUALITY,
+    })
+  : null;
 ---
 
 <!DOCTYPE html>
@@ -96,6 +123,17 @@ const isHome = path === '/';
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon.svg">
+
+  {heroPreload && (
+    <link
+      rel="preload"
+      as="image"
+      href={heroPreload.src}
+      imagesrcset={heroPreload.srcSet.attribute}
+      imagesizes={HERO_SIZES}
+      fetchpriority="high"
+    />
+  )}
 
   <!-- Preconnect to external domains -->
   <link rel="preconnect" href="https://fonts.googleapis.com">

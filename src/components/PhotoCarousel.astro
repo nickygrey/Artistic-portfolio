@@ -1,6 +1,38 @@
 ---
-import { Image } from 'astro:assets';
+import { Image, getImage } from 'astro:assets';
 import { photos } from '../lib/photos';
+
+/**
+ * One full-resolution (native width) webp per photograph, resolved once at
+ * build time — this is what the lightbox shows, deliberately decoupled from
+ * the carousel thumbnail's own srcset below.
+ *
+ * The thumbnail's `sizes` caps its display width at 230px, so against
+ * `widths={[320, 640, 1066]}` a DPR-1 display resolves the 320w candidate
+ * and DPR-2 resolves 640w — only DPR >= 3 ever reaches the 1066w tier. If
+ * the lightbox reused that resolved candidate (as it used to), it would
+ * stretch a 320-640px image up to 92vw: a visible, unintended upscale on
+ * any normal external monitor, in the one place a visitor goes specifically
+ * to look at a photograph closely. Generating this independently of the
+ * thumbnail's widths/sizes means the lightbox always shows the full source
+ * resolution regardless of what the thumbnail decides to load.
+ *
+ * No `width` option here, deliberately: omitting both `width` and `height`
+ * makes Astro's own getTargetDimensions() default the transform to the
+ * source's native size — exactly what "full resolution" means. Do not
+ * "fix" this by passing `width: photo.width` — reading `.width` off the
+ * proxied ImageMetadata object here (in component code, as opposed to
+ * inside astro:assets' own internals) flags that image as "referenced
+ * outside of image processing" (astro:assets' own referencedImages
+ * tracking, see node_modules/astro/dist/assets/utils/proxy.js and
+ * build/generate.js), which then skips deleting Vite's raw pre-optimisation
+ * copy of the file — verified live: it left a 464kB unprocessed .jpg
+ * sitting in dist/assets, failing the 400kB budget test. Leaving `width`
+ * out entirely avoids touching that property at all.
+ */
+const fullPhotos = await Promise.all(
+  photos.map((photo) => getImage({ src: photo, format: 'webp', quality: 80 }))
+);
 ---
 
 <section id="photos" class="photo-section">
@@ -14,7 +46,7 @@ import { photos } from '../lib/photos';
     >
       {/* Original set */}
       {photos.map((photo, index) => (
-        <div class="carousel-slide" data-index={index}>
+        <div class="carousel-slide" data-index={index} data-full-src={fullPhotos[index].src}>
           <Image
             src={photo}
             alt={`Photography by P.V. - ${index + 1}`}
@@ -31,7 +63,7 @@ import { photos } from '../lib/photos';
       ))}
       {/* Duplicate for seamless loop */}
       {photos.map((photo, index) => (
-        <div class="carousel-slide" data-index={index}>
+        <div class="carousel-slide" data-index={index} data-full-src={fullPhotos[index].src}>
           <Image
             src={photo}
             alt={`Photography by P.V. - ${index + 1}`}
@@ -597,25 +629,28 @@ import { photos } from '../lib/photos';
     lightboxState.photoCount = Number(track?.dataset.originalCount) || carouselSlides.length / 2 || 0;
 
     /**
-     * Shows the photo at `index` by copying the src of the already-rendered
-     * <img> for that slide, rather than rebuilding a URL from a numeric
-     * filename convention. Astro's <Image> emits a hashed, optimised path
-     * (and a srcset of several) — there is no `images/photos/N.jpg`
-     * filename pattern left to reconstruct, so this reuses whatever src the
-     * browser already resolved for the clicked (or arrowed-to) slide.
-     * currentSrc reflects the exact srcset candidate the browser picked;
-     * it falls back to .src (always present, even before srcset selection
-     * has run) for a slide the browser hasn't gotten to yet.
+     * Shows the photo at `index` using the slide's `data-full-src` — a
+     * dedicated, full-resolution (native width) build-time render, not the
+     * thumbnail <img>'s own resolved src/currentSrc. The thumbnail's `sizes`
+     * caps its display width at 230px, so its resolved candidate is only
+     * ever 320w or 640w on ordinary (DPR 1-2) displays — reusing that here
+     * would stretch a sub-full-resolution image up to the lightbox's 92vw,
+     * a visible upscale in the one place a visitor goes to look closely.
+     * data-full-src is generated once per photo via getImage() in this
+     * component's frontmatter, independent of the thumbnail's widths/sizes,
+     * so it always matches the source photograph's real resolution.
      */
     function showPhoto(index: number) {
       if (lightboxState.photoCount <= 0) return;
       lightboxState.currentIndex = ((index % lightboxState.photoCount) + lightboxState.photoCount) % lightboxState.photoCount;
-      const slideImg = document.querySelector(
-        `.carousel-slide[data-index="${lightboxState.currentIndex}"] img`
-      ) as HTMLImageElement | null;
-      if (lightboxImg && slideImg) {
-        lightboxImg.src = slideImg.currentSrc || slideImg.src;
-        lightboxImg.alt = slideImg.alt;
+      const slide = document.querySelector(
+        `.carousel-slide[data-index="${lightboxState.currentIndex}"]`
+      ) as HTMLElement | null;
+      const fullSrc = slide?.dataset.fullSrc;
+      const slideImg = slide?.querySelector('img');
+      if (lightboxImg && fullSrc) {
+        lightboxImg.src = fullSrc;
+        lightboxImg.alt = slideImg?.alt || 'Full size photo';
       }
     }
 

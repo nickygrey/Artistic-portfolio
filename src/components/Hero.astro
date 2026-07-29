@@ -1,7 +1,7 @@
 ---
 import { Image } from 'astro:assets';
 import { type Lang, t } from '../i18n/translations';
-import heroImage from '../assets/hero.jpg';
+import { HERO_IMAGE, HERO_WIDTHS, HERO_QUALITY, HERO_FORMAT, HERO_SIZES } from '../lib/hero-image';
 
 interface Props {
   lang: Lang;
@@ -14,14 +14,14 @@ const { lang } = Astro.props;
   <!-- Background image with parallax -->
   <div class="hero-bg" data-animation="hero">
     <Image
-      src={heroImage}
+      src={HERO_IMAGE}
       alt=""
       class="hero-img"
-      width={1920}
-      widths={[900, 1440, 1920]}
-      sizes="100vw"
-      format="webp"
-      quality={75}
+      width={HERO_WIDTHS[HERO_WIDTHS.length - 1]}
+      widths={HERO_WIDTHS}
+      sizes={HERO_SIZES}
+      format={HERO_FORMAT}
+      quality={HERO_QUALITY}
       loading="eager"
       decoding="async"
       fetchpriority="high"
