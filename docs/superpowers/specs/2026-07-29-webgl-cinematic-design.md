@@ -1,7 +1,10 @@
 # WebGL Cinematic Direction — Design
 
 **Date:** 2026-07-29
-**Status:** Design approved in conversation; this document pending review
+**Status:** SUPERSEDED by `2026-07-29-image-led-cinematic-design.md`, which
+absorbs this content and adds the image-led architecture, the image pipeline
+and the image brief. Kept for the reasoning it records about why the
+hashgraphvc reference's materials transfer but its structure does not.
 **Repo:** `nickygrey/Artistic-portfolio` (the `astro-portfolio` tree)
 **Branch:** `feat/webgl-cinematic`
 **Reference:** hashgraphvc.com
