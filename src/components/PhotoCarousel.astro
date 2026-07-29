@@ -5,7 +5,13 @@ const base = import.meta.env.BASE_URL;
 
 <section id="photos" class="photo-section">
   <div class="photo-carousel" id="photo-carousel">
-    <div class="carousel-track" id="carousel-track" data-animation="marquee" data-speed="40">
+    <div
+      class="carousel-track"
+      id="carousel-track"
+      data-animation="marquee"
+      data-speed="40"
+      data-original-count={photos.length}
+    >
       {/* Original set */}
       {photos.map((num, index) => (
         <div class="carousel-slide" data-index={index}>
@@ -138,7 +144,362 @@ const base = import.meta.env.BASE_URL;
     __marquee?: { pause: () => void; resume: () => void };
   };
 
+  /**
+   * Mobile carousel: auto-advance and user swipe both drive scrollLeft, so the
+   * two can never fight the way a transform-based marquee does against a scroll.
+   * The track is server-rendered with two identical copies of the photo set,
+   * so wrapping by one period lands on pixel-identical content and the strip
+   * never ends — provided one period actually fits inside the scrollable
+   * range. ensureScrollableRange() below appends further copies at runtime
+   * whenever it doesn't (see its own doc comment for why that can happen).
+   */
+  function setupTouchCarousel(
+    track: HTMLElement,
+    scroller: HTMLElement,
+    gsap: typeof import('gsap').gsap,
+    ScrollTrigger: typeof import('gsap/ScrollTrigger').ScrollTrigger
+  ) {
+    // How long native 'scroll' events must stop arriving before autoplay
+    // resumes — see scheduleResume() below. Not a fixed "wait N seconds and
+    // resume regardless" delay: every scroll event (active drag or momentum)
+    // pushes this back out, so it only ever fires once scrolling has
+    // genuinely stopped. 150ms is comfortably longer than the gap between
+    // consecutive scroll events during any active drag or momentum decay
+    // (observed well under 30ms apart on this project's touch emulation),
+    // and comfortably shorter than the gap between two separate gestures.
+    const SETTLE_MS = 150;
+
+    /**
+     * Number of slides in one copy of the strip. Read from the
+     * `data-original-count` attribute the Astro template sets from
+     * `photos.length` at build time, rather than derived at runtime as
+     * "half of however many children exist right now" — this handler runs
+     * more than once against the *same* persistent track element (Layout.astro
+     * calls initMotion() synchronously and again on `astro:page-load` by
+     * design; see AGENTS.md), and ensureScrollableRange() below has, by the
+     * second call, already appended extra copies onto the end of the track.
+     * A live "half of current children" count would read that inflated
+     * total on the second call and silently point `period()` at the wrong
+     * slide instead of the true second copy — caught by instrumenting a
+     * live session: originalCount read back as 10 instead of 7 after one
+     * extra copy had already been appended, only on landscape viewports
+     * where ensureScrollableRange() actually has work to do. The attribute
+     * is immune to that because it's fixed at render time, before any
+     * runtime mutation exists to pollute it.
+     */
+    const originalCount = Number(track.dataset.originalCount) || Math.floor(track.children.length / 2);
+
+    /**
+     * Exact loop period: the distance from the first slide to the first slide of
+     * the second copy. Measured from the DOM rather than derived from
+     * scrollWidth, because the flex `gap` means scrollWidth/2 is half a gap short
+     * and the seam would drift a few pixels every cycle.
+     */
+    function period(): number {
+      if (originalCount <= 0) return 0;
+      const first = track.children[0] as HTMLElement;
+      const secondCopy = track.children[originalCount] as HTMLElement;
+      return secondCopy.offsetLeft - first.offsetLeft;
+    }
+
+    /**
+     * wrap() and advance() below both rest on an invariant neither of them
+     * checks: one period must fit inside the real scrollable range, i.e.
+     * `scrollWidth - clientWidth` (the real `scrollLeft` ceiling) must be at
+     * least `period()`. When it isn't: advance()'s unclamped `position`
+     * keeps climbing past whatever `scrollLeft` can actually represent, so
+     * the browser clamps `scrollLeft` at the real max and the strip sits
+     * visibly frozen there for however long it takes `position` to reach
+     * `period`; once it does, the wrap subtracts a full period from a
+     * position `scrollLeft` was never able to reach, so `scrollLeft` jumps
+     * backward by however far short the range fell — not one period, so
+     * not pixel-identical, a visible cut instead of a seamless loop. The
+     * same shortfall makes a hard swipe land at the clamped max without
+     * ever reaching wrap()'s forward branch (`scrollLeft > p` can never be
+     * true if the max is already under `p`), which reads as a dead stop —
+     * the exact defect this carousel exists to remove.
+     *
+     * Two copies of the strip happen to satisfy this on every portrait
+     * width and every tablet this site supports, but not on common phones
+     * in landscape: global.css's `@media (max-width: 900px) and
+     * (orientation: landscape)` rule shrinks `.carousel-slide` to 35vh,
+     * which — because slide width follows the image's aspect ratio off
+     * that height — shrinks the whole strip well below two screens, while
+     * the viewport width driving `clientWidth` stays whatever it was.
+     *
+     * Rather than re-encode *why* the invariant might fail (a specific
+     * slide height, a specific viewport, today's seven photos — any of
+     * which could change independently later), this measures the real,
+     * current scrollable range against the real, current period and
+     * appends further copies of the original set until the invariant
+     * genuinely holds. That keeps working under any future height rule,
+     * image set, or breakpoint that shrinks the strip, not just the ones
+     * measured for this fix. `guard` only defends against a pathological
+     * future case (e.g. a single copy narrower than the append step
+     * itself); every viewport measured for this fix settles in one pass —
+     * *provided* the slides being measured are real, decoded geometry, not
+     * the near-0 width an unloaded image collapses to (see
+     * originalsAreMeasured() below, which this depends on).
+     *
+     * CRITICAL, found by the whole-branch re-review: on a client-side
+     * navigation (Astro's View Transitions swap), the freshly-inserted
+     * slides' `<img>` elements have not necessarily started loading at the
+     * exact synchronous tick this runs on. A hard reload's native HTML
+     * parser discovers `<img src>` and starts fetching during the initial
+     * streaming parse, well before any module script executes; a subtree
+     * inserted by the client router gets no equivalent head start. Every
+     * slide then measures ~0px wide, `period()` reads as only the flex
+     * `gap` contributions (a few tens of px, not real image width), and the
+     * loop below used to read that as "nowhere close to satisfied" and burn
+     * through every one of its 8 guard iterations trying to out-clone a
+     * width that wasn't really there — reproduced live: 70 children in
+     * landscape, 63 in portrait, against the correct 14/21, recurring on
+     * every navigation into a page holding this carousel. `guard` was never
+     * a backstop in that state; it was the ceiling actually being hit.
+     *
+     * Fixed by refusing to decide anything until the real geometry is
+     * knowable (originalsAreMeasured()) and by re-deriving the decision
+     * from a clean baseline every time (trimToOriginalCopies()) rather than
+     * layering more clones on top of a possibly-already-wrong prior
+     * decision. The ResizeObserver already watching `track` is what
+     * re-invokes this once the images actually finish loading and the
+     * track's real content size changes — there is nothing useful to do
+     * here in the meantime except wait for that, which is exactly what
+     * bailing out early does.
+     */
+    function ensureScrollableRange(): void {
+      const originals = Array.from(track.children).slice(0, originalCount) as HTMLElement[];
+      if (!originals.length) return;
+
+      trimToOriginalCopies();
+      if (!originalsAreMeasured(originals)) return;
+
+      const p = period();
+      if (p <= 0) return;
+
+      let guard = 0;
+      while (scroller.scrollWidth - scroller.clientWidth <= p && guard < 8) {
+        for (const slide of originals) track.appendChild(slide.cloneNode(true));
+        guard++;
+      }
+    }
+
+    /**
+     * True once every original slide's <img> has actually finished
+     * loading — `complete && naturalWidth > 0`, the standard DOM signal for
+     * "this image resource has decoded and its intrinsic size is known,"
+     * independent of any layout-timing quirk. Slide width follows the
+     * image's aspect ratio (`.carousel-slide img { height: 100%; width:
+     * auto }`), so an unmeasured image collapses its slide toward 0 width
+     * regardless of what `period()` or `scrollWidth` happen to report at
+     * that instant — see ensureScrollableRange()'s CRITICAL comment above
+     * for why deciding anything from that reading is actively harmful, not
+     * just imprecise.
+     */
+    function originalsAreMeasured(originals: HTMLElement[]): boolean {
+      return originals.every((slide) => {
+        const img = slide.querySelector('img');
+        return !img || (img.complete && img.naturalWidth > 0);
+      });
+    }
+
+    /**
+     * Removes any copies beyond the canonical two (everything from index
+     * `originalCount * 2` onward), so every call to ensureScrollableRange()
+     * re-decides "how many copies does the *current* geometry need" from
+     * the same known baseline, rather than "how many MORE on top of
+     * whatever a previous call already appended." That is what makes
+     * repeated calls against the same track converge instead of compound —
+     * and they are repeated, by design: Layout.astro calls initMotion()
+     * synchronously and again on `astro:page-load` on every load (see
+     * AGENTS.md), and the ResizeObserver above re-invokes
+     * ensureScrollableRange() again whenever the track's size changes
+     * later (an image finishing load, a rotation). Cheap when there is
+     * nothing to trim (the common case, once measurements are stable).
+     */
+    function trimToOriginalCopies(): void {
+      while (track.children.length > originalCount * 2) {
+        track.lastElementChild?.remove();
+      }
+    }
+
+    /**
+     * A one-shot check at setup can be right at the moment it runs and
+     * wrong shortly after: these slides' images are `loading="lazy"` with
+     * no width/height attribute reserving space, so a not-yet-decoded
+     * image measures near 0 width and can grow `period()` once it loads;
+     * rotating the phone resizes the track the same way the landscape CSS
+     * rule does, at any point in the session, not just at page load. A
+     * ResizeObserver re-runs the same idempotent check on every subsequent
+     * size change instead of trusting whatever the geometry happened to be
+     * at the single moment ensureScrollableRange() was first called.
+     */
+    const rangeObserver = new ResizeObserver(() => ensureScrollableRange());
+    rangeObserver.observe(track);
+    ensureScrollableRange();
+
+    let paused = false;
+
+    /**
+     * Corrects native-scroll-driven boundary crossings: the user's own touch
+     * drag, or its momentum, carrying scrollLeft past either end while
+     * `advance()` (below) isn't running. Gated to a no-op while `!paused` —
+     * that gate is load-bearing, not defensive.
+     *
+     * Without it, every write `advance()` makes to `scroller.scrollLeft`
+     * fires a native 'scroll' event, which invokes this same function. But
+     * `advance()`'s authoritative position is the float `position` below;
+     * this function only ever sees the *rounded* `scroller.scrollLeft`
+     * (Chromium rounds to the nearest integer CSS pixel — see `position`'s
+     * doc comment). Right after every forward wrap, `position` sits under
+     * 0.5 for several consecutive ticks, which reads back as scrollLeft=0 —
+     * and unmodified, this function would treat that rounding artifact as
+     * "the user scrolled backward past the start" and add a full period
+     * back, a spurious jump that advance()'s next tick immediately
+     * overwrites. Instrumenting `Element.prototype.scrollLeft`'s setter over
+     * a real autoplay session showed this firing 3-4 times per wrap cycle —
+     * entirely self-inflicted, no user input involved. Autoplay wraps its
+     * own `position` internally and needs no help from this function; this
+     * function's only job is the native-scroll case, which only happens
+     * while autoplay is paused for touch.
+     */
+    function wrap() {
+      if (!paused) return;
+      const p = period();
+      if (p <= 0) return;
+      // Forward uses a *strict* `>`, backward an *inclusive* `<= 0`, and that
+      // asymmetry is load-bearing, not stylistic. Native touch scrolling
+      // clamps scrollLeft at exactly 0 rather than ever going negative, so
+      // the backward branch must fire on that clamped floor itself (`<= 0`)
+      // or it can never trigger at all. But jumping backward adds exactly
+      // `p`, landing at exactly `p` — and a forward condition of `>= p`
+      // treats that landing spot as *also* over the forward threshold,
+      // immediately undoing the jump back to 0, which re-triggers the
+      // backward branch again, forever. Verified live: with `>= p` here,
+      // one backward-wrapping swipe put the strip into a permanent 0/p
+      // ping-pong that never settled, long after the touch had ended.
+      // `> p` excludes that exact landing value from re-triggering forward,
+      // which breaks the cycle; a value that's over by a genuine frame's
+      // worth of scroll is never exactly equal to `p` in practice.
+      if (scroller.scrollLeft > p) scroller.scrollLeft -= p;
+      else if (scroller.scrollLeft <= 0) scroller.scrollLeft += p;
+    }
+
+    // px/sec chosen so a full cycle takes the same time as the desktop marquee.
+    function speed(): number {
+      const p = period();
+      return p > 0 ? p / MARQUEE_DURATION : 0;
+    }
+
+    /**
+     * Fractional scroll position, tracked independently of `scroller.scrollLeft`.
+     *
+     * `Element.scrollLeft` rounds to the nearest integer CSS pixel on both read
+     * and write in Chromium (verified directly: `el.scrollLeft += 0.3` in a
+     * loop reads back the same integer every time, because each write recomputes
+     * off the *already-rounded* value rather than an internally retained float).
+     * At this carousel's speed — period/MARQUEE_DURATION ≈ 19.6px/s, i.e. well
+     * under 1px per 60fps frame — accumulating directly into `scroller.scrollLeft`
+     * as the brief's original draft did never crosses the 0.5px rounding
+     * threshold, so the auto-advance silently never moves at all. Keeping the
+     * accumulator here in JS and only ever writing the running total to
+     * scrollLeft (never reading it back as the next base) avoids losing that
+     * sub-pixel progress every frame.
+     */
+    let position = scroller.scrollLeft;
+
+    // Named so it can be handed to gsap.ticker.remove() on teardown.
+    function advance(_time: number, deltaMs: number) {
+      if (paused) return;
+      const p = period();
+      position += (speed() * deltaMs) / 1000;
+      if (p > 0) {
+        // Strict `>` / inclusive `<= 0` split mirrors wrap() above — see its
+        // comment for why the asymmetry is necessary to avoid an infinite
+        // 0/p ping-pong.
+        if (position > p) position -= p;
+        else if (position <= 0) position += p;
+      }
+      scroller.scrollLeft = position;
+    }
+
+    /**
+     * Resume is a settle check, not a fixed delay. This used to be a flat
+     * 1200ms after touchend, but native momentum from a strong flick
+     * commonly runs 1-3s — long enough that `paused` could flip back to
+     * false while momentum was still actively moving scrollLeft. At that
+     * point advance() would start writing from a stale `position` snapshot
+     * and cut the user's momentum dead: the same "script write kills
+     * momentum" conflict the brief warns about specifically for the wrap
+     * seam, but reachable this way on *any* flick, seam or not.
+     *
+     * scheduleResume() is called from every 'scroll' event while paused, and
+     * again from touchend as a fallback for a touch that produces no scroll
+     * events at all (a tap, or a drag released exactly at rest). Each call
+     * pushes the timer back out, so it only fires once scrolling has
+     * genuinely stopped for SETTLE_MS — however long that takes — and
+     * re-seeds `position` from the real scrollLeft at that moment so
+     * autoplay continues from wherever the user actually left the strip.
+     */
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    function scheduleResume() {
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        position = scroller.scrollLeft;
+        paused = false;
+      }, SETTLE_MS);
+    }
+
+    function onScroll() {
+      wrap();
+      if (paused) scheduleResume();
+    }
+
+    function onTouchStart() {
+      paused = true;
+      if (settleTimer) clearTimeout(settleTimer);
+    }
+
+    function onTouchEnd() {
+      scheduleResume();
+    }
+
+    gsap.ticker.add(advance);
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    scroller.addEventListener('touchstart', onTouchStart, { passive: true });
+    scroller.addEventListener('touchend', onTouchEnd, { passive: true });
+    scroller.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    ScrollTrigger.create({
+      onKill: () => {
+        gsap.ticker.remove(advance);
+        rangeObserver.disconnect();
+        // Closes the accumulation path: without this, clones this instance
+        // appended survive its own teardown. Harmless on a hard swap (the
+        // whole subtree is discarded), but load-bearing for the documented
+        // double sync + astro:page-load init on every single load, where a
+        // second setupTouchCarousel() call runs against this exact same
+        // track right after this onKill fires.
+        trimToOriginalCopies();
+        if (settleTimer) clearTimeout(settleTimer);
+        scroller.removeEventListener('scroll', onScroll);
+        scroller.removeEventListener('touchstart', onTouchStart);
+        scroller.removeEventListener('touchend', onTouchEnd);
+        scroller.removeEventListener('touchcancel', onTouchEnd);
+      },
+    });
+  }
+
   registerMotion('marquee', (el, { gsap, ScrollTrigger }) => {
+    const scroller = el.closest('.photo-carousel') as HTMLElement | null;
+    const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
+    if (isTouch && scroller) {
+      setupTouchCarousel(el, scroller, gsap, ScrollTrigger);
+      return;
+    }
+
+    // --- existing desktop transform marquee continues unchanged from here ---
     const duration = num(el.getAttribute('data-speed'), MARQUEE_DURATION);
     const direction = num(el.getAttribute('data-marquee'), 1) === 0 ? 1 : -1;
 
@@ -291,8 +652,9 @@ const base = import.meta.env.BASE_URL;
       });
     }
 
-    // Mouse drag for carousel
-    if (carousel && track) {
+    // Mouse drag for carousel — desktop only. On touch, native overflow scrolling
+    // moves the strip, and running this too would double every gesture.
+    if (carousel && track && !window.matchMedia('(hover: none) and (pointer: coarse)').matches) {
       let isDragging = false;
       let startX = 0;
       let scrollLeft = 0;

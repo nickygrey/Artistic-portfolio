@@ -255,6 +255,136 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
       color: var(--color-accent-700);
     }
   }
+
+  /*
+   * Tap targets: grow the touchable region to the 44px minimum without
+   * changing how anything renders.
+   *
+   * .logo: a first pass used only padding: 5px 2px / margin: -5px -2px.
+   * That worked at 390px, but global.css shrinks the logo's font-size (and
+   * letter-spacing) at two breakpoints below the unconditional 26px base
+   * (global.css:296), not one — 22px at <=600px (global.css:725) and a
+   * further 20px at <=380px (global.css:753-756) — so the same fixed
+   * padding landed at 37.4x41 on an iPhone SE (375px) and every width below
+   * it — still under 44.
+   *
+   * A second pass tried to fix that by adding min-width/min-height and
+   * *removing* the padding, on the theory that .logo is already a
+   * blockified flex item with default top/left content flow, so a taller
+   * min-height would just add invisible space below the text. That is true
+   * in isolation, but it ignored `.header`'s `align-items: center`: an
+   * item's cross-axis position is `(row_cross_size - item_margin_box) / 2`
+   * — a function of *this item's own margin-box size*. Padding was gone,
+   * so margin alone no longer had anything to cancel against, and the
+   * margin-box grew unchecked (44px, unclamped) instead of holding at its
+   * natural size — verified as a real, visible ~1-5px glyph shift via a
+   * pixel diff against the pre-fix screenshots, not just theorized.
+   *
+   * The fix that actually holds: padding + equal negative margin (which
+   * cancels via `content position = flow_position + margin + padding`,
+   * independent of width/height — see .youtube-link/.archive-link/footer a
+   * for the same identity holding cleanly with a single padding value),
+   * sized *generously enough that padding alone clears 44px in whichever of
+   * the three font-size regimes is smallest at the current width* — so
+   * min-width/min-height are never actually the constraint that wins, only
+   * a stated-outcome safety net if some future breakpoint shrinks the font
+   * further than these three (measured with getBoundingClientRect(), touch
+   * emulation on, padding/margin temporarily zeroed to read the natural box):
+   *
+   *   <=380px,       20px font (natural 33.41x31):    +8px/+6px -> 45.41 x 47    (>=44 ✓)
+   *   381-600px,     22px font (natural 41.14x34.09):  +8px/+6px -> 53.14 x 50.09 (✓)
+   *   >600px (base), 26px font (natural 48.63x40.30):  +8px/+6px -> 60.63 x 56.30 (✓)
+   *
+   * The third row is reached on touch by any tablet — anything matching
+   * `(hover: none) and (pointer: coarse)` wider than 600px, not just
+   * phones — so it is live production surface, not a hypothetical. The
+   * invariant this rule actually has to hold is not "clear 44px at two (or
+   * three) specific widths" but "the padding must clear 44px at whatever
+   * the smallest font-size regime in play is" — whichever breakpoints
+   * global.css happens to define at the time.
+   *
+   * Because padding alone wins in all three known regimes, margin
+   * (-8px -6px) cancels back to *exactly* the natural pre-fix margin-box in
+   * each — 33.41x31, 41.14x34.09, and 48.63x40.30 — not just something
+   * under .nav-toggle's row height (36/40), but bit-for-bit the original
+   * size, so `align-items: center` computes the identical cross-axis offset
+   * it always did and the glyphs render at the identical position. Verified
+   * with getBoundingClientRect() and a pixel diff at all four widths below
+   * (all three fall in the <=600px band; the >600px band is verified above
+   * instead, since none of this component's own tests exercise a tablet
+   * width).
+   *
+   * .nav-toggle: has a real, visible border, so a plain padding/min-size
+   * trick would grow what's painted along with the hit area (as a first
+   * pass of this fix did), and a flat 44x44 override would do even more of
+   * that below 380px, silently erasing the compact 36x36 design at exactly
+   * the breakpoint that defines it (global.css:758-761). Fixed by
+   * decoupling the *box* (what getBoundingClientRect measures, and what
+   * must be >=44px) from the *ring* (what's painted): the real `border` is
+   * removed, the box is grown to a uniform 44x44 with `outline` drawing the
+   * ring, and a negative `outline-offset` pulls that ring back in to paint
+   * at the original visual size — 40x40 at/above 380px, 36x36 below it, via
+   * a nested override at that breakpoint. `outline` doesn't participate in
+   * layout or in getBoundingClientRect() at all, so this gets a real,
+   * uniform 44x44 tap target *and* keeps the compact design and the icon
+   * centered exactly where they were — verified below, not just asserted.
+   *
+   * That decorative outline has one further constraint: it must yield to
+   * the keyboard focus ring. global.css:82-86 sets
+   * `button:focus-visible { outline: 2px solid var(--color-accent);
+   * outline-offset: 3px }` at specificity (0,1,1); Astro scopes this
+   * component's `.nav-toggle` selector to `.nav-toggle[data-astro-cid-*]`,
+   * specificity (0,2,0) — which outranks it regardless of source order, so
+   * an earlier version of this rule painted the resting divider-colour ring
+   * even while focus-visible, silently erasing the focus indicator for
+   * anyone tabbing to this button on a touchscreen laptop, a tablet with a
+   * keyboard case, or a Chromebook (all of which match this same touch
+   * media query) — a WCAG 2.4.7 failure, caught in review, not written
+   * this way from the start. Fixed by scoping the decorative outline to
+   * `:not(:focus-visible)`: while focused it simply doesn't match (not a
+   * specificity contest to lose), so `button:focus-visible` is the only
+   * remaining rule setting `outline`/`outline-offset` and paints
+   * uncontested, at its own `outline-offset: 3px` (outside the box, not
+   * fighting this rule's negative offsets, since this rule isn't part of
+   * the cascade at that state at all). width/height/border/margin stay on
+   * the unconditional `.nav-toggle` rule — the tap target and layout
+   * stability must hold whether or not the button is focused, only the
+   * decorative ring itself is conditional.
+   */
+  @media (hover: none) and (pointer: coarse) {
+    .logo {
+      padding: 8px 6px;
+      margin: -8px -6px;
+      min-width: 44px;
+      min-height: 44px;
+    }
+
+    .nav-toggle {
+      width: 44px;
+      height: 44px;
+      border: none;
+      margin: -2px;
+    }
+
+    .nav-toggle:not(:focus-visible) {
+      outline: 1px solid var(--color-divider);
+      outline-offset: -2px;
+    }
+  }
+
+  /* Below the 380px breakpoint, global.css shrinks .nav-toggle's own
+     design to 36x36 (see global.css:758-761). Keep the box a uniform
+     44x44 real tap target, but pull the painted ring in further so it
+     still reads as the compact 36x36 button that breakpoint intends. */
+  @media (hover: none) and (pointer: coarse) and (max-width: 380px) {
+    .nav-toggle {
+      margin: -4px;
+    }
+
+    .nav-toggle:not(:focus-visible) {
+      outline-offset: -4px;
+    }
+  }
 </style>
 
 <script>

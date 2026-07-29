@@ -190,4 +190,18 @@ const base = import.meta.env.BASE_URL;
       height: 22px;
     }
   }
+
+  /* Tap target: grow the hit region to the 44px minimum with padding,
+     absorbed by an equal negative margin so the link renders in the same
+     place at the same size — only the invisible touch area grows.
+     12px (not the brief's 11px) because the raw, unrounded intrinsic
+     height measures ~21.69px, not a flat 22 — 11px/side lands at 43.69,
+     a hair under the 44px threshold the automated test checks against
+     the unrounded value. */
+  @media (hover: none) and (pointer: coarse) {
+    .youtube-link {
+      padding: 12px 0;
+      margin: -12px 0;
+    }
+  }
 </style>
