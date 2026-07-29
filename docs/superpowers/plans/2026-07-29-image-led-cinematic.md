@@ -519,7 +519,9 @@ The infrastructure only. No visible effect yet — this task's deliverable is a 
   - `registerSurface(el: HTMLImageElement, shader: ShaderSpec): void`
   - `teardownWebGL(): void`
   - `interface ShaderSpec { fragment: string; uniforms?: Record<string, unknown> }`
-  - `window.__webgl` debug handle exposing `{ active(): boolean; surfaces(): number }`
+  - `window.__webgl` debug handle exposing
+    `{ active(): boolean; surfaces(): number; debug(): SurfaceDebug[] }`, where
+    `SurfaceDebug` is `{ el: string; rect: DOMRect; mesh: { x: number; y: number; sx: number; sy: number }; visible: boolean }`
 
 - [ ] **Step 1: Install OGL**
 
@@ -764,7 +766,20 @@ document.addEventListener('astro:before-swap', teardownWebGL);
 // tests/e2e/webgl.spec.ts
 import { test, expect } from '@playwright/test';
 
-declare global { interface Window { __webgl: { active(): boolean; surfaces(): number } } }
+declare global {
+  interface Window {
+    __webgl: {
+      active(): boolean;
+      surfaces(): number;
+      debug(): Array<{
+        el: string;
+        rect: DOMRect;
+        mesh: { x: number; y: number; sx: number; sy: number };
+        visible: boolean;
+      }>;
+    };
+  }
+}
 
 test('a canvas is created and does not cover the content', async ({ page }) => {
   await page.goto('/');
