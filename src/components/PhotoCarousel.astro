@@ -5,7 +5,13 @@ const base = import.meta.env.BASE_URL;
 
 <section id="photos" class="photo-section">
   <div class="photo-carousel" id="photo-carousel">
-    <div class="carousel-track" id="carousel-track" data-animation="marquee" data-speed="40">
+    <div
+      class="carousel-track"
+      id="carousel-track"
+      data-animation="marquee"
+      data-speed="40"
+      data-original-count={photos.length}
+    >
       {/* Original set */}
       {photos.map((num, index) => (
         <div class="carousel-slide" data-index={index}>
@@ -141,8 +147,11 @@ const base = import.meta.env.BASE_URL;
   /**
    * Mobile carousel: auto-advance and user swipe both drive scrollLeft, so the
    * two can never fight the way a transform-based marquee does against a scroll.
-   * The track holds two identical copies of the photo set, so wrapping by one
-   * period lands on pixel-identical content and the strip never ends.
+   * The track is server-rendered with two identical copies of the photo set,
+   * so wrapping by one period lands on pixel-identical content and the strip
+   * never ends — provided one period actually fits inside the scrollable
+   * range. ensureScrollableRange() below appends further copies at runtime
+   * whenever it doesn't (see its own doc comment for why that can happen).
    */
   function setupTouchCarousel(
     track: HTMLElement,
@@ -161,18 +170,100 @@ const base = import.meta.env.BASE_URL;
     const SETTLE_MS = 150;
 
     /**
+     * Number of slides in one copy of the strip. Read from the
+     * `data-original-count` attribute the Astro template sets from
+     * `photos.length` at build time, rather than derived at runtime as
+     * "half of however many children exist right now" — this handler runs
+     * more than once against the *same* persistent track element (Layout.astro
+     * calls initMotion() synchronously and again on `astro:page-load` by
+     * design; see AGENTS.md), and ensureScrollableRange() below has, by the
+     * second call, already appended extra copies onto the end of the track.
+     * A live "half of current children" count would read that inflated
+     * total on the second call and silently point `period()` at the wrong
+     * slide instead of the true second copy — caught by instrumenting a
+     * live session: originalCount read back as 10 instead of 7 after one
+     * extra copy had already been appended, only on landscape viewports
+     * where ensureScrollableRange() actually has work to do. The attribute
+     * is immune to that because it's fixed at render time, before any
+     * runtime mutation exists to pollute it.
+     */
+    const originalCount = Number(track.dataset.originalCount) || Math.floor(track.children.length / 2);
+
+    /**
      * Exact loop period: the distance from the first slide to the first slide of
      * the second copy. Measured from the DOM rather than derived from
      * scrollWidth, because the flex `gap` means scrollWidth/2 is half a gap short
      * and the seam would drift a few pixels every cycle.
      */
     function period(): number {
-      const slides = track.children;
-      if (slides.length < 2) return 0;
-      const first = slides[0] as HTMLElement;
-      const secondCopy = slides[Math.floor(slides.length / 2)] as HTMLElement;
+      if (originalCount <= 0) return 0;
+      const first = track.children[0] as HTMLElement;
+      const secondCopy = track.children[originalCount] as HTMLElement;
       return secondCopy.offsetLeft - first.offsetLeft;
     }
+
+    /**
+     * wrap() and advance() below both rest on an invariant neither of them
+     * checks: one period must fit inside the real scrollable range, i.e.
+     * `scrollWidth - clientWidth` (the real `scrollLeft` ceiling) must be at
+     * least `period()`. When it isn't: advance()'s unclamped `position`
+     * keeps climbing past whatever `scrollLeft` can actually represent, so
+     * the browser clamps `scrollLeft` at the real max and the strip sits
+     * visibly frozen there for however long it takes `position` to reach
+     * `period`; once it does, the wrap subtracts a full period from a
+     * position `scrollLeft` was never able to reach, so `scrollLeft` jumps
+     * backward by however far short the range fell — not one period, so
+     * not pixel-identical, a visible cut instead of a seamless loop. The
+     * same shortfall makes a hard swipe land at the clamped max without
+     * ever reaching wrap()'s forward branch (`scrollLeft > p` can never be
+     * true if the max is already under `p`), which reads as a dead stop —
+     * the exact defect this carousel exists to remove.
+     *
+     * Two copies of the strip happen to satisfy this on every portrait
+     * width and every tablet this site supports, but not on common phones
+     * in landscape: global.css's `@media (max-width: 900px) and
+     * (orientation: landscape)` rule shrinks `.carousel-slide` to 35vh,
+     * which — because slide width follows the image's aspect ratio off
+     * that height — shrinks the whole strip well below two screens, while
+     * the viewport width driving `clientWidth` stays whatever it was.
+     *
+     * Rather than re-encode *why* the invariant might fail (a specific
+     * slide height, a specific viewport, today's seven photos — any of
+     * which could change independently later), this measures the real,
+     * current scrollable range against the real, current period and
+     * appends further copies of the original set until the invariant
+     * genuinely holds. That keeps working under any future height rule,
+     * image set, or breakpoint that shrinks the strip, not just the ones
+     * measured for this fix. `guard` only defends against a pathological
+     * future case (e.g. a single copy narrower than the append step
+     * itself); every viewport measured for this fix settles in one pass.
+     */
+    function ensureScrollableRange(): void {
+      const p = period();
+      if (p <= 0) return;
+      const originals = Array.from(track.children).slice(0, originalCount) as HTMLElement[];
+      if (!originals.length) return;
+      let guard = 0;
+      while (scroller.scrollWidth - scroller.clientWidth <= p && guard < 8) {
+        for (const slide of originals) track.appendChild(slide.cloneNode(true));
+        guard++;
+      }
+    }
+
+    /**
+     * A one-shot check at setup can be right at the moment it runs and
+     * wrong shortly after: these slides' images are `loading="lazy"` with
+     * no width/height attribute reserving space, so a not-yet-decoded
+     * image measures near 0 width and can grow `period()` once it loads;
+     * rotating the phone resizes the track the same way the landscape CSS
+     * rule does, at any point in the session, not just at page load. A
+     * ResizeObserver re-runs the same idempotent check on every subsequent
+     * size change instead of trusting whatever the geometry happened to be
+     * at the single moment ensureScrollableRange() was first called.
+     */
+    const rangeObserver = new ResizeObserver(() => ensureScrollableRange());
+    rangeObserver.observe(track);
+    ensureScrollableRange();
 
     let paused = false;
 
@@ -309,6 +400,7 @@ const base = import.meta.env.BASE_URL;
     ScrollTrigger.create({
       onKill: () => {
         gsap.ticker.remove(advance);
+        rangeObserver.disconnect();
         if (settleTimer) clearTimeout(settleTimer);
         scroller.removeEventListener('scroll', onScroll);
         scroller.removeEventListener('touchstart', onTouchStart);

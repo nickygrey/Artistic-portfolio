@@ -1,6 +1,68 @@
-import { test, expect, devices } from '@playwright/test';
+import { test, expect, devices, type Page } from '@playwright/test';
+import { MARQUEE_DURATION } from '../../src/motion/tokens';
 
 const MOBILE = { ...devices['iPhone 13'] };
+
+/**
+ * Samples scrollLeft over `sampleMs` on an untouched touch page — no
+ * simulated interaction at all — and returns how far the strip moved on
+ * its own, folded into [0, period).
+ *
+ * A mutation test run while writing this (commenting out
+ * `gsap.ticker.add(advance)` in PhotoCarousel.astro, i.e. deleting the
+ * entire mobile auto-advance) left every other test in this file passing —
+ * nothing anywhere asserted that the strip moves at all on its own. This
+ * closes that gap.
+ *
+ * period is measured copy-count-agnostically: the distance between the
+ * first two elements sharing data-index="0" (one per copy of the strip),
+ * rather than "half of however many children exist right now". The track
+ * can hold more than two copies in landscape (see PhotoCarousel.astro's
+ * ensureScrollableRange()), and this has to keep measuring exactly one
+ * period regardless of how many total copies exist.
+ */
+async function measureAutoAdvance(
+  page: Page,
+  sampleMs: number
+): Promise<{ period: number; before: number; after: number }> {
+  return page.evaluate((ms) => {
+    const el = document.querySelector('#photo-carousel') as HTMLElement;
+    const copyStarts = document.querySelectorAll('#carousel-track [data-index="0"]');
+    const period = (copyStarts[1] as HTMLElement).offsetLeft - (copyStarts[0] as HTMLElement).offsetLeft;
+    const before = el.scrollLeft;
+
+    return new Promise<{ period: number; before: number; after: number }>((resolve) => {
+      setTimeout(() => resolve({ period, before, after: el.scrollLeft }), ms);
+    });
+  }, sampleMs);
+}
+
+/**
+ * Asserts a measureAutoAdvance() sample moved at approximately 1x the
+ * carousel's own designed rate (period / MARQUEE_DURATION px/sec — see
+ * tokens.ts). Shared so the portrait and landscape auto-advance tests
+ * below assert the identical thing rather than drifting apart.
+ *
+ * Autoplay only ever wraps forward, so a wrap landing inside the sample
+ * window reads as a large negative raw delta; folding it modulo period
+ * recovers the true forward distance traveled instead of misreading it as
+ * "went backward" or "didn't move". The tolerance band is wide enough to
+ * absorb scheduling jitter but tight enough that both "didn't move at all"
+ * and "moved at some other rate" fail it.
+ */
+function expectApproxOneCycleRate(
+  sample: { period: number; before: number; after: number },
+  sampleMs: number
+) {
+  expect(sample.period).toBeGreaterThan(0);
+
+  const expectedDelta = (sample.period / MARQUEE_DURATION) * (sampleMs / 1000);
+  const raw = sample.after - sample.before;
+  const moved = ((raw % sample.period) + sample.period) % sample.period;
+
+  expect(moved).toBeGreaterThan(expectedDelta * 0.5);
+  expect(moved).toBeLessThan(expectedDelta * 1.5 + 10);
+}
 
 test.describe('mobile layout', () => {
   test('the page does not scroll sideways', async ({ browser }) => {
@@ -103,6 +165,19 @@ test.describe('mobile layout', () => {
     expect(Math.abs(result.afterForward - 5)).toBeLessThan(2);
     // Backward: 0 should have been corrected to exactly ~period.
     expect(Math.abs(result.afterBackward - result.period)).toBeLessThan(2);
+    await ctx.close();
+  });
+
+  test('auto-advance moves the strip on its own', async ({ browser }) => {
+    const ctx = await browser.newContext(MOBILE);
+    const page = await ctx.newPage();
+    await page.goto('/');
+    await page.waitForTimeout(1500);
+
+    const SAMPLE_MS = 3000;
+    const sample = await measureAutoAdvance(page, SAMPLE_MS);
+    expectApproxOneCycleRate(sample, SAMPLE_MS);
+
     await ctx.close();
   });
 
@@ -260,4 +335,90 @@ test.describe('mobile layout', () => {
       await ctx.close();
     });
   }
+
+  // Every test above runs the iPhone 13's default portrait viewport — all
+  // 16 pre-existing Playwright tests in this file were portrait-only, which
+  // is exactly why a landscape-only Critical (the strip freezing, then
+  // cutting backward, on common phones in landscape) survived three rounds
+  // of per-task review before the final whole-branch review caught it. The
+  // root cause: global.css's `@media (max-width: 900px) and
+  // (orientation: landscape)` rule shrinks `.carousel-slide` to 35vh, which
+  // shrinks the whole strip below what two copies of it can cover — 844x390
+  // is the clearest case (period was short of the scrollable range by
+  // 160px pre-fix; 896x414 by 173px; 640x360 and 667x375 by only 5-7px),
+  // so it's what's covered here. See PhotoCarousel.astro's
+  // ensureScrollableRange() for the fix.
+  test.describe('landscape phones', () => {
+    const LANDSCAPE = { width: 844, height: 390 };
+
+    test('the carousel has enough range to loop without freezing or a backward jump', async ({ browser }) => {
+      const ctx = await browser.newContext({ ...MOBILE, viewport: LANDSCAPE });
+      const page = await ctx.newPage();
+      await page.goto('/');
+      await page.waitForTimeout(1500);
+
+      // Same technique as 'the carousel loops instead of ending' above —
+      // drives the app's own wrap() via a real touchstart + scrollLeft +
+      // 'scroll' event, rather than asserting static geometry alone — plus
+      // the geometric invariant the whole loop rests on. Pre-fix, this
+      // would fail two different ways: maxScroll < period directly, and
+      // the forward drive would silently clamp to maxScroll (533) instead
+      // of reaching period+5 (698), so afterForward would read ~533, not
+      // the ~5 a genuine forward wrap corrects to.
+      const result = await page.evaluate(async () => {
+        const el = document.querySelector('#photo-carousel') as HTMLElement;
+        const copyStarts = document.querySelectorAll('#carousel-track [data-index="0"]');
+        const period = (copyStarts[1] as HTMLElement).offsetLeft - (copyStarts[0] as HTMLElement).offsetLeft;
+        const maxScroll = el.scrollWidth - el.clientWidth;
+
+        function nextScroll(): Promise<void> {
+          return new Promise((resolve) => {
+            el.addEventListener('scroll', () => resolve(), { once: true });
+            setTimeout(resolve, 200);
+          });
+        }
+
+        el.dispatchEvent(new Event('touchstart'));
+
+        el.scrollLeft = period + 5;
+        await nextScroll();
+        const afterForward = el.scrollLeft;
+
+        el.scrollLeft = 0;
+        await nextScroll();
+        const afterBackward = el.scrollLeft;
+
+        el.dispatchEvent(new Event('touchend'));
+
+        return { period, maxScroll, afterForward, afterBackward };
+      });
+
+      // The invariant the whole loop depends on: a full period must fit
+      // inside the real scrollable range, or scrollLeft physically cannot
+      // reach the wrap threshold.
+      expect(result.maxScroll).toBeGreaterThan(result.period);
+
+      // A hard swipe past the end must reach wrap()'s forward branch and
+      // land back near the start — not clamp at maxScroll and dead-stop
+      // (the exact defect this carousel exists to remove).
+      expect(Math.abs(result.afterForward - 5)).toBeLessThan(2);
+      // ...and the reverse: past the start wraps to the tail, not clamps at 0.
+      expect(Math.abs(result.afterBackward - result.period)).toBeLessThan(2);
+
+      await ctx.close();
+    });
+
+    test('auto-advance moves at the same ~1x rate in landscape too', async ({ browser }) => {
+      const ctx = await browser.newContext({ ...MOBILE, viewport: LANDSCAPE });
+      const page = await ctx.newPage();
+      await page.goto('/');
+      await page.waitForTimeout(1500);
+
+      const SAMPLE_MS = 3000;
+      const sample = await measureAutoAdvance(page, SAMPLE_MS);
+      expectApproxOneCycleRate(sample, SAMPLE_MS);
+
+      await ctx.close();
+    });
+  });
 });

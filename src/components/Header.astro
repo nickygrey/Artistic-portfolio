@@ -261,10 +261,12 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
    * changing how anything renders.
    *
    * .logo: a first pass used only padding: 5px 2px / margin: -5px -2px.
-   * That worked at 390px, but global.css:753-756 shrinks the logo's
-   * font-size (26px->20px) and letter-spacing below a 380px breakpoint, so
-   * the same fixed padding landed at 37.4x41 on an iPhone SE (375px) and
-   * every width below it — still under 44.
+   * That worked at 390px, but global.css shrinks the logo's font-size (and
+   * letter-spacing) at two breakpoints below the unconditional 26px base
+   * (global.css:296), not one — 22px at <=600px (global.css:725) and a
+   * further 20px at <=380px (global.css:753-756) — so the same fixed
+   * padding landed at 37.4x41 on an iPhone SE (375px) and every width below
+   * it — still under 44.
    *
    * A second pass tried to fix that by adding min-width/min-height and
    * *removing* the padding, on the theory that .logo is already a
@@ -282,21 +284,35 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
    * cancels via `content position = flow_position + margin + padding`,
    * independent of width/height — see .youtube-link/.archive-link/footer a
    * for the same identity holding cleanly with a single padding value),
-   * sized *generously enough that padding alone clears 44px in both
-   * font-size regimes* — so min-width/min-height are never actually the
-   * constraint that wins, only a stated-outcome safety net if some future
-   * breakpoint shrinks the font further than these two:
+   * sized *generously enough that padding alone clears 44px in whichever of
+   * the three font-size regimes is smallest at the current width* — so
+   * min-width/min-height are never actually the constraint that wins, only
+   * a stated-outcome safety net if some future breakpoint shrinks the font
+   * further than these three (measured with getBoundingClientRect(), touch
+   * emulation on, padding/margin temporarily zeroed to read the natural box):
    *
-   *   below 380px (natural 33.41x31):  +8px/+6px -> 45.41 x 47   (>=44 ✓)
-   *   at/above 380px (natural 41.14x34.09): +8px/+6px -> 53.14 x 50.09 (✓)
+   *   <=380px,       20px font (natural 33.41x31):    +8px/+6px -> 45.41 x 47    (>=44 ✓)
+   *   381-600px,     22px font (natural 41.14x34.09):  +8px/+6px -> 53.14 x 50.09 (✓)
+   *   >600px (base), 26px font (natural 48.63x40.30):  +8px/+6px -> 60.63 x 56.30 (✓)
    *
-   * Because padding alone wins in both known regimes, margin (-8px -6px)
-   * cancels back to *exactly* the natural pre-fix margin-box in both —
-   * 33.41x31 and 41.14x34.09 — not just something under .nav-toggle's row
-   * height (36/40), but bit-for-bit the original size, so `align-items:
-   * center` computes the identical cross-axis offset it always did and the
-   * glyphs render at the identical position. Verified with
-   * getBoundingClientRect() and a pixel diff at all four widths below.
+   * The third row is reached on touch by any tablet — anything matching
+   * `(hover: none) and (pointer: coarse)` wider than 600px, not just
+   * phones — so it is live production surface, not a hypothetical. The
+   * invariant this rule actually has to hold is not "clear 44px at two (or
+   * three) specific widths" but "the padding must clear 44px at whatever
+   * the smallest font-size regime in play is" — whichever breakpoints
+   * global.css happens to define at the time.
+   *
+   * Because padding alone wins in all three known regimes, margin
+   * (-8px -6px) cancels back to *exactly* the natural pre-fix margin-box in
+   * each — 33.41x31, 41.14x34.09, and 48.63x40.30 — not just something
+   * under .nav-toggle's row height (36/40), but bit-for-bit the original
+   * size, so `align-items: center` computes the identical cross-axis offset
+   * it always did and the glyphs render at the identical position. Verified
+   * with getBoundingClientRect() and a pixel diff at all four widths below
+   * (all three fall in the <=600px band; the >600px band is verified above
+   * instead, since none of this component's own tests exercise a tablet
+   * width).
    *
    * .nav-toggle: has a real, visible border, so a plain padding/min-size
    * trick would grow what's painted along with the hit area (as a first
