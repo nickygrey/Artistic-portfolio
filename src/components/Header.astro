@@ -445,7 +445,11 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
     function getThemePreference(): 'light' | 'dark' {
       const stored = localStorage.getItem('theme');
       if (stored === 'dark' || stored === 'light') return stored;
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      // Dark is the design target for this site, so it is the default for
+      // anyone who has not chosen — matching Layout.astro's inline script.
+      // A scheduled OS appearance change is not a choice, so it must not
+      // override this default (see the removed matchMedia listener below).
+      return 'dark';
     }
 
     function setTheme(theme: 'light' | 'dark') {
@@ -455,7 +459,10 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
 
       const metaTheme = document.querySelector('meta[name="theme-color"]');
       if (metaTheme) {
-        metaTheme.setAttribute('content', theme === 'dark' ? '#141210' : '#f3f2f2');
+        // Read the resolved --color-bg rather than hardcoding a hex value
+        // here, so this can never drift from the palette in global.css again.
+        const bg = getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim();
+        metaTheme.setAttribute('content', bg || (theme === 'dark' ? '#0b0a09' : '#f3f2f2'));
       }
 
       setTimeout(() => {
@@ -537,12 +544,13 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
         setTheme(current === 'dark' ? 'light' : 'dark');
       });
 
-      // System theme changes
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        if (!localStorage.getItem('theme')) {
-          setTheme(e.matches ? 'dark' : 'light');
-        }
-      });
+      // No listener for OS-level prefers-color-scheme changes: dark is the
+      // fixed default for anyone who has not made an explicit choice via the
+      // toggle above. A scheduled OS appearance change is not a choice, so it
+      // must neither flip the applied theme nor (as the previous version did)
+      // silently persist itself to localStorage the first time it fires —
+      // that would have permanently overridden the default for a visitor who
+      // never touched the toggle.
 
       // Language toggle
       langToggle?.addEventListener('click', (e) => {

@@ -68,3 +68,23 @@ test('no photograph is sepia-filtered', async ({ page }) => {
   );
   expect(filtered).toEqual([]);
 });
+
+test('a system-preference change for a visitor who has never chosen is not persisted', async ({ browser }) => {
+  // A first-time visitor has made no choice. If the OS is set to "Automatic"
+  // (common on macOS/Windows/iOS) and it flips appearance while the tab is
+  // open, that must not be recorded as a deliberate choice: it must not
+  // write to localStorage, or dark would be permanently overridden the next
+  // time the OS happens to schedule a light switch.
+  const ctx = await browser.newContext({ colorScheme: 'dark' });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.waitForTimeout(800);
+
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.waitForTimeout(500);
+
+  const stored = await page.evaluate(() => localStorage.getItem('theme'));
+  expect(stored).toBeNull();
+
+  await ctx.close();
+});
