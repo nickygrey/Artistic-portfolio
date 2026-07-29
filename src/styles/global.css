@@ -21,8 +21,8 @@
 
 /* Dark theme */
 [data-theme="dark"] {
-  --color-bg: #141210;
-  --color-surface: #1e1c19;
+  --color-bg: #0b0a09;
+  --color-surface: #161412;
   --color-text: #e8e6e3;
   --color-accent: #d4a24a;
   --color-divider: color-mix(in srgb, #e8e6e3 12%, transparent);
@@ -146,7 +146,6 @@ figure { margin: 0; }
 
 /* Plate (image treatment) */
 .plate {
-  filter: sepia(0.22) saturate(0.82) contrast(1.05);
   border: 6px solid var(--color-surface);
   outline: 1px solid var(--color-divider);
 }
@@ -368,12 +367,10 @@ textarea.input { min-height: 90px; resize: vertical; }
   height: 100%;
   width: auto;
   object-fit: cover;
-  transition: transform 0.4s ease, filter 0.4s ease;
-  filter: sepia(0.15) saturate(0.9);
+  transition: transform 0.4s ease;
 }
 .carousel-slide:hover img {
   transform: scale(1.05);
-  filter: sepia(0) saturate(1);
 }
 
 /* Lightbox */

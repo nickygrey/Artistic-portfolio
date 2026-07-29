@@ -80,8 +80,9 @@ const heroPreload = isHome
   <script is:inline>
     (function() {
       const stored = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const theme = stored || (prefersDark ? 'dark' : 'light');
+      // Dark is the design target for this site, so it is the default for anyone
+      // who has not chosen. A stored choice always wins, including "light".
+      const theme = stored || 'dark';
       if (theme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
       }
