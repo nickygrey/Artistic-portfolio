@@ -55,7 +55,7 @@ git mv "public/images/Screenshot 2026-07-19 at 12.25.53.png" src/assets/work-aud
 
 Leave `public/images/og.jpg` where it is — the OpenGraph image must be a stable, absolute, unhashed URL, and Astro would fingerprint it. Leave `public/favicon.*` and `public/CNAME` alone.
 
-`Screenshot 2026-07-19 at 12.25.53.png` is a Selected Work thumbnail and is replaced in Task 5; leave it in `public/` for now so nothing breaks in between.
+The screenshot is the one *local* Selected Work thumbnail — the other three are remote `img.youtube.com` URLs. It moves too, because Step 4's test asserts no page photograph is served from `public/images/`, and leaving it there would make this task fail its own check. The owner replaces it with a chosen film frame later; that is a file swap, not a code change.
 
 - [ ] **Step 2: Build the photo list**
 
