@@ -45,7 +45,16 @@ const { src, alt } = Astro.props;
 const WIDTHS = [900, 1440, 1920, 2560, 3000];
 ---
 
-<div class="band" role={alt === '' ? 'presentation' : undefined}>
+<!--
+  data-header-theme="dark" pairs with .band-scrim below, exactly like
+  Hero.astro pairs its own data-header-theme="dark" with .hero-overlay.
+  The marker alone (without a scrim guaranteeing darkness under the header)
+  would only work for a photograph that happens to be dark at the top —
+  the current bright stand-in is what exposed that this pairing, not the
+  marker alone, is what the header's contrast actually depends on. See
+  .band-scrim below for the gradient this guarantees.
+-->
+<div class="band" data-header-theme="dark" role={alt === '' ? 'presentation' : undefined}>
   <Image
     src={src}
     alt={alt}
@@ -57,6 +66,7 @@ const WIDTHS = [900, 1440, 1920, 2560, 3000];
     loading="lazy"
     decoding="async"
   />
+  <div class="band-scrim" aria-hidden="true"></div>
 </div>
 
 <style>
@@ -75,6 +85,40 @@ const WIDTHS = [900, 1440, 1920, 2560, 3000];
     height: 100%;
     object-fit: cover;
     display: block;
+  }
+
+  /*
+   * Guarantees header legibility regardless of what the photograph behind
+   * it looks like — this is the actual fix, not the data-header-theme
+   * marker alone (see the comment above the .band div). The header sits in
+   * the top ~90px at its tallest (desktop, two 22px paddings plus content),
+   * comfortably inside this gradient's opaque top zone on every viewport
+   * this site supports; it is fully transparent again by 34%, well before
+   * the frame's midpoint. Unlike .hero-overlay (which darkens the whole
+   * frame because hero copy sits mid-image), a band's only job is to
+   * darken the strip the fixed header floats over — the photograph itself
+   * is the point, so the scrim must not read as a wash over it.
+   *
+   * The 0.9 peak looks steep on paper but is confined to a thin top strip
+   * and reads as a normal top vignette in practice (verified against
+   * band-1's bright sky stand-in — see task-3-report.md for the measured
+   * WCAG contrast ratios this achieves for the logo, a navlink, and the
+   * language switcher, in both themes). It was tuned up from an initial
+   * 0.65 peak, which left the language switcher under 4.5:1 against this
+   * stand-in's brightest sky pixels — i.e. sized for a real bright
+   * photograph, not just guessed.
+   */
+  .band-scrim {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.9) 0%,
+      rgba(0, 0, 0, 0.68) 10%,
+      rgba(0, 0, 0, 0.24) 22%,
+      rgba(0, 0, 0, 0) 34%
+    );
   }
 
   /* A full viewport of image is overwhelming on a phone held vertically,

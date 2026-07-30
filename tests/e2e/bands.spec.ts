@@ -32,6 +32,21 @@ test('bands carry an image that actually loaded', async ({ page }) => {
   expect(loaded.natural).toBeGreaterThan(0);
 });
 
+test('header inverts to its light-on-dark state when a band fills the viewport', async ({ page }) => {
+  // Bands carry data-header-theme="dark" paired with a top scrim
+  // (.band-scrim in ImageBand.astro) that guarantees darkness under the
+  // header regardless of the photograph — mirroring Hero.astro's own
+  // data-header-theme/.hero-overlay pairing. Without the marker, the
+  // header's IntersectionObserver never sees the band as a "dark section"
+  // and .is-over-dark never activates, leaving near-white header text
+  // (--color-text in the default dark theme) over whatever the band
+  // happens to render.
+  await page.goto('/');
+  await page.evaluate(() => document.querySelector('.band')?.scrollIntoView({ block: 'start' }));
+  await page.waitForTimeout(1000); // theme IntersectionObserver settle
+  await expect(page.locator('.header')).toHaveClass(/is-over-dark/);
+});
+
 test('bands do not introduce horizontal overflow on mobile', async ({ browser }) => {
   const ctx = await browser.newContext({ ...devices['iPhone 13'] });
   const page = await ctx.newPage();
