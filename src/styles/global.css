@@ -601,9 +601,12 @@ html[data-astro-transition-fallback] .page-loader {
     margin-bottom: 24px;
   }
 
-  /* Photo carousel adjustments */
+  /* Photo carousel adjustments — tablet portrait. Ceiling raised 260->350
+     (x1.35) in step with the base rule's 340->520 (x1.53): less headroom
+     than desktop has, but still a clear step up from the old ribbon. See
+     PhotoCarousel.astro's sizes= comment for the width this implies. */
   .carousel-slide {
-    height: clamp(180px, 45vw, 260px);
+    height: clamp(240px, 60vw, 350px);
   }
 
   /* Lightbox mobile optimization */
@@ -679,9 +682,12 @@ html[data-astro-transition-fallback] .page-loader {
     font-size: 14px !important;
   }
 
-  /* Carousel smaller on phones */
+  /* Carousel on phones — still the smallest tier (least vertical room of
+     any breakpoint), but ceiling raised 200->270 (x1.35) so the strip
+     reads as work rather than a ribbon next to ImageBand's 66vh bands.
+     See PhotoCarousel.astro's sizes= comment for the width this implies. */
   .carousel-slide {
-    height: clamp(140px, 40vw, 200px);
+    height: clamp(190px, 54vw, 270px);
   }
 
   /* Featured reel text */
@@ -807,8 +813,13 @@ html[data-astro-transition-fallback] .page-loader {
     font-size: 10vw !important;
   }
 
+  /* 35vh->55vh: roughly doubles rendered height at the reference 844x390
+     viewport (136.5px -> 214.5px). Deliberately left well under
+     ImageBand's 66vh at the same viewports (257px landscape) so the strip
+     stays visually secondary to the full-bleed bands rather than
+     competing with them. */
   .carousel-slide {
-    height: 35vh;
+    height: 55vh;
   }
 
   .lightbox img {

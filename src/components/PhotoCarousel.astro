@@ -7,9 +7,10 @@ import { photos } from '../lib/photos';
  * build time — this is what the lightbox shows, deliberately decoupled from
  * the carousel thumbnail's own srcset below.
  *
- * The thumbnail's `sizes` caps its display width at 230px, so against
- * `widths={[320, 640, 1066]}` a DPR-1 display resolves the 320w candidate
- * and DPR-2 resolves 640w — only DPR >= 3 ever reaches the 1066w tier. If
+ * The thumbnail's `sizes` caps its display width at 350px (see the
+ * derivation comment above the carousel's `<Image>` below), so against
+ * `widths={[320, 640, 1066]}` a DPR-1 display resolves the 640w candidate
+ * and DPR-2 already reaches the 1066w tier. If
  * the lightbox reused that resolved candidate (as it used to), it would
  * stretch a 320-640px image up to 92vw: a visible, unintended upscale on
  * any normal external monitor, in the one place a visitor goes specifically
@@ -44,7 +45,33 @@ const fullPhotos = await Promise.all(
       data-speed="40"
       data-original-count={photos.length}
     >
-      {/* Original set */}
+      {/*
+        Original set. `sizes` derivation: `.carousel-slide img` is
+        `height: 100%; width: auto`, and every source photo is a fixed
+        1066x1600 (width:height = 0.66625), so rendered display width is
+        always `slide-height * 0.66625` regardless of which CSS breakpoint
+        set that height. Each bucket below uses the *ceiling* of its
+        governing `.carousel-slide` height rule in global.css (the ceiling,
+        not the vw/vh-driven value, because every rule saturates at its
+        ceiling across most of its practical width range — see each rule's
+        own comment), times that ratio, rounded up a few px for headroom:
+
+          <=480px  -> phone-portrait rule (max-width:600px), ceiling 270px
+                      -> 270 * 0.66625 = 179.9  -> 180px
+          <=900px  -> tablet-portrait rule (max-width:900px), ceiling 350px
+                      -> 350 * 0.66625 = 233.2  -> 235px
+          else     -> base rule (unconditional), ceiling 520px
+                      -> 520 * 0.66625 = 346.5  -> 350px
+
+        (The landscape rule, max-width:900px and orientation:landscape,
+        renders narrower than both the phone- and tablet-portrait rules at
+        every viewport it applies to, so it never sets the ceiling for any
+        bucket here.) Recompute this whenever a `.carousel-slide` height
+        rule changes, or `sizes` will under-hint and the browser will
+        under-fetch — that's what happened here: this was tuned to the old
+        340px base ceiling (340 * 0.66625 = 226.5 -> 230) and silently went
+        stale when only the CSS was raised.
+      */}
       {photos.map((photo, index) => (
         <div class="carousel-slide" data-index={index} data-full-src={fullPhotos[index].src}>
           <Image
@@ -52,7 +79,7 @@ const fullPhotos = await Promise.all(
             alt={`Photography by P.V. - ${index + 1}`}
             width={1066}
             widths={[320, 640, 1066]}
-            sizes="(max-width: 480px) 140px, (max-width: 900px) 180px, 230px"
+            sizes="(max-width: 480px) 180px, (max-width: 900px) 235px, 350px"
             format="webp"
             quality={80}
             loading="lazy"
@@ -61,7 +88,8 @@ const fullPhotos = await Promise.all(
           />
         </div>
       ))}
-      {/* Duplicate for seamless loop */}
+      {/* Duplicate for seamless loop — sizes must match the original set's
+          Image above exactly; see its derivation comment. */}
       {photos.map((photo, index) => (
         <div class="carousel-slide" data-index={index} data-full-src={fullPhotos[index].src}>
           <Image
@@ -69,7 +97,7 @@ const fullPhotos = await Promise.all(
             alt={`Photography by P.V. - ${index + 1}`}
             width={1066}
             widths={[320, 640, 1066]}
-            sizes="(max-width: 480px) 140px, (max-width: 900px) 180px, 230px"
+            sizes="(max-width: 480px) 180px, (max-width: 900px) 235px, 350px"
             format="webp"
             quality={80}
             loading="lazy"
@@ -632,8 +660,8 @@ const fullPhotos = await Promise.all(
      * Shows the photo at `index` using the slide's `data-full-src` — a
      * dedicated, full-resolution (native width) build-time render, not the
      * thumbnail <img>'s own resolved src/currentSrc. The thumbnail's `sizes`
-     * caps its display width at 230px, so its resolved candidate is only
-     * ever 320w or 640w on ordinary (DPR 1-2) displays — reusing that here
+     * caps its display width at 350px, so its resolved candidate is only
+     * ever 640w or 1066w on ordinary (DPR 1-2) displays — reusing that here
      * would stretch a sub-full-resolution image up to the lightbox's 92vw,
      * a visible upscale in the one place a visitor goes to look closely.
      * data-full-src is generated once per photo via getImage() in this
