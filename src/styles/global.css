@@ -358,7 +358,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .carousel-slide {
   flex: 0 0 auto;
-  height: clamp(200px, 28vw, 340px);
+  height: clamp(260px, 38vw, 520px);
   cursor: pointer;
   overflow: hidden;
   border-radius: 2px;
