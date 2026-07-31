@@ -137,6 +137,30 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
     color: rgba(255, 255, 255, 0.95);
   }
 
+  /*
+   * .nav-toggle's bars were never part of this inversion system — they're
+   * drawn with `background: var(--color-text)` in global.css, so unlike
+   * every rule above (which hardcodes rgba(255,255,255,…) precisely so it
+   * cannot go dark-on-dark), the hamburger silently inverted with the site
+   * theme instead. Over a band in light theme that painted near-black bars
+   * (var(--color-text) = #201f1d) on a darkened photo: ~1-2.5:1, the one
+   * control that opens mobile nav effectively invisible. Hero has the same
+   * exposure today; fixing it here (rather than per-component) covers both.
+   */
+  .header.is-over-dark .nav-toggle span,
+  .header.is-over-dark .nav-toggle span::before,
+  .header.is-over-dark .nav-toggle span::after {
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  /* Preserve the open-state animation: the middle bar hides (its two
+     siblings rotate into an X), it does not turn solid white. Higher
+     specificity than the rule above (adds .is-open) wins without relying
+     on source order. */
+  .header.is-over-dark .nav-toggle.is-open span {
+    background: transparent;
+  }
+
   .nav-links {
     display: flex;
     gap: 30px;

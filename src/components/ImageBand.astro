@@ -90,23 +90,33 @@ const WIDTHS = [900, 1440, 1920, 2560, 3000];
   /*
    * Guarantees header legibility regardless of what the photograph behind
    * it looks like — this is the actual fix, not the data-header-theme
-   * marker alone (see the comment above the .band div). The header sits in
-   * the top ~90px at its tallest (desktop, two 22px paddings plus content),
-   * comfortably inside this gradient's opaque top zone on every viewport
-   * this site supports; it is fully transparent again by 34%, well before
-   * the frame's midpoint. Unlike .hero-overlay (which darkens the whole
-   * frame because hero copy sits mid-image), a band's only job is to
-   * darken the strip the fixed header floats over — the photograph itself
-   * is the point, so the scrim must not read as a wash over it.
+   * marker alone (see the comment above the .band div).
    *
-   * The 0.9 peak looks steep on paper but is confined to a thin top strip
-   * and reads as a normal top vignette in practice (verified against
-   * band-1's bright sky stand-in — see task-3-report.md for the measured
-   * WCAG contrast ratios this achieves for the logo, a navlink, and the
-   * language switcher, in both themes). It was tuned up from an initial
-   * 0.65 peak, which left the language switcher under 4.5:1 against this
-   * stand-in's brightest sky pixels — i.e. sized for a real bright
-   * photograph, not just guessed.
+   * Stops are in absolute px, NOT percentages of band height. An earlier
+   * version used percentages (fully opaque at 0%, transparent by 34%) and
+   * passed every desktop measurement — but percentages scale with the
+   * band's own height, and the band's mobile height (66vh, see the media
+   * query below) is NOT the header's height: on landscape phones ≤900px
+   * wide (iPhone SE 667×375, Pixel 5 851×393, …) 66vh is only ~248-259px
+   * tall, so 34% landed around 84px — right on the header's own bottom
+   * edge — pushing the header into the gradient's weak 0.2-ish tail
+   * instead of its opaque zone. Measured real header height across every
+   * breakpoint this site ships (desktop 1440×900, mobile portrait
+   * 390×844, and landscape 667×375 / 812×375 / 851×393): the header itself
+   * is always 73-85px tall, regardless of viewport — it's a fixed-size UI
+   * element, not something that scales with the photograph behind it. So
+   * the scrim that guarantees its contrast has to be sized in the same
+   * fixed unit, not as a fraction of whatever band happens to be behind it.
+   *
+   * These stops keep strong opacity through 85px (covers the tallest
+   * measured header with margin) and reach zero at 118px — comfortably
+   * under half of even the shortest real band this site produces (~248px
+   * on the shortest landscape phones), so "well before the middle" still
+   * holds at every size, not just the tall desktop case these stops were
+   * originally tuned against. See task-3-report.md for the measured WCAG
+   * contrast this achieves across the full portrait/landscape ×
+   * mobile/desktop × light/dark theme matrix, including on a photograph
+   * as bright as the band-1 stand-in.
    */
   .band-scrim {
     position: absolute;
@@ -114,10 +124,10 @@ const WIDTHS = [900, 1440, 1920, 2560, 3000];
     pointer-events: none;
     background: linear-gradient(
       to bottom,
-      rgba(0, 0, 0, 0.9) 0%,
-      rgba(0, 0, 0, 0.68) 10%,
-      rgba(0, 0, 0, 0.24) 22%,
-      rgba(0, 0, 0, 0) 34%
+      rgba(0, 0, 0, 0.92) 0px,
+      rgba(0, 0, 0, 0.78) 50px,
+      rgba(0, 0, 0, 0.4) 90px,
+      rgba(0, 0, 0, 0) 118px
     );
   }
 
