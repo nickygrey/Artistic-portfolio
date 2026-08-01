@@ -16,6 +16,24 @@ declare global {
   }
 }
 
+/**
+ * The renderer tears WebGL down for the rest of a page's life if it measures
+ * under 50fps over its first 60 frames (see renderer.ts's fpsGuard), and the
+ * very first page this dev server serves is compiling TypeScript modules and
+ * generating the hero's responsive image derivatives while those 60 frames
+ * are being counted. Measured on a cold server: ~30fps for the first load and
+ * WebGL correctly, but unhelpfully, disabled about two seconds in; ~120fps
+ * and stable on every load after it. This warms the server before any test
+ * asserts anything, so the suite exercises the steady state rather than
+ * racing a cold start. It asserts nothing itself — it cannot mask a failure.
+ */
+test.beforeAll(async ({ browser }) => {
+  const page = await browser.newPage();
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await page.close();
+});
+
 test('a canvas is created and does not cover the content', async ({ page }) => {
   await page.goto('/');
   await page.waitForTimeout(1500);
@@ -62,12 +80,21 @@ test('a canvas is created and does not cover the content', async ({ page }) => {
  *     below.
  *
  * Filling the canvas via its own CSS `background` (not WebGL drawing) is
- * deliberate: this task registers no surfaces yet, so the WebGL bitmap
- * itself is empty every frame, and the render loop would otherwise
- * immediately clear away anything drawn into it via raw gl calls before a
- * screenshot could capture it. The CSS background is a separate paint
- * layer the render loop never touches, so it holds still for the
- * screenshot without needing to pause gsap.ticker.
+ * deliberate: anything drawn into the WebGL bitmap with raw gl calls would
+ * be cleared again by the very next render-loop frame, before a screenshot
+ * could capture it. The CSS background is a separate paint layer the render
+ * loop never touches, so it holds still for the screenshot without needing
+ * to pause gsap.ticker.
+ *
+ * That fill sits *behind* the WebGL bitmap, though, and since Task 6 the
+ * hero carries a real, opaque mesh covering exactly the region the `below`
+ * probe is planted in — which would hide the fill and make this test read
+ * the photograph instead of the controlled colour it is asserting about.
+ * Hiding `.hero-img` culls that mesh (surface.ts derives visibility from the
+ * element's live rect, and a display:none element's rect is all zeroes)
+ * without touching the canvas, its z-index, its place in the DOM, or either
+ * probe — so the paint-order question this test exists to answer is asked in
+ * exactly the same terms as before.
  */
 test('the canvas paints between a plain photograph and the text/controls layered over it', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -75,6 +102,8 @@ test('the canvas paints between a plain photograph and the text/controls layered
   await page.waitForTimeout(1500);
 
   await expect(page.locator('canvas')).toHaveCount(1);
+  await page.addStyleTag({ content: '.hero-img { display: none !important; }' });
+  await page.waitForTimeout(200);
 
   await page.evaluate(() => {
     const RED = 'rgb(255, 0, 0)';
@@ -452,4 +481,418 @@ test("supported()'s capability probe is cached, not re-created every call", asyn
   // every one of these five re-inits reused that cached answer instead of
   // creating and releasing another throwaway context.
   expect(after - before).toBe(CYCLES);
+});
+
+// ---------------------------------------------------------------------------
+// Task 6: the hero displacement/grain surface.
+// ---------------------------------------------------------------------------
+
+/**
+ * Mean luminance of a WxH patch of a screenshot, so a pixel claim is a
+ * measurement rather than a spot check of one possibly-antialiased pixel.
+ */
+async function meanLuma(shot: Buffer, left: number, top: number, width: number, height: number): Promise<number> {
+  const r = await sharp(shot)
+    .extract({ left: Math.max(0, Math.round(left)), top: Math.max(0, Math.round(top)), width, height })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let sum = 0, n = 0;
+  for (let i = 0; i < r.data.length; i += r.info.channels) {
+    sum += 0.2126 * r.data[i] + 0.7152 * r.data[i + 1] + 0.0722 * r.data[i + 2];
+    n++;
+  }
+  return sum / n;
+}
+
+test('the hero surface registers and tracks its image while scrolling', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => window.__webgl.surfaces())).toBeGreaterThan(0);
+
+  // Registration must hold MID-scroll, not only at rest — the hero image is
+  // continuously transformed by GSAP, and drift only appears in motion.
+  // Compare the mesh's world position against the position the element's LIVE
+  // rect implies, using the same projection maths the surface uses. Asserting
+  // the canvas is viewport-sized would prove nothing about the mesh.
+  const drift = await page.evaluate(async () => {
+    window.scrollTo(0, 320);
+    await new Promise(r => setTimeout(r, 500));
+
+    const s = window.__webgl.debug().find(d => d.el.includes('hero-img'));
+    if (!s) return null;
+
+    const fov = 45, camZ = 5;
+    const h = 2 * Math.tan((fov * Math.PI) / 360) * camZ;
+    const w = h * (window.innerWidth / window.innerHeight);
+    const expectX = ((s.rect.left + s.rect.width / 2) / window.innerWidth - 0.5) * w;
+    const expectY = -((s.rect.top + s.rect.height / 2) / window.innerHeight - 0.5) * h;
+
+    return {
+      dx: Math.abs(s.mesh.x - expectX),
+      dy: Math.abs(s.mesh.y - expectY),
+      scrolled: window.scrollY,
+    };
+  });
+
+  expect(drift).not.toBeNull();
+  expect(drift!.scrolled).toBeGreaterThan(0);   // we really are mid-scroll
+  expect(drift!.dx).toBeLessThan(0.02);          // world units, ~1px at this fov
+  expect(drift!.dy).toBeLessThan(0.02);
+});
+
+/**
+ * The test above samples once, 500ms after a programmatic jump — by which
+ * point the page has largely settled, so it can only catch a mesh that is
+ * permanently misplaced, not one that lags or swims while the scroll is
+ * actually running. This one samples every animation frame throughout a real
+ * wheel-driven scroll (Lenis intercepts the wheel and animates the scroll
+ * from inside gsap.ticker, which is the code path a visitor exercises and
+ * `window.scrollTo` does not), and asserts the WORST frame, not the last one.
+ *
+ * It also checks scale, which the position-only assertion above cannot: the
+ * hero <img> is under a continuously scrubbed `scale` tween, so its rect
+ * changes size every frame as well as moving, and a mesh that tracked
+ * position but not size would sit correctly centred over a photograph of the
+ * wrong dimensions.
+ */
+test('the hero mesh holds registration on every frame of a real wheel scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(1);
+
+  await page.evaluate(() => {
+    (window as unknown as { __samples: unknown[] }).__samples = [];
+    const out = (window as unknown as { __samples: unknown[] }).__samples;
+    const started = performance.now();
+    (function loop() {
+      const s = window.__webgl.debug().find(d => d.el.includes('hero-img'));
+      if (s) {
+        const h = 2 * Math.tan((45 * Math.PI) / 360) * 5;
+        const w = h * (window.innerWidth / window.innerHeight);
+        out.push({
+          dx: Math.abs(s.mesh.x - (((s.rect.left + s.rect.width / 2) / window.innerWidth - 0.5) * w)),
+          dy: Math.abs(s.mesh.y - (-((s.rect.top + s.rect.height / 2) / window.innerHeight - 0.5) * h)),
+          dsx: Math.abs(s.mesh.sx - (s.rect.width / window.innerWidth) * w),
+          dsy: Math.abs(s.mesh.sy - (s.rect.height / window.innerHeight) * h),
+          top: s.rect.top,
+          height: s.rect.height,
+          scrollY: window.scrollY,
+        });
+      }
+      if (performance.now() - started < 3000) requestAnimationFrame(loop);
+    })();
+  });
+
+  await page.mouse.move(640, 450);
+  for (let i = 0; i < 6; i++) {
+    await page.mouse.wheel(0, 160);
+    await page.waitForTimeout(60);
+  }
+  await page.waitForTimeout(2200);
+
+  const samples = await page.evaluate(
+    () => (window as unknown as {
+      __samples: Array<{ dx: number; dy: number; dsx: number; dsy: number; top: number; height: number; scrollY: number }>;
+    }).__samples
+  );
+
+  expect(samples.length).toBeGreaterThan(60);
+
+  // Prove this really sampled motion rather than a still page: the scroll
+  // visited many distinct positions, the element's rect travelled most of a
+  // viewport, and its height genuinely changed (the scale scrub was live).
+  // Without these, "no drift" would be the trivially true statement that a
+  // stationary mesh sits over a stationary element.
+  const tops = samples.map(s => s.top);
+  const heights = samples.map(s => s.height);
+  expect(new Set(samples.map(s => s.scrollY)).size).toBeGreaterThan(20);
+  expect(Math.max(...tops) - Math.min(...tops)).toBeGreaterThan(300);
+  expect(Math.max(...heights) - Math.min(...heights)).toBeGreaterThan(20);
+
+  const worst = (key: 'dx' | 'dy' | 'dsx' | 'dsy') => Math.max(...samples.map(s => s[key]));
+  expect(worst('dx')).toBeLessThan(0.02);
+  expect(worst('dy')).toBeLessThan(0.02);
+  expect(worst('dsx')).toBeLessThan(0.02);
+  expect(worst('dsy')).toBeLessThan(0.02);
+});
+
+/**
+ * The mesh is opaque and covers the hero photograph completely, so "a surface
+ * is registered" says nothing about whether a visitor sees the photograph, a
+ * stretched version of it, a different crop of it, or a black rectangle. This
+ * renders the same page twice — once normally, once with WebGL refused so the
+ * DOM <img> is what shows — and compares the hero region of the two.
+ *
+ * This is the assertion that catches the `object-fit: cover` correction being
+ * absent or wrong. Sampling `texture2D(tMap, vUv)` with the plane's raw UVs
+ * squashes the whole 2400x1943 photograph into a full-viewport box, which is
+ * NOT what the DOM <img> shows. Measured, with the correction removed: mean
+ * cell difference 2.55 / max 67 at 1280x900, 3.96 / 66 at 1920x1080 and
+ * 5.87 / 80 at 390x844. With it: 0.20 / 2, 0.16 / 1 and 0.25 / 2 — residuals
+ * that are the shader's own film grain, nothing else.
+ */
+async function heroScreenshot(
+  browser: import('@playwright/test').Browser,
+  viewport: { width: number; height: number },
+  { webgl }: { webgl: boolean }
+): Promise<Buffer> {
+  const ctx = await browser.newContext({ viewport });
+  if (!webgl) {
+    await ctx.addInitScript(() => {
+      const orig = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (t: string, ...a: unknown[]) {
+        if (t === 'webgl' || t === 'webgl2') return null;
+        // @ts-expect-error passthrough
+        return orig.call(this, t, ...a);
+      };
+    });
+  }
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  // The scroll indicator pulses on a CSS keyframe loop; freezing it removes
+  // the one element that would otherwise differ between two screenshots for
+  // reasons that have nothing to do with the mesh.
+  await page.addStyleTag({ content: '.scroll-line { animation: none !important; }' });
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(webgl ? 1 : 0);
+  const shot = await page.screenshot();
+  await ctx.close();
+  return shot;
+}
+
+/** Coarse-grid difference between two same-sized screenshots' hero regions. */
+async function heroDiff(a: Buffer, b: Buffer, viewport: { width: number; height: number }) {
+  const cells = async (buf: Buffer) =>
+    sharp(buf)
+      .extract({ left: 0, top: 0, width: viewport.width, height: viewport.height })
+      .resize(40, 30, { fit: 'fill' })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+  const x = await cells(a);
+  const y = await cells(b);
+  let sum = 0, max = 0, n = 0;
+  for (let i = 0; i < x.data.length; i += x.info.channels) {
+    for (let c = 0; c < 3; c++) {
+      const d = Math.abs(x.data[i + c] - y.data[i + c]);
+      sum += d;
+      if (d > max) max = d;
+      n++;
+    }
+  }
+  return { mean: sum / n, max };
+}
+
+for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+  test(`the hero mesh draws the photograph itself, uncropped and undistorted (${viewport.width}x${viewport.height})`, async ({ browser }) => {
+    const withGl = await heroScreenshot(browser, viewport, { webgl: true });
+    const withoutGl = await heroScreenshot(browser, viewport, { webgl: false });
+    const { mean, max } = await heroDiff(withGl, withoutGl, viewport);
+
+    // Grain alone lands around 0.2 mean / 2 max; a missing cover correction
+    // lands at 2.5-5.9 mean / 66-80 max. These thresholds sit an order of
+    // magnitude clear of the former and well under the latter.
+    expect(mean).toBeLessThan(1.2);
+    expect(max).toBeLessThan(15);
+  });
+}
+
+/**
+ * Regression coverage for a defect carried into this task: `.scroll-indicator`
+ * is `position: absolute` with a transform and, before this task, no z-index,
+ * which put it in the same "z-index: 0/auto" paint bucket as the WebGL canvas
+ * and earlier in <main>'s DOM order — so the moment a real mesh covered the
+ * hero photograph it covered the scroll cue too. Measured before the fix, at
+ * both viewports and in both themes: the indicator's own column read the same
+ * luminance as the photograph either side of it, i.e. none of its pixels
+ * survived.
+ *
+ * Compares the indicator's column against the photograph immediately left and
+ * right of it, rather than against an absolute colour, so it measures the cue
+ * being *visible* rather than the mesh happening to be some expected shade.
+ * The pulse animation is frozen so the sample does not depend on catching the
+ * right moment of a 2s opacity loop.
+ */
+for (const theme of ['dark', 'light'] as const) {
+  test(`.scroll-indicator stays visible above the hero mesh (${theme} theme)`, async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await ctx.addInitScript((t) => localStorage.setItem('theme', t), theme);
+    const page = await ctx.newPage();
+    await page.goto('/');
+    await page.waitForTimeout(1500);
+
+    expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(1);
+    await page.addStyleTag({ content: '.scroll-line { animation: none !important; }' });
+    await page.waitForTimeout(200);
+
+    const box = (await page.locator('.scroll-line').boundingBox())!;
+    const shot = await page.screenshot();
+
+    const top = box.y + 2;
+    const height = Math.max(4, Math.round(box.height * 0.4));
+    const centreX = box.x + box.width / 2;
+    const centre = await meanLuma(shot, centreX - 1, top, 3, height);
+    const left = await meanLuma(shot, centreX - 22, top, 3, height);
+    const right = await meanLuma(shot, centreX + 20, top, 3, height);
+
+    // Measured: ~38 with the fix, ~0.3 without it, in both themes.
+    expect(centre - (left + right) / 2).toBeGreaterThan(15);
+    await ctx.close();
+  });
+}
+
+/**
+ * The degradation contract, checked as a visitor would experience it rather
+ * than as a stylesheet: on a locked-down machine where WebGL is refused, the
+ * hero must show the photograph, at the right size and in the right place —
+ * not a blank rectangle where the work should be. `opacity`/`visibility`
+ * assertions (covered elsewhere in this file) cannot tell a photograph from
+ * an empty box, so this measures real pixels: the hero must carry the tonal
+ * variation of a photograph, and its <img> must actually cover the section.
+ */
+test('with WebGL refused, the hero photograph is present, positioned and not a blank rectangle', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await ctx.addInitScript(() => {
+    const orig = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (t: string, ...a: unknown[]) {
+      if (t === 'webgl' || t === 'webgl2') return null;
+      // @ts-expect-error passthrough
+      return orig.call(this, t, ...a);
+    };
+  });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+
+  expect(await page.evaluate(() => window.__webgl.active())).toBe(false);
+  expect(await page.locator('canvas').count()).toBe(0);
+
+  const geometry = await page.evaluate(() => {
+    const img = document.querySelector('.hero-img') as HTMLImageElement;
+    const section = document.querySelector('.hero-fullscreen') as HTMLElement;
+    const i = img.getBoundingClientRect();
+    const s = section.getBoundingClientRect();
+    const cs = getComputedStyle(img);
+    return {
+      opacity: Number(cs.opacity),
+      visibility: cs.visibility,
+      display: cs.display,
+      decoded: img.naturalWidth > 0 && img.complete,
+      coversWidth: i.left <= s.left + 1 && i.right >= s.right - 1,
+      coversHeight: i.top <= s.top + 1 && i.bottom >= s.bottom - 1,
+      centredX: Math.abs((i.left + i.right) / 2 - (s.left + s.right) / 2),
+      centredY: Math.abs((i.top + i.bottom) / 2 - (s.top + s.bottom) / 2),
+    };
+  });
+
+  expect(geometry.decoded).toBe(true);
+  expect(geometry.opacity).toBe(1);
+  expect(geometry.visibility).toBe('visible');
+  expect(geometry.display).not.toBe('none');
+  // The GSAP zoom scrub leaves the <img> slightly larger than the section at
+  // rest, so it must fully cover it, concentrically — never be inset or offset.
+  expect(geometry.coversWidth).toBe(true);
+  expect(geometry.coversHeight).toBe(true);
+  expect(geometry.centredX).toBeLessThan(2);
+  expect(geometry.centredY).toBeLessThan(2);
+
+  // A region of the hero that carries no text, so the variation measured is
+  // the photograph's own and not the headline's.
+  const shot = await page.screenshot();
+  const r = await sharp(shot)
+    .extract({ left: 880, top: 140, width: 380, height: 520 })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let sum = 0, sumSq = 0, n = 0;
+  for (let i = 0; i < r.data.length; i += r.info.channels) {
+    const l = 0.2126 * r.data[i] + 0.7152 * r.data[i + 1] + 0.0722 * r.data[i + 2];
+    sum += l; sumSq += l * l; n++;
+  }
+  const mean = sum / n;
+  const sd = Math.sqrt(sumSq / n - mean * mean);
+  // A flat fill of any colour scores 0 here; this photograph scores ~29.
+  expect(sd).toBeGreaterThan(8);
+  await ctx.close();
+});
+
+/**
+ * Under reduced motion nothing initialises — no Lenis, no scan, no WebGL — so
+ * the hero has to stand entirely on its authored resting state. This is the
+ * other half of the degradation contract and a live path (a real OS setting),
+ * not a hypothetical: it checks the photograph AND the scroll cue are both
+ * really there, since the cue's own opacity is otherwise driven by a
+ * ScrollTrigger that never gets created here.
+ */
+test('under reduced motion the hero photograph and scroll cue are both visible with no canvas', async ({ browser }) => {
+  const ctx = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1280, height: 900 } });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+
+  expect(await page.locator('canvas').count()).toBe(0);
+  expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(0);
+
+  const state = await page.evaluate(() => {
+    const img = document.querySelector('.hero-img') as HTMLImageElement;
+    const indicator = document.querySelector('.scroll-indicator') as HTMLElement;
+    const line = document.querySelector('.scroll-line') as HTMLElement;
+    return {
+      imgOpacity: Number(getComputedStyle(img).opacity),
+      imgDecoded: img.naturalWidth > 0,
+      imgWidth: img.getBoundingClientRect().width,
+      indicatorOpacity: Number(getComputedStyle(indicator).opacity),
+      indicatorHeight: line.getBoundingClientRect().height,
+    };
+  });
+  expect(state.imgOpacity).toBe(1);
+  expect(state.imgDecoded).toBe(true);
+  expect(state.imgWidth).toBeGreaterThan(1000);
+  expect(state.indicatorOpacity).toBe(1);
+  expect(state.indicatorHeight).toBeGreaterThan(10);
+  await ctx.close();
+});
+
+/**
+ * The smear is driven by `uVelocity`, and the failure mode that matters is
+ * not "it never moves" but "it never stops": ScrollTrigger's onUpdate stops
+ * firing the moment scrolling ends, so a naive feed leaves the last, highest
+ * reading latched and smears the photograph permanently. Measured here as the
+ * uniform the shader actually reads, over a real scroll and the seconds after
+ * it, rather than as anything a computed style could report.
+ */
+test('uVelocity rises with a scroll, stays clamped, and returns to rest afterwards', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(1);
+
+  const trace = await page.evaluate(async () => {
+    const mod = await import('/src/webgl/shaders/hero.ts');
+    const out: Array<{ t: number; v: number }> = [];
+    const started = performance.now();
+    const done = new Promise<void>(resolve => {
+      (function loop() {
+        out.push({ t: performance.now() - started, v: mod.heroUniforms.uVelocity.value });
+        if (performance.now() - started < 3200) requestAnimationFrame(loop);
+        else resolve();
+      })();
+    });
+    setTimeout(() => window.scrollTo({ top: 700, behavior: 'smooth' }), 200);
+    await done;
+    return out;
+  });
+
+  const atRestBefore = trace.filter(s => s.t < 150).map(s => s.v);
+  const during = trace.filter(s => s.t >= 200 && s.t < 1200).map(s => s.v);
+  const atRestAfter = trace.filter(s => s.t > 2600).map(s => s.v);
+
+  expect(Math.max(...atRestBefore)).toBe(0);
+  // It genuinely responds to the scroll...
+  expect(Math.max(...during)).toBeGreaterThan(0.25);
+  // ...never past the clamp the shader's 0.012 multiplier was tuned against...
+  expect(Math.max(...trace.map(s => s.v))).toBeLessThanOrEqual(1);
+  expect(Math.min(...trace.map(s => s.v))).toBeGreaterThanOrEqual(0);
+  // ...and settles back to rest instead of latching a frozen smear.
+  expect(Math.max(...atRestAfter)).toBeLessThan(0.01);
 });

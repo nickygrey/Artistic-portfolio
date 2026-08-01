@@ -208,10 +208,31 @@ export function initWebGL(): void {
   resize();
   window.addEventListener('resize', resize, { passive: true });
 
+  // Lands AFTER motion's own Lenis ticker callback, which is what keeps a
+  // mesh in register during a scroll rather than a frame behind it: Lenis
+  // advances the scroll position (and, through ScrollTrigger.update, every
+  // scrubbed transform) from inside its gsap.ticker callback, so a surface
+  // reading getBoundingClientRect() ahead of it would sample the *previous*
+  // frame's layout and paint the photograph trailing the DOM it covers.
+  //
+  // Ordering falls out of the lifecycle rather than needing to be arranged:
+  // Lenis's callback is added once, by an ensureLenis() that early-returns
+  // on every later call, and is never removed on an ordinary navigation,
+  // while this one is removed by teardownWebGL() and re-appended here on
+  // every init — so it is always the newer of the two. Verified by
+  // instrumenting drawArrays/drawElements and window.scrollTo during a real
+  // wheel scroll: in every frame where Lenis moved the scroll, the draw
+  // followed the move (77/77), and it stayed 78/78 with Layout.astro's two
+  // init calls deliberately swapped, confirming the invariant does not
+  // depend on their order.
   gsap.ticker.add(tick);
   resetFpsSample();
   gsap.ticker.add(fpsGuard);
   document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  // Last: the scene is fully usable, so anything waiting to register a
+  // surface against it can now do so. See WEBGL_READY_EVENT below.
+  document.dispatchEvent(new Event(WEBGL_READY_EVENT));
 }
 
 function resize() {
@@ -236,6 +257,31 @@ export function teardownWebGL(): void {
 }
 
 export function getScene() { return { renderer, scene, camera, surfaces }; }
+
+/**
+ * Fired on `document` at the end of every successful `initWebGL()`, once per
+ * live scene, and never when WebGL is unavailable or refused.
+ *
+ * Components register their surfaces in response to this rather than on their
+ * own initiative, because the scene they register into is destroyed and
+ * rebuilt on every View Transition — `initWebGL()` opens by calling
+ * `teardownWebGL()`, which pops and destroys every registered surface — so a
+ * registration performed at any moment the component chose for itself would
+ * be silently discarded by the next one. Two orderings make that unavoidable
+ * rather than merely awkward, and this event sidesteps both: Layout.astro
+ * runs `initMotion()` ahead of `initWebGL()` on `astro:page-load`, so a
+ * surface registered from inside a `registerMotion()` handler is destroyed
+ * microseconds later (measured: zero surfaces alive after page load); and a
+ * component's own `astro:page-load` listener cannot know whether it was
+ * registered before or after Layout's, since module emission order is not
+ * guaranteed (see Layout.astro's own comment on why it calls `initMotion()`
+ * twice, for the same reason).
+ *
+ * Listening from module scope is the intended use: a component that loads
+ * after the synchronous `initWebGL()` has already fired simply catches the
+ * next one, which the `astro:page-load` init guarantees.
+ */
+export const WEBGL_READY_EVENT = 'webgl:ready';
 
 if (typeof window !== 'undefined') {
   (window as unknown as Record<string, unknown>).__webgl = {

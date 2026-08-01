@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { computeMeshTransform, type MeshRect, type Viewport } from '../../src/webgl/geometry';
+import {
+  computeMeshTransform,
+  computeCoverUv,
+  parseObjectPosition,
+  type MeshRect,
+  type Viewport,
+} from '../../src/webgl/geometry';
 
 /** A rect covering the full viewport, e.g. a full-bleed hero image. */
 function fullViewportRect(viewport: Viewport): MeshRect {
@@ -128,5 +134,145 @@ describe('computeMeshTransform', () => {
     // width scales with the viewport's own aspect ratio.
     expect(wideT.sy).toBeCloseTo(tallT.sy, 10);
     expect(wideT.sx).toBeGreaterThan(tallT.sx);
+  });
+});
+
+/** The real hero photograph's intrinsic size (src/assets/hero.jpg). */
+const HERO_NATURAL = { width: 2400, height: 1943 };
+/** Hero.astro's own `object-position: center 30%`. */
+const HERO_POSITION = { x: 0.5, y: 0.3 };
+
+/**
+ * Samples the texture coordinate the shader would produce for a plane UV,
+ * mirroring `texture2D(tMap, uv * uCoverScale + uCoverOffset)` exactly, so
+ * these assertions talk about where the shader actually looks rather than
+ * about the intermediate scale/offset pair.
+ */
+function sample(uv: [number, number], cover: { scale: [number, number]; offset: [number, number] }) {
+  return [uv[0] * cover.scale[0] + cover.offset[0], uv[1] * cover.scale[1] + cover.offset[1]];
+}
+
+describe('computeCoverUv', () => {
+  it('leaves a texture whose aspect already matches the box completely untouched', () => {
+    const cover = computeCoverUv({ width: 1000, height: 500 }, { width: 400, height: 200 }, { x: 0.5, y: 0.5 });
+    expect(cover.scale).toEqual([1, 1]);
+    expect(cover.offset[0]).toBeCloseTo(0, 10);
+    expect(cover.offset[1]).toBeCloseTo(0, 10);
+  });
+
+  it('crops the surplus WIDTH when the image is wider than the box, showing full height', () => {
+    // 2:1 image into a 1:1 box — half the width is surplus.
+    const cover = computeCoverUv({ width: 1000, height: 500 }, { width: 400, height: 400 }, { x: 0.5, y: 0.5 });
+    expect(cover.scale[0]).toBeCloseTo(0.5, 10);
+    expect(cover.scale[1]).toBeCloseTo(1, 10);
+    // Centred: the window runs 0.25..0.75 across, and the full 0..1 down.
+    expect(sample([0, 0], cover)[0]).toBeCloseTo(0.25, 10);
+    expect(sample([1, 0], cover)[0]).toBeCloseTo(0.75, 10);
+    expect(sample([0, 0], cover)[1]).toBeCloseTo(0, 10);
+    expect(sample([0, 1], cover)[1]).toBeCloseTo(1, 10);
+  });
+
+  it('crops the surplus HEIGHT when the image is taller than the box, showing full width', () => {
+    const cover = computeCoverUv({ width: 500, height: 1000 }, { width: 400, height: 400 }, { x: 0.5, y: 0.5 });
+    expect(cover.scale[0]).toBeCloseTo(1, 10);
+    expect(cover.scale[1]).toBeCloseTo(0.5, 10);
+    expect(sample([0, 0], cover)[1]).toBeCloseTo(0.25, 10);
+    expect(sample([0, 1], cover)[1]).toBeCloseTo(0.75, 10);
+  });
+
+  it('never distorts: the sampled window always has the box\'s aspect ratio', () => {
+    // The whole point of the correction. For any image/box pair, the number
+    // of source pixels the window spans horizontally vs vertically must be in
+    // the box's proportion — otherwise the photograph is stretched, which is
+    // exactly the defect a raw 0..1 mapping produces.
+    const cases = [
+      { natural: HERO_NATURAL, box: { width: 1280, height: 900 } },
+      { natural: HERO_NATURAL, box: { width: 1920, height: 1080 } },
+      { natural: HERO_NATURAL, box: { width: 390, height: 844 } },
+      { natural: { width: 800, height: 600 }, box: { width: 300, height: 900 } },
+    ];
+    for (const { natural, box } of cases) {
+      const cover = computeCoverUv(natural, box, HERO_POSITION);
+      const spanPxX = cover.scale[0] * natural.width;
+      const spanPxY = cover.scale[1] * natural.height;
+      expect(spanPxX / spanPxY).toBeCloseTo(box.width / box.height, 6);
+    }
+  });
+
+  it('keeps the whole window inside the texture — no sampling past an edge', () => {
+    for (const box of [{ width: 1280, height: 900 }, { width: 390, height: 844 }, { width: 2560, height: 700 }]) {
+      const cover = computeCoverUv(HERO_NATURAL, box, HERO_POSITION);
+      const [x0, y0] = sample([0, 0], cover);
+      const [x1, y1] = sample([1, 1], cover);
+      expect(x0).toBeGreaterThanOrEqual(-1e-9);
+      expect(y0).toBeGreaterThanOrEqual(-1e-9);
+      expect(x1).toBeLessThanOrEqual(1 + 1e-9);
+      expect(y1).toBeLessThanOrEqual(1 + 1e-9);
+    }
+  });
+
+  it('honours object-position 30%: less is cropped off the top than off the bottom', () => {
+    // Hero.astro frames the subject with `object-position: center 30%`, so
+    // the crop is biased towards keeping the upper part of the frame. UVs are
+    // bottom-up (OGL uploads <img> textures with flipY), so "kept off the
+    // top" is the distance from the window's upper edge to v = 1.
+    const cover = computeCoverUv(HERO_NATURAL, { width: 1280, height: 900 }, HERO_POSITION);
+    const croppedFromTop = 1 - sample([0, 1], cover)[1];
+    const croppedFromBottom = sample([0, 0], cover)[1];
+    const total = 1 - cover.scale[1];
+    expect(croppedFromTop).toBeCloseTo(total * 0.3, 10);
+    expect(croppedFromBottom).toBeCloseTo(total * 0.7, 10);
+    expect(croppedFromTop).toBeLessThan(croppedFromBottom);
+  });
+
+  it('centres the crop at 50% and pins it to one edge at 0% / 100%', () => {
+    const box = { width: 1280, height: 900 };
+    const top = computeCoverUv(HERO_NATURAL, box, { x: 0.5, y: 0 });
+    const bottom = computeCoverUv(HERO_NATURAL, box, { x: 0.5, y: 1 });
+    // y: 0% keeps the very top of the photo — window's upper edge at v = 1.
+    expect(sample([0, 1], top)[1]).toBeCloseTo(1, 10);
+    // y: 100% keeps the very bottom — window's lower edge at v = 0.
+    expect(sample([0, 0], bottom)[1]).toBeCloseTo(0, 10);
+  });
+
+  it('returns the identity window for an image that has not decoded yet', () => {
+    // <img>.naturalWidth is 0 until decode; a NaN leaking into the uniform
+    // from this would blow out the entire frame in GLSL rather than fail
+    // quietly, so the untransformed mapping is the correct stand-in.
+    const cover = computeCoverUv({ width: 0, height: 0 }, { width: 1280, height: 900 }, HERO_POSITION);
+    expect(cover.scale).toEqual([1, 1]);
+    expect(cover.offset).toEqual([0, 0]);
+    for (const n of [...cover.scale, ...cover.offset]) expect(Number.isFinite(n)).toBe(true);
+  });
+
+  it('returns the identity window for a zero-sized box', () => {
+    const cover = computeCoverUv(HERO_NATURAL, { width: 0, height: 0 }, HERO_POSITION);
+    expect(cover.scale).toEqual([1, 1]);
+    expect(cover.offset).toEqual([0, 0]);
+  });
+});
+
+describe('parseObjectPosition', () => {
+  it('parses the computed two-percentage form Chrome reports', () => {
+    expect(parseObjectPosition('50% 30%')).toEqual({ x: 0.5, y: 0.3 });
+    expect(parseObjectPosition('0% 100%')).toEqual({ x: 0, y: 1 });
+    expect(parseObjectPosition('  50%   25%  ')).toEqual({ x: 0.5, y: 0.25 });
+  });
+
+  it('centres the axis it cannot express as a fraction', () => {
+    // A length has no leftover-space fraction without knowing the crop
+    // overflow, and neither does a keyword Chrome failed to normalise.
+    expect(parseObjectPosition('10px 30%')).toEqual({ x: 0.5, y: 0.3 });
+    expect(parseObjectPosition('50% top')).toEqual({ x: 0.5, y: 0.5 });
+  });
+
+  it('centres both axes for missing, empty or malformed input', () => {
+    for (const value of [null, undefined, '', '   ', 'nonsense']) {
+      expect(parseObjectPosition(value)).toEqual({ x: 0.5, y: 0.5 });
+    }
+  });
+
+  it('treats a single component as horizontal, centred vertically, per the CSS shorthand', () => {
+    expect(parseObjectPosition('20%')).toEqual({ x: 0.2, y: 0.5 });
   });
 });

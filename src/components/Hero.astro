@@ -182,11 +182,24 @@ const { lang } = Astro.props;
     background: rgba(255, 255, 255, 0.08);
   }
 
-  /* Scroll indicator */
+  /*
+   * Scroll indicator. `z-index: 1` is the same load-bearing escape
+   * `.hero-overlay` and `.hero-content` above already make, for the same
+   * reason: this is a control layered over the hero photograph, and without
+   * an explicit z-index it sits at `auto` in the same "z-index: 0/auto"
+   * paint bucket as the WebGL canvas (src/webgl/renderer.ts, appended inside
+   * <main id="main-content"> as its LAST child). Ties in that bucket resolve
+   * by DOM order and this element is earlier in <main> than the canvas, so
+   * it loses — measured, before this line existed, as being swallowed whole
+   * by the hero mesh (fully covered: zero of its own pixels survived). The
+   * `transform: translateX(-50%)` below is not an escape either; a transform
+   * makes this its own stacking context but leaves it in that same bucket.
+   */
   .scroll-indicator {
     position: absolute;
     bottom: 32px;
     left: 50%;
+    z-index: 1;
     transform: translateX(-50%);
   }
 
@@ -283,10 +296,13 @@ const { lang } = Astro.props;
 
 <script>
   import { registerMotion } from '../motion';
-  import { EASE, SCALE_FROM } from '../motion/tokens';
+  import { DURATION, EASE, SCALE_FROM } from '../motion/tokens';
+  import { registerSurface, supported, WEBGL_READY_EVENT } from '../webgl';
+  import { computeCoverUv, parseObjectPosition } from '../webgl/geometry';
+  import { heroShader, heroUniforms, normaliseScrollVelocity } from '../webgl/shaders/hero';
 
-  registerMotion('hero', (el, { gsap }) => {
-    const img = el.querySelector('.hero-img');
+  registerMotion('hero', (el, { gsap, ScrollTrigger }) => {
+    const img = el.querySelector('.hero-img') as HTMLImageElement | null;
     if (!img) return;
 
     // Zoom and drift on one timeline, so neither can clobber the other's transform.
@@ -311,5 +327,88 @@ const { lang } = Astro.props;
         scrollTrigger: { trigger: el, start: 'top top', end: '30% top', scrub: true },
       });
     }
+
+    // --- Uniforms for the WebGL surface ------------------------------------
+    //
+    // The surface itself is registered on WEBGL_READY_EVENT below, not here —
+    // Layout.astro runs initMotion() before initWebGL(), and initWebGL()
+    // opens by destroying every registered surface, so anything registered
+    // from inside this handler would be thrown away microseconds later. What
+    // does belong here is the per-frame feed, because this is where the
+    // ScrollTrigger it reads from and the gsap.ticker slot it runs in both
+    // come from, and because it must be torn down with the rest of the
+    // motion system rather than outliving it.
+    //
+    // The <img> is never hidden by any of this. If WebGL is unavailable,
+    // unsupported, or torn down by the fps guard, none of it happens and the
+    // photograph is simply the photograph.
+    if (!supported()) return;
+
+    // Smooth the velocity rather than snapping the uniform to it: a raw
+    // ScrollTrigger reading is a stepped 50ms-window estimate and drives a
+    // visibly jittery smear. Same gsap.quickTo treatment (and the same
+    // tokens) the marquee's scroll-velocity boost already uses.
+    const setVelocity = gsap.quickTo(heroUniforms.uVelocity, 'value', {
+      duration: DURATION.quickTo,
+      ease: EASE.smooth,
+    });
+
+    // `object-fit: cover` inputs change only when the image decodes (or a
+    // srcset swap changes which file decoded) or the viewport resizes, so
+    // this recomputes on change rather than every frame — the key comparison
+    // is what keeps getComputedStyle() off the per-frame path. The rect read
+    // is free: surface.ts's own update() has already forced layout this frame.
+    let coverKey = '';
+    function syncCover(): void {
+      const r = img!.getBoundingClientRect();
+      const key = `${Math.round(r.width)}x${Math.round(r.height)}|${img!.naturalWidth}x${img!.naturalHeight}`;
+      if (key === coverKey) return;
+      coverKey = key;
+      const cover = computeCoverUv(
+        { width: img!.naturalWidth, height: img!.naturalHeight },
+        { width: r.width, height: r.height },
+        parseObjectPosition(getComputedStyle(img!).objectPosition)
+      );
+      heroUniforms.uCoverScale.value = cover.scale;
+      heroUniforms.uCoverOffset.value = cover.offset;
+    }
+
+    // Sampled every frame, not from ScrollTrigger's own onUpdate, because
+    // onUpdate stops firing the instant scrolling stops — leaving the last
+    // (high) reading as the smoothing target forever, i.e. a smear frozen
+    // across the photograph. ScrollTrigger.getVelocity() divides by the time
+    // since its last recorded sample, so continuing to read it decays to zero
+    // on its own once the page is still.
+    function sampleScroll(): void {
+      syncCover();
+      setVelocity(normaliseScrollVelocity(velocityTracker.getVelocity()));
+    }
+
+    // gsap.ticker callbacks are not tracked by teardownMotion() (it kills
+    // ScrollTriggers and reverts SplitTexts, nothing else — see AGENTS.md),
+    // so this one is removed by the onKill of a ScrollTrigger created in the
+    // same breath, exactly as PhotoCarousel.astro's marquee unhooks its own
+    // listeners. Same object is also what supplies the velocity, so there is
+    // no second scroll observer on the page.
+    const velocityTracker = ScrollTrigger.create({
+      onKill: () => gsap.ticker.remove(sampleScroll),
+    });
+    gsap.ticker.add(sampleScroll);
+  });
+
+  /**
+   * One surface per live scene. WEBGL_READY_EVENT fires at the end of every
+   * successful initWebGL() — once on first load and once per View Transition
+   * — and never at all when WebGL is unsupported, blocked or refused under
+   * reduced motion, so this is exactly the set of moments at which a fresh,
+   * empty scene exists and wants its surfaces back. Registering from module
+   * scope rather than from a lifecycle listener of our own is deliberate: it
+   * removes any dependence on whether this component's script happens to be
+   * emitted before or after Layout.astro's (see renderer.ts's comment on the
+   * event, and Layout.astro's on why it calls initMotion() twice).
+   */
+  document.addEventListener(WEBGL_READY_EVENT, () => {
+    const img = document.querySelector('.hero-img') as HTMLImageElement | null;
+    if (img) registerSurface(img, heroShader);
   });
 </script>
