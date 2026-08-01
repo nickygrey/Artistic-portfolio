@@ -60,11 +60,22 @@ const { lang } = Astro.props;
     overflow: hidden;
   }
 
-  /* Background image container */
+  /*
+   * Background image container. Deliberately carries NO z-index (stays at
+   * the default `auto`) rather than the `-1` it used to have: a negative
+   * z-index on a *positioned* element creates its own stacking context and
+   * traps every descendant inside it at that one negative level, painted
+   * as a single atomic unit relative to everything outside this element —
+   * including .hero-overlay below, which needs to independently escape to
+   * sit above the WebGL canvas (see src/webgl/renderer.ts's z-index
+   * comment) despite being nested in here with the raw photograph. `auto`
+   * keeps .hero-img itself (plain, non-positioned) behind normal page
+   * content precisely because nothing here asks for anything else — DOM
+   * order alone already puts it before everything the page then renders.
+   */
   .hero-bg {
     position: absolute;
     inset: 0;
-    z-index: -1;
   }
 
   .hero-img {
@@ -81,10 +92,25 @@ const { lang } = Astro.props;
     }
   }
 
-  /* Dark overlay for text readability */
+  /*
+   * Dark overlay for text readability. Explicit z-index: 1 (matching
+   * .hero-content below) is load-bearing, not decorative: without it this
+   * element has z-index:auto and — now that .hero-bg above no longer traps
+   * it in a negative stacking context — would land in the same "z-index:
+   * 0/auto" stacking bucket as the WebGL canvas (src/webgl/renderer.ts,
+   * appended inside <main id="main-content"> as its LAST child). Ties at
+   * the same bucket paint in DOM order, and this overlay sits earlier in
+   * <main> than that canvas does, so it would lose the tie and end up
+   * hidden behind it — exactly the class of bug that made .hero-content's
+   * text vanish behind an opaque canvas fill before this file's z-index
+   * scheme (and the canvas's placement inside <main>, not document.body —
+   * see renderer.ts) were both fixed. An explicit z-index here escapes
+   * that bucket the same way .hero-content's already does.
+   */
   .hero-overlay {
     position: absolute;
     inset: 0;
+    z-index: 1;
     background: linear-gradient(
       to bottom,
       rgba(0, 0, 0, 0.3) 0%,
