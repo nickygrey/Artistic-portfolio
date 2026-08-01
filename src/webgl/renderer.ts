@@ -14,6 +14,8 @@ export interface SurfaceHandle {
     el: string;
     rect: DOMRect;
     mesh: { x: number; y: number; sx: number; sy: number };
+    scissor: { x: number; y: number; width: number; height: number; visible: boolean };
+    uniforms: Record<string, number>;
     visible: boolean;
   };
 }

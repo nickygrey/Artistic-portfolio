@@ -14,11 +14,18 @@
  * from effects").
  */
 
-export interface MeshRect {
+/**
+ * A viewport-relative rectangle in CSS pixels. `DOMRect` satisfies this
+ * structurally, so a `getBoundingClientRect()` can be passed straight in.
+ */
+export interface Box {
   left: number;
   top: number;
   width: number;
   height: number;
+}
+
+export interface MeshRect extends Box {
   bottom: number;
 }
 
@@ -65,6 +72,94 @@ export function computeMeshTransform(
     // full-bleed/full-viewport-width targets (Hero, ImageBand) this exists
     // for — a mesh scrolled off the top or bottom is culled from rendering.
     visible: rect.bottom > 0 && rect.top < viewport.height,
+  };
+}
+
+/**
+ * A WebGL scissor rectangle, in drawing-buffer pixels, with WebGL's own
+ * bottom-left origin. `visible: false` means the rectangle is empty — nothing
+ * of this surface is on screen, so it should not be drawn at all rather than
+ * drawn into a zero-area scissor.
+ */
+export interface ScissorBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  visible: boolean;
+}
+
+/**
+ * The clip half of "match the mesh to the element".
+ *
+ * `computeMeshTransform` above reproduces the element's live *transform*, and
+ * that is only half of what the browser does with the element. An ancestor
+ * with a non-`visible` `overflow` also *clips* it, and a mesh that honours the
+ * transform without the clip paints outside the box CSS confines the element
+ * to. That is not hypothetical: Hero's <img> is under a scrubbed
+ * `scale: 1.08 -> 1, yPercent: 0 -> 12` tween whose whole point is to make the
+ * rect overhang `.hero-fullscreen`, which is `overflow: hidden` precisely so
+ * the overhang never shows. Before this existed, the mesh painted 44-84px of
+ * hero photograph over the section below it at every scroll position except 0
+ * (the only one the tests sampled), and in light theme that dark band landed
+ * on near-white type and destroyed its contrast.
+ *
+ * Expressed as a scissor rectangle rather than by shrinking the mesh: the
+ * geometry stays a faithful copy of the element's border box, so the UV
+ * mapping, the cover window and the shader are all untouched by clipping, and
+ * a clip that changes shape every frame costs no vertex work.
+ *
+ * `clips` are the border-box rects of every clipping ancestor. The viewport
+ * itself is always intersected in as well, since the drawing buffer ends
+ * there regardless — which is also why an `overflow` that CSS propagates to
+ * the viewport (`body { overflow-x: hidden }`) does not need to be in `clips`
+ * to be honoured.
+ *
+ * Each edge is rounded to the device-pixel grid independently, rather than
+ * rounding an origin and a size: rounding the edges keeps the box aligned
+ * with the same grid the element's own painted edge lands on, where rounding
+ * a width separately could drift the far edge by a pixel.
+ */
+export function computeScissorBox(
+  rect: Box,
+  clips: readonly Box[],
+  viewport: Viewport,
+  dpr: number
+): ScissorBox {
+  let left = rect.left;
+  let top = rect.top;
+  let right = rect.left + rect.width;
+  let bottom = rect.top + rect.height;
+
+  for (const clip of clips) {
+    left = Math.max(left, clip.left);
+    top = Math.max(top, clip.top);
+    right = Math.min(right, clip.left + clip.width);
+    bottom = Math.min(bottom, clip.top + clip.height);
+  }
+
+  left = Math.max(left, 0);
+  top = Math.max(top, 0);
+  right = Math.min(right, viewport.width);
+  bottom = Math.min(bottom, viewport.height);
+
+  const x0 = Math.round(left * dpr);
+  const x1 = Math.round(right * dpr);
+  const y0 = Math.round(top * dpr);
+  const y1 = Math.round(bottom * dpr);
+
+  const width = Math.max(0, x1 - x0);
+  const height = Math.max(0, y1 - y0);
+
+  return {
+    x: x0,
+    // CSS measures y downwards from the top of the viewport; WebGL's scissor
+    // origin is the BOTTOM-left of the drawing buffer, so the box's top edge
+    // in CSS is its distance-from-the-bottom in GL.
+    y: Math.round(viewport.height * dpr) - y1,
+    width,
+    height,
+    visible: width > 0 && height > 0,
   };
 }
 

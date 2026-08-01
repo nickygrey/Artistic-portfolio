@@ -10,6 +10,8 @@ declare global {
         el: string;
         rect: DOMRect;
         mesh: { x: number; y: number; sx: number; sy: number };
+        scissor: { x: number; y: number; width: number; height: number; visible: boolean };
+        uniforms: Record<string, number>;
         visible: boolean;
       }>;
     };
@@ -17,15 +19,28 @@ declare global {
 }
 
 /**
+ * Warms the dev server before any test asserts anything.
+ *
  * The renderer tears WebGL down for the rest of a page's life if it measures
  * under 50fps over its first 60 frames (see renderer.ts's fpsGuard), and the
- * very first page this dev server serves is compiling TypeScript modules and
- * generating the hero's responsive image derivatives while those 60 frames
- * are being counted. Measured on a cold server: ~30fps for the first load and
- * WebGL correctly, but unhelpfully, disabled about two seconds in; ~120fps
- * and stable on every load after it. This warms the server before any test
- * asserts anything, so the suite exercises the steady state rather than
- * racing a cold start. It asserts nothing itself — it cannot mask a failure.
+ * very first page a dev server serves is compiling TypeScript modules and
+ * generating the hero's responsive image derivatives while those frames are
+ * counted — the one moment in a run where the suite could plausibly race the
+ * guard. This load asserts nothing, so it cannot turn a red test green; it
+ * only moves the suite off that start.
+ *
+ * What this comment used to assert — "~30fps for the first load, WebGL
+ * disabled about two seconds in" — has been removed rather than corrected,
+ * because nobody has since been able to reproduce it. On a genuinely cold
+ * server (`node_modules/.astro` moved aside, `node_modules/.vite` deleted)
+ * the first-ever load measures **115.7fps** inside fpsGuard's own sampling
+ * window, 113.5 and 119.7 on the two loads after it, and WebGL is never torn
+ * down; an independent attempt measured 123.4 / 123.0 / 124.5. The warm-up is
+ * kept because it costs one page load and the race it guards is real in
+ * principle — not because that measurement stands.
+ *
+ * The race does not exist in production either way: the shipped site is a
+ * static build, with prebuilt JS and prebuilt WebP.
  */
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage();
@@ -104,6 +119,17 @@ test('the canvas paints between a plain photograph and the text/controls layered
   await expect(page.locator('canvas')).toHaveCount(1);
   await page.addStyleTag({ content: '.hero-img { display: none !important; }' });
   await page.waitForTimeout(200);
+
+  // Hiding the <img> removes the mesh from the frame through surface.ts's
+  // rect-based culling: a display:none element's rect is all zeroes, so the
+  // mesh's clip is empty and it is not drawn. That mechanism is a dependency
+  // of this test but not its subject, so it is asserted here explicitly — if
+  // culling ever changed, THIS line goes red and names the real cause,
+  // instead of the paint-order assertions below going red for a reason that
+  // has nothing to do with paint order.
+  expect(
+    await page.evaluate(() => window.__webgl.debug().find(d => d.el.includes('hero-img'))?.visible)
+  ).toBe(false);
 
   await page.evaluate(() => {
     const RED = 'rgb(255, 0, 0)';
@@ -504,6 +530,142 @@ async function meanLuma(shot: Buffer, left: number, top: number, width: number, 
   return sum / n;
 }
 
+/**
+ * Per-row mean absolute channel difference between the same region of two
+ * same-sized screenshots. A row is one screen line, so the result localises a
+ * difference vertically — which is what a clipping failure looks like: a band
+ * of rows immediately below an element's clipping edge that differ, and
+ * nothing anywhere else.
+ */
+async function rowMeanDiff(
+  a: Buffer,
+  b: Buffer,
+  region: { left: number; top: number; width: number; height: number }
+): Promise<number[]> {
+  const raw = (buf: Buffer) =>
+    sharp(buf).extract(region).raw().toBuffer({ resolveWithObject: true });
+  const x = await raw(a);
+  const y = await raw(b);
+  const ch = x.info.channels;
+  const rows: number[] = [];
+  for (let row = 0; row < region.height; row++) {
+    let sum = 0, n = 0;
+    const start = row * region.width * ch;
+    for (let i = start; i < start + region.width * ch; i += ch) {
+      for (let c = 0; c < 3; c++) {
+        sum += Math.abs(x.data[i + c] - y.data[i + c]);
+        n++;
+      }
+    }
+    rows.push(sum / n);
+  }
+  return rows;
+}
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * `.hero-fullscreen` is `overflow: hidden`, and the hero <img> inside it is
+ * under a scrubbed GSAP tween (`scale: 1.08 -> 1, yPercent: 0 -> 12`) that
+ * deliberately makes its rect overhang the section on every side. The DOM
+ * clips that overhang. The WebGL mesh replicates the *transform* — it reads
+ * exactly that overhanging rect — so unless it also replicates the *clip* it
+ * paints a band of hero photograph over whatever section follows the hero.
+ *
+ * Measured before the fix, as visible bleed below the section: 0px at scroll
+ * 0, 44px at scroll 100, 70px at 420 and 84px at 600 (1280x900); 42/67/82px
+ * at 390x844. Per-row mean pixel difference at scrollY=420 jumped from ~1.5
+ * inside the hero to 7.99/8.79/9.68 across y=480-570, peaking at a row mean
+ * of 49.18. In light theme the section below the hero is near-white, so a
+ * dark photograph lands on it and the DisciplinesStrip wordmarks become dark
+ * text on a dark photograph: whole-frame mean 15.96 / max 232 at scrollY=300
+ * against 0.48 / 17 in dark.
+ *
+ * **Every shipped visual test before this one screenshots at scroll 0 — the
+ * one scroll position at which the overhang is entirely below the fold and
+ * this is invisible.** So this test scrolls, and does it in both themes: the
+ * theme is not incidental, it is what turns a visual seam into a legibility
+ * regression.
+ *
+ * The reference image is the same page with the canvas hidden rather than a
+ * second page load with WebGL refused: hiding a `position: fixed` canvas
+ * changes no layout and leaves the scroll position, the scrub state and every
+ * GSAP transform byte-identical, so the only thing that can differ between
+ * the two frames is what the mesh painted.
+ */
+const CLIP_SCROLL_POSITIONS = [100, 300, 600];
+
+for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+  for (const theme of ['dark', 'light'] as const) {
+    test(`the hero mesh is clipped to its section and never paints over the content below (${viewport.width}x${viewport.height}, ${theme})`, async ({ browser }) => {
+      const ctx = await browser.newContext({ viewport });
+      await ctx.addInitScript((t) => localStorage.setItem('theme', t), theme);
+      const page = await ctx.newPage();
+      await page.goto('/');
+      await page.waitForTimeout(1500);
+      expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(1);
+      // The scroll cue pulses on a CSS keyframe loop, the one thing that would
+      // otherwise differ between two frames taken a moment apart.
+      await page.addStyleTag({ content: '.scroll-line { animation: none !important; }' });
+      await page.waitForTimeout(200);
+
+      for (const target of CLIP_SCROLL_POSITIONS) {
+        await page.evaluate((y) => window.scrollTo(0, y), target);
+        await page.waitForTimeout(900);
+
+        const geom = await page.evaluate(() => {
+          const section = document.querySelector('.hero-fullscreen')!.getBoundingClientRect();
+          const img = document.querySelector('.hero-img')!.getBoundingClientRect();
+          return {
+            sectionBottom: section.bottom,
+            overhang: img.bottom - section.bottom,
+            scrollY: window.scrollY,
+          };
+        });
+
+        // Preconditions, so "no bleed" cannot be trivially true: we really are
+        // scrolled, the section's clipping edge is on screen with room below
+        // it, and the <img> the mesh mirrors really does overhang that edge.
+        expect(geom.scrollY, `scrollY at target ${target}`).toBeGreaterThan(0);
+        expect(geom.sectionBottom).toBeGreaterThan(0);
+        expect(geom.sectionBottom).toBeLessThan(viewport.height - 40);
+        expect(geom.overhang, `<img> overhang below the section at scrollY ${geom.scrollY}`).toBeGreaterThan(20);
+
+        const withMesh = await page.screenshot();
+        await page.evaluate(() => {
+          (document.querySelector('canvas') as HTMLCanvasElement).style.display = 'none';
+        });
+        await page.waitForTimeout(200);
+        const withoutMesh = await page.screenshot();
+        await page.evaluate(() => {
+          (document.querySelector('canvas') as HTMLCanvasElement).style.display = '';
+        });
+        await page.waitForTimeout(200);
+
+        const top = Math.ceil(geom.sectionBottom);
+        const rows = await rowMeanDiff(withMesh, withoutMesh, {
+          left: 0,
+          top,
+          width: viewport.width,
+          height: viewport.height - top,
+        });
+
+        // How far below the section's clipping edge the mesh is still
+        // painting: the last row that differs materially, in pixels. This is
+        // the same number the review reported as "visible bleed" (44-84px).
+        let bleedPx = 0;
+        rows.forEach((mean, i) => { if (mean > 3) bleedPx = i + 1; });
+        const worstRow = Math.max(...rows);
+
+        expect(bleedPx, `bleed below the hero at scrollY ${geom.scrollY} (worst row mean ${worstRow.toFixed(2)})`).toBe(0);
+        expect(worstRow, `worst row mean below the hero at scrollY ${geom.scrollY}`).toBeLessThan(2);
+      }
+
+      await ctx.close();
+    });
+  }
+}
+
 test('the hero surface registers and tracks its image while scrolling', async ({ page }) => {
   await page.goto('/');
   await page.waitForTimeout(1500);
@@ -854,12 +1016,224 @@ test('under reduced motion the hero photograph and scroll cue are both visible w
 });
 
 /**
+ * The started-then-torn-down path, which nothing else in this suite visits.
+ *
+ * "WebGL never initialised" (`getContext` -> null) and "reduced motion" are
+ * both the *never-started* path: no scene, no surface, nothing to clean up.
+ * `fpsGuard` firing is different code — a live scene with a registered surface
+ * being taken apart mid-life — and it is the only teardown a real visitor can
+ * hit without navigating.
+ *
+ * Two things have to hold there. The degradation contract, which the DOM
+ * <img> already satisfies by never having been hidden. And the *reason* the
+ * guard exists: a device that just failed a 50fps test must come out of this
+ * cheaper than it went in. It did not. `sampleScroll` — the per-frame feed
+ * that reads the hero <img>'s rect and drives `uVelocity` — was removed only
+ * by the *motion* teardown (`velocityTracker.onKill`), and `fpsGuard` calls
+ * `teardownWebGL()`, which never touched it. Measured after forcing the
+ * guard: `getBoundingClientRect(.hero-img)` still running 0.99/frame, forcing
+ * a layout every frame to feed uniforms bound to no GPU program, for the rest
+ * of the page's life.
+ *
+ * The guard is forced by making this machine genuinely too slow — blocking
+ * the main thread past a frame budget for more than the 60 frames fpsGuard
+ * samples — rather than by patching `FPS_FLOOR` in the served module. That
+ * keeps the test independent of the module's internals and of the dev
+ * server's URL scheme, and it exercises the same code path a slow device
+ * does.
+ */
+test('the fps guard tears a registered surface down and stops the per-frame work feeding it', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await ctx.addInitScript(() => {
+    const w = window as unknown as {
+      __heroRectCalls: number;
+      __frames: number;
+      __maxSurfaces: number;
+      __congested: boolean;
+      __webgl?: { surfaces(): number };
+    };
+    w.__heroRectCalls = 0;
+    w.__frames = 0;
+    w.__maxSurfaces = 0;
+    w.__congested = true;
+
+    const origRect = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      if (this.classList?.contains('hero-img')) w.__heroRectCalls++;
+      return origRect.call(this);
+    };
+
+    let blockedFrames = 0;
+    (function congest() {
+      const until = performance.now() + 30;
+      // eslint-disable-next-line no-empty
+      while (performance.now() < until) {}
+      if (++blockedFrames < 130) requestAnimationFrame(congest);
+      else w.__congested = false;
+    })();
+
+    (function sample() {
+      w.__frames++;
+      if (w.__webgl) w.__maxSurfaces = Math.max(w.__maxSurfaces, w.__webgl.surfaces());
+      requestAnimationFrame(sample);
+    })();
+  });
+
+  const page = await ctx.newPage();
+  await page.goto('/');
+
+  // The guard fires once, at the end of its 60-frame sample.
+  await page.waitForFunction(() => !window.__webgl.active(), null, { timeout: 20000 });
+  // ...and it fired with a surface registered. Without this, a suite that
+  // never got as far as registering one would pass this test while covering
+  // nothing it claims to.
+  expect(
+    await page.evaluate(() => (window as unknown as { __maxSurfaces: number }).__maxSurfaces)
+  ).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(0);
+  await expect(page.locator('canvas')).toHaveCount(0);
+
+  // Let the artificial congestion end, so the measurement below runs on a
+  // page that is idle for the same reason a real visitor's would be.
+  await page.waitForFunction(
+    () => !(window as unknown as { __congested: boolean }).__congested,
+    null,
+    { timeout: 20000 }
+  );
+  await page.waitForTimeout(300);
+
+  const cost = await page.evaluate(async () => {
+    const w = window as unknown as { __heroRectCalls: number; __frames: number };
+    const rect0 = w.__heroRectCalls;
+    const frames0 = w.__frames;
+    await new Promise(r => setTimeout(r, 1500));
+    return { rectCalls: w.__heroRectCalls - rect0, frames: w.__frames - frames0 };
+  });
+
+  expect(cost.frames).toBeGreaterThan(30);
+  // Measured before the fix: 0.99 rect reads per frame — one forced layout a
+  // frame, permanently, on the device least able to afford it. After it: 0.
+  expect(cost.rectCalls / cost.frames).toBeLessThan(0.05);
+
+  // The degradation contract still holds: the photograph was never hidden.
+  const hero = await page.evaluate(() => {
+    const img = document.querySelector('.hero-img') as HTMLImageElement;
+    const cs = getComputedStyle(img);
+    return {
+      opacity: Number(cs.opacity),
+      visibility: cs.visibility,
+      decoded: img.naturalWidth > 0 && img.complete,
+      width: img.getBoundingClientRect().width,
+    };
+  });
+  expect(hero.opacity).toBe(1);
+  expect(hero.visibility).toBe('visible');
+  expect(hero.decoded).toBe(true);
+  expect(hero.width).toBeGreaterThan(1000);
+
+  await ctx.close();
+});
+
+/**
+ * The cover uniforms are resynced from the same per-frame callback that feeds
+ * `uVelocity`, and reproducing `object-fit: cover` needs `getComputedStyle` to
+ * read `object-position`. Recomputing that every frame is pure waste — the
+ * hero <img>'s `object-position` is a constant — so `syncCover` short-circuits
+ * on an unchanged key.
+ *
+ * The key has to be the box's ASPECT RATIO, not its dimensions, and this test
+ * exists because those look equivalent and are not. The <img> is under a
+ * continuously scrubbed `scale` tween, so a dimension key changes on every
+ * frame of a scroll while the aspect ratio — which a uniform scale cannot
+ * change — does not. Measured with a dimension key: `getComputedStyle` ran on
+ * 24% of scrolling frames, every call returning an identical result. The
+ * assertion below is what makes Hero.astro's comment about it a checked claim
+ * rather than a hopeful one.
+ *
+ * The rect budget is pinned in the same breath: exactly two reads per frame,
+ * Hero's `syncCover` and `surface.ts`'s `update()`, which is one forced layout
+ * between them. A third system reading the same rect would show up here.
+ */
+test('the per-frame cover sync keeps getComputedStyle off the scroll path', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await ctx.addInitScript(() => {
+    const w = window as unknown as {
+      __c: { rect: number; gcs: number; frames: number; minH: number; maxH: number };
+    };
+    w.__c = { rect: 0, gcs: 0, frames: 0, minH: Infinity, maxH: -Infinity };
+    const origRect = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      const r = origRect.call(this);
+      if (this.classList?.contains('hero-img')) {
+        w.__c.rect++;
+        w.__c.minH = Math.min(w.__c.minH, r.height);
+        w.__c.maxH = Math.max(w.__c.maxH, r.height);
+      }
+      return r;
+    };
+    const origGcs = window.getComputedStyle;
+    window.getComputedStyle = function (el: Element, ps?: string | null) {
+      if (el?.classList?.contains?.('hero-img')) w.__c.gcs++;
+      return origGcs.call(window, el, ps);
+    };
+    (function loop() { w.__c.frames++; requestAnimationFrame(loop); })();
+  });
+
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.waitForTimeout(1800);
+  expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(1);
+
+  // Start the measurement window after load, so the one legitimate recompute
+  // (the image decoding) is not counted as per-frame work.
+  await page.evaluate(() => {
+    const c = (window as unknown as { __c: { rect: number; gcs: number; frames: number; minH: number; maxH: number } }).__c;
+    c.rect = 0; c.gcs = 0; c.frames = 0; c.minH = Infinity; c.maxH = -Infinity;
+  });
+
+  await page.mouse.move(640, 450);
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.wheel(0, 140);
+    await page.waitForTimeout(80);
+  }
+  await page.waitForTimeout(600);
+
+  const c = await page.evaluate(
+    () => ({ ...(window as unknown as { __c: { rect: number; gcs: number; frames: number; minH: number; maxH: number } }).__c })
+  );
+
+  expect(c.frames).toBeGreaterThan(60);
+  // The scrub really was live: the box changed size during the window, so a
+  // dimension-keyed cache genuinely would have thrashed here. Without this,
+  // "no recomputes" would be the trivially true statement that nothing moved.
+  expect(c.maxH - c.minH).toBeGreaterThan(20);
+
+  expect(c.gcs / c.frames).toBeLessThan(0.05);
+  // Two rect reads per frame, no more: syncCover and surface.ts's update().
+  expect(c.rect / c.frames).toBeGreaterThan(1.5);
+  expect(c.rect / c.frames).toBeLessThan(2.5);
+
+  await ctx.close();
+});
+
+/**
  * The smear is driven by `uVelocity`, and the failure mode that matters is
  * not "it never moves" but "it never stops": ScrollTrigger's onUpdate stops
  * firing the moment scrolling ends, so a naive feed leaves the last, highest
  * reading latched and smears the photograph permanently. Measured here as the
  * uniform the shader actually reads, over a real scroll and the seconds after
  * it, rather than as anything a computed style could report.
+ *
+ * The value is read off the live OGL `Program` through the surface's own
+ * debug hook, not by importing `/src/webgl/shaders/hero.ts` a second time.
+ * That import used to reach the same module instance the page uses — but only
+ * on a dev server with no file edits since it started. Touch any file in the
+ * graph and Vite serves the page's copy cache-busted (`?t=…`), so the import
+ * forks a second, inert module whose `uCoverScale` sits at its `[1, 1]`
+ * default while the live one is `[1, 0.8687]`: an edit-order-dependent flake,
+ * and a technique with no equivalent against a production build. The program's
+ * uniform is also strictly the better subject — it is the number the GPU is
+ * handed, rather than a number some module holds.
  */
 test('uVelocity rises with a scroll, stays clamped, and returns to rest afterwards', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -868,12 +1242,12 @@ test('uVelocity rises with a scroll, stays clamped, and returns to rest afterwar
   expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(1);
 
   const trace = await page.evaluate(async () => {
-    const mod = await import('/src/webgl/shaders/hero.ts');
     const out: Array<{ t: number; v: number }> = [];
     const started = performance.now();
     const done = new Promise<void>(resolve => {
       (function loop() {
-        out.push({ t: performance.now() - started, v: mod.heroUniforms.uVelocity.value });
+        const s = window.__webgl.debug().find(d => d.el.includes('hero-img'));
+        if (s) out.push({ t: performance.now() - started, v: s.uniforms.uVelocity });
         if (performance.now() - started < 3200) requestAnimationFrame(loop);
         else resolve();
       })();
@@ -882,6 +1256,9 @@ test('uVelocity rises with a scroll, stays clamped, and returns to rest afterwar
     await done;
     return out;
   });
+  // The surface stayed registered for the whole trace, so an empty or
+  // truncated sample cannot masquerade as a settled uniform below.
+  expect(trace.length).toBeGreaterThan(60);
 
   const atRestBefore = trace.filter(s => s.t < 150).map(s => s.v);
   const during = trace.filter(s => s.t >= 200 && s.t < 1200).map(s => s.v);

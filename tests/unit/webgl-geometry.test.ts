@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   computeMeshTransform,
   computeCoverUv,
+  computeScissorBox,
   parseObjectPosition,
+  type Box,
   type MeshRect,
   type Viewport,
 } from '../../src/webgl/geometry';
@@ -274,5 +276,93 @@ describe('parseObjectPosition', () => {
 
   it('treats a single component as horizontal, centred vertically, per the CSS shorthand', () => {
     expect(parseObjectPosition('20%')).toEqual({ x: 0.2, y: 0.5 });
+  });
+});
+
+describe('computeScissorBox', () => {
+  const VP: Viewport = { width: 1280, height: 900 };
+
+  /** The hero's real shape mid-scroll: a section clipped at the top of the
+   * viewport, and an <img> the GSAP scrub has pushed past its bottom edge. */
+  const section: Box = { left: 0, top: -300, width: 1280, height: 900 };
+  const overhangingImg: Box = { left: -51, top: -336, width: 1382, height: 972 };
+
+  it('clips a rect to the ancestor that overflow:hidden confines it to', () => {
+    const s = computeScissorBox(overhangingImg, [section], VP, 1);
+    // The section's bottom edge is at viewport y=600; nothing below it.
+    expect(s.height).toBe(600);
+    expect(s.y).toBe(VP.height - 600);
+    expect(s.visible).toBe(true);
+  });
+
+  it('is the difference between painting inside the section and 36px past it', () => {
+    const clipped = computeScissorBox(overhangingImg, [section], VP, 1);
+    const unclipped = computeScissorBox(overhangingImg, [], VP, 1);
+    // Without the clip the mesh would reach the <img>'s own bottom edge —
+    // 36px of hero photograph painted over whatever follows the section.
+    expect(unclipped.height - clipped.height).toBe(36);
+    expect(unclipped.y).toBe(VP.height - 636);
+  });
+
+  it('never extends past the viewport even with no clipping ancestor at all', () => {
+    const s = computeScissorBox({ left: -100, top: -100, width: 2000, height: 2000 }, [], VP, 1);
+    expect(s).toEqual({ x: 0, y: 0, width: VP.width, height: VP.height, visible: true });
+  });
+
+  it('intersects every clipping ancestor, not just the nearest', () => {
+    const near: Box = { left: 0, top: 0, width: 1280, height: 800 };
+    const far: Box = { left: 200, top: 0, width: 400, height: 900 };
+    const s = computeScissorBox({ left: 0, top: 0, width: 1280, height: 900 }, [near, far], VP, 1);
+    expect(s.x).toBe(200);
+    expect(s.width).toBe(400);
+    expect(s.height).toBe(800);
+  });
+
+  it('reports not-visible for a rect scrolled entirely above the viewport', () => {
+    const s = computeScissorBox({ left: 0, top: -1000, width: 1280, height: 900 }, [], VP, 1);
+    expect(s.visible).toBe(false);
+    expect(s.width * s.height).toBe(0);
+  });
+
+  it('reports not-visible when the clip and the rect do not overlap', () => {
+    const s = computeScissorBox(
+      { left: 0, top: 0, width: 100, height: 100 },
+      [{ left: 400, top: 0, width: 100, height: 100 }],
+      VP,
+      1
+    );
+    expect(s.visible).toBe(false);
+  });
+
+  it('scales into drawing-buffer pixels at dpr 2, bottom-left origin included', () => {
+    const s = computeScissorBox({ left: 10, top: 20, width: 100, height: 200 }, [], VP, 2);
+    expect(s).toEqual({
+      x: 20,
+      // top 20 + height 200 = bottom edge at CSS y 220; 900-220 = 680 CSS px
+      // from the bottom, doubled.
+      y: (VP.height - 220) * 2,
+      width: 200,
+      height: 400,
+      visible: true,
+    });
+  });
+
+  it('keeps opposite edges on the same device-pixel grid at a fractional dpr', () => {
+    // A rect whose edges land on halves: rounding origin+size independently
+    // would put the far edge one pixel away from where the element paints.
+    const s = computeScissorBox({ left: 10.3, top: 0, width: 100.4, height: 100 }, [], VP, 1.5);
+    expect(s.x).toBe(Math.round(10.3 * 1.5));
+    expect(s.x + s.width).toBe(Math.round((10.3 + 100.4) * 1.5));
+  });
+
+  it('never returns a negative width or height for an inverted intersection', () => {
+    const s = computeScissorBox(
+      { left: 0, top: 0, width: 100, height: 100 },
+      [{ left: 500, top: 500, width: 100, height: 100 }],
+      VP,
+      1
+    );
+    expect(s.width).toBeGreaterThanOrEqual(0);
+    expect(s.height).toBeGreaterThanOrEqual(0);
   });
 });

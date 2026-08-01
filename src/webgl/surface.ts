@@ -1,10 +1,36 @@
 import { Program, Mesh, Plane, Texture } from 'ogl';
 import { getScene } from './renderer';
-import { computeMeshTransform } from './geometry';
+import { computeMeshTransform, computeScissorBox, type Box, type ScissorBox } from './geometry';
 
 export interface ShaderSpec {
   fragment: string;
   uniforms?: Record<string, unknown>;
+}
+
+export interface SurfaceOptions {
+  /**
+   * Run when this surface is destroyed — which is to say from
+   * `teardownWebGL()`, the single place `destroy()` is ever called from, and
+   * therefore from *every* route into it: a View Transition, a lost context,
+   * and the fps guard deciding this device cannot hold the effect.
+   *
+   * That last route is why this exists. Anything a component sets running to
+   * *feed* a surface — a `gsap.ticker` callback sampling scroll velocity, say
+   * — is invisible to `teardownWebGL()`, and the motion system's own teardown
+   * does not fire when the fps guard trips. Without a hook here, the device
+   * that just failed the 50fps test would keep paying for a per-frame feed
+   * into uniforms bound to no GPU program, for the rest of the page's life:
+   * exactly the opposite of what the guard is for. Measured before this
+   * existed: getBoundingClientRect on the hero <img> still running 0.99/frame
+   * and getComputedStyle 0.19/frame after the guard had torn everything down.
+   *
+   * Register the callback against the feed that is live *at registration
+   * time*, not whatever is live when it fires: `initMotion()` runs before
+   * `initWebGL()` on every `astro:page-load`, so by the time the opening
+   * `teardownWebGL()` destroys the previous page's surface, the next page's
+   * feed already exists and must not be the thing that gets stopped.
+   */
+  onDestroy?: () => void;
 }
 
 const VERTEX = `
@@ -18,7 +44,45 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }`;
 
-export function registerSurface(el: HTMLImageElement, shader: ShaderSpec): void {
+/**
+ * Every ancestor whose `overflow` clips this element, nearest first.
+ *
+ * `visible` is the only `overflow` value that does not clip — `hidden`,
+ * `clip`, `auto` and `scroll` all do — and CSS forces a `visible` axis to
+ * `auto` when the other axis clips, so testing both axes for `visible` is the
+ * complete test. Read once, at registration: `overflow` is authored in a
+ * stylesheet, not animated, whereas the *rects* these elements occupy change
+ * every frame and are re-read every frame.
+ *
+ * `<body>` and `<html>` are deliberately skipped. An `overflow` declared on
+ * either (this site has `body { overflow-x: hidden }`) is propagated by CSS to
+ * the viewport rather than applied to the element's own box, so the element's
+ * rect is not the clip — the viewport is, and `computeScissorBox` intersects
+ * that unconditionally.
+ *
+ * The rect used per frame is the border box, while `overflow` clips to the
+ * padding box. They differ only by border widths, and no clipping ancestor on
+ * this site has a border; a bordered one would leak the border's own width,
+ * which is a smaller error than the one this whole mechanism exists to fix.
+ */
+function clippingAncestors(el: Element): Element[] {
+  const out: Element[] = [];
+  for (
+    let p = el.parentElement;
+    p && p !== document.body && p !== document.documentElement;
+    p = p.parentElement
+  ) {
+    const s = getComputedStyle(p);
+    if (s.overflowX !== 'visible' || s.overflowY !== 'visible') out.push(p);
+  }
+  return out;
+}
+
+export function registerSurface(
+  el: HTMLImageElement,
+  shader: ShaderSpec,
+  options: SurfaceOptions = {}
+): void {
   const { renderer, scene, camera, surfaces } = getScene();
   if (!renderer || !scene || !camera) return;
   const gl = renderer.gl;
@@ -44,6 +108,9 @@ export function registerSurface(el: HTMLImageElement, shader: ShaderSpec): void 
   const mesh = new Mesh(gl, { geometry: new Plane(gl, { widthSegments: 32, heightSegments: 32 }), program });
   mesh.setParent(scene);
 
+  const clips = clippingAncestors(el);
+  let scissor: ScissorBox = { x: 0, y: 0, width: 0, height: 0, visible: false };
+
   /**
    * Match the mesh to the element's LIVE rect, which includes any GSAP
    * transform applied this frame. Converting CSS pixels to world units at the
@@ -52,26 +119,53 @@ export function registerSurface(el: HTMLImageElement, shader: ShaderSpec): void 
    * this closure's only job is to supply the live inputs and apply the
    * result to the mesh, which is the part that genuinely needs a browser
    * and a live OGL mesh to exercise.
+   *
+   * The transform is only half of what the browser does with this element,
+   * though: an `overflow` ancestor also clips it, and a mesh honouring one
+   * without the other paints outside the box CSS confines the element to.
+   * The clip is computed here too (also pure — computeScissorBox) and applied
+   * as a scissor rectangle at draw time, below.
    */
   function update() {
     const r = el.getBoundingClientRect();
-    const t = computeMeshTransform(
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
+    const t = computeMeshTransform(r, viewport, camera!.fov, camera!.position.z);
+    scissor = computeScissorBox(
       r,
-      { width: window.innerWidth, height: window.innerHeight },
-      camera!.fov,
-      camera!.position.z
+      clips.map(c => c.getBoundingClientRect() as Box),
+      viewport,
+      renderer!.dpr
     );
     mesh.scale.x = t.sx;
     mesh.scale.y = t.sy;
     mesh.position.x = t.x;
     mesh.position.y = t.y;
-    mesh.visible = t.visible;
+    mesh.visible = t.visible && scissor.visible;
     program.uniforms.uTime.value = performance.now() / 1000;
   }
+
+  /**
+   * The scissor test is scoped to this one mesh: enabled immediately before
+   * its draw and disabled immediately after, so it constrains nothing else in
+   * the scene and, in particular, never reaches the frame's `gl.clear()` —
+   * which OGL issues before any mesh draws, and which must keep clearing the
+   * whole buffer or the previous frame's pixels would survive outside every
+   * surface's clip.
+   */
+  mesh.onBeforeRender(() => {
+    renderer!.enable(gl.SCISSOR_TEST);
+    renderer!.setScissor(scissor.width, scissor.height, scissor.x, scissor.y);
+  });
+  mesh.onAfterRender(() => {
+    renderer!.disable(gl.SCISSOR_TEST);
+  });
 
   surfaces.push({
     update,
     destroy: () => {
+      // First, so whatever was feeding this surface stops before the objects
+      // it feeds are freed rather than after. See SurfaceOptions.onDestroy.
+      options.onDestroy?.();
       el.removeEventListener('load', load);
       mesh.setParent(null);
       // Release every GPU-side object this surface owns. Harmless overkill
@@ -94,6 +188,18 @@ export function registerSurface(el: HTMLImageElement, shader: ShaderSpec): void 
       el: el.className,
       rect: el.getBoundingClientRect(),
       mesh: { x: mesh.position.x, y: mesh.position.y, sx: mesh.scale.x, sy: mesh.scale.y },
+      scissor,
+      // Scalar uniforms only, and by value: this crosses a Playwright
+      // serialisation boundary, where the Texture behind `tMap` is neither
+      // serialisable nor interesting. Reading them from the live Program is
+      // what makes an assertion about `uVelocity` an assertion about the
+      // value the GPU is actually handed, rather than about a module the test
+      // imported separately and may not share an instance with.
+      uniforms: Object.fromEntries(
+        Object.entries(program.uniforms)
+          .filter(([, u]) => typeof (u as { value: unknown }).value === 'number')
+          .map(([k, u]) => [k, (u as { value: number }).value])
+      ) as Record<string, number>,
       visible: mesh.visible,
     }),
   });

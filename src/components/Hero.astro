@@ -301,6 +301,15 @@ const { lang } = Astro.props;
   import { computeCoverUv, parseObjectPosition } from '../webgl/geometry';
   import { heroShader, heroUniforms, normaliseScrollVelocity } from '../webgl/shaders/hero';
 
+  /**
+   * Stops the per-frame velocity/cover feed created by the motion handler
+   * below. Module scope because two different lifecycles have to be able to
+   * reach it: the motion teardown that owns the gsap.ticker slot, and the
+   * WebGL teardown that owns the uniforms it writes into (see the
+   * registerSurface call at the bottom of this file).
+   */
+  let stopVelocityFeed: (() => void) | null = null;
+
   registerMotion('hero', (el, { gsap, ScrollTrigger }) => {
     const img = el.querySelector('.hero-img') as HTMLImageElement | null;
     if (!img) return;
@@ -342,6 +351,7 @@ const { lang } = Astro.props;
     // The <img> is never hidden by any of this. If WebGL is unavailable,
     // unsupported, or torn down by the fps guard, none of it happens and the
     // photograph is simply the photograph.
+    stopVelocityFeed = null;
     if (!supported()) return;
 
     // Smooth the velocity rather than snapping the uniform to it: a raw
@@ -353,15 +363,33 @@ const { lang } = Astro.props;
       ease: EASE.smooth,
     });
 
-    // `object-fit: cover` inputs change only when the image decodes (or a
-    // srcset swap changes which file decoded) or the viewport resizes, so
-    // this recomputes on change rather than every frame — the key comparison
-    // is what keeps getComputedStyle() off the per-frame path. The rect read
-    // is free: surface.ts's own update() has already forced layout this frame.
+    /*
+     * `object-fit: cover` depends on exactly two things: the image's natural
+     * size, and the *aspect ratio* of the box it is fitted into —
+     * computeCoverUv reads the box's width and height only as a ratio. So the
+     * key is that ratio, and this recomputes when the image decodes, when a
+     * srcset swap changes which file decoded, and when a resize changes the
+     * box's shape.
+     *
+     * Keying on the box's dimensions instead looks equivalent and is not: the
+     * hero <img> is under a continuously scrubbed `scale` tween, so its rect
+     * changes size every frame of a scroll while its aspect ratio — which a
+     * uniform scale cannot change — does not. Measured with a dimension key,
+     * mid-scroll: getComputedStyle() ran on 24% of frames, every call
+     * returning an identical result.
+     *
+     * On the ordering, since this comment used to assert the reverse and the
+     * reverse was measured false: initMotion() runs BEFORE initWebGL() (see
+     * Layout.astro), so this callback sits ahead of the renderer's tick on
+     * gsap.ticker, and it is THIS rect read that pays for the frame's layout
+     * flush while surface.ts's update() is the one that gets it free. Two
+     * reads, one forced layout, either way round.
+     */
     let coverKey = '';
     function syncCover(): void {
       const r = img!.getBoundingClientRect();
-      const key = `${Math.round(r.width)}x${Math.round(r.height)}|${img!.naturalWidth}x${img!.naturalHeight}`;
+      const aspect = r.height > 0 ? Math.round((r.width / r.height) * 1e4) : 0;
+      const key = `${aspect}|${img!.naturalWidth}x${img!.naturalHeight}`;
       if (key === coverKey) return;
       coverKey = key;
       const cover = computeCoverUv(
@@ -390,10 +418,17 @@ const { lang } = Astro.props;
     // same breath, exactly as PhotoCarousel.astro's marquee unhooks its own
     // listeners. Same object is also what supplies the velocity, so there is
     // no second scroll observer on the page.
-    const velocityTracker = ScrollTrigger.create({
-      onKill: () => gsap.ticker.remove(sampleScroll),
-    });
+    const stopFeed = () => gsap.ticker.remove(sampleScroll);
+    const velocityTracker = ScrollTrigger.create({ onKill: stopFeed });
     gsap.ticker.add(sampleScroll);
+
+    // The motion teardown is only ONE of the two ways this feed can outlive
+    // its purpose. It writes into uniforms owned by a WebGL surface, and that
+    // surface can be destroyed without the motion system hearing about it —
+    // fpsGuard and a lost context both call teardownWebGL() and nothing else.
+    // Publishing the stop function here is what lets the registration below
+    // hang it off the surface's own destruction as well.
+    stopVelocityFeed = stopFeed;
   });
 
   /**
@@ -406,9 +441,23 @@ const { lang } = Astro.props;
    * removes any dependence on whether this component's script happens to be
    * emitted before or after Layout.astro's (see renderer.ts's comment on the
    * event, and Layout.astro's on why it calls initMotion() twice).
+   *
+   * `onDestroy` closes the other half of the lifecycle. The per-frame feed
+   * above is removed by the motion teardown, which does not run when fpsGuard
+   * decides this device cannot hold 50fps or when the GPU context is lost —
+   * both of those call teardownWebGL() and nothing else, leaving a forced
+   * layout per frame running for uniforms no GPU program reads any more.
+   * Binding the feed that is live AT REGISTRATION TIME, rather than reading
+   * `stopVelocityFeed` when the callback fires, is what makes this safe on a
+   * View Transition: initMotion() runs before initWebGL(), so by the time
+   * initWebGL()'s opening teardownWebGL() destroys the previous page's
+   * surface, `stopVelocityFeed` already points at the NEW page's feed, which
+   * must not be the thing that gets stopped.
    */
   document.addEventListener(WEBGL_READY_EVENT, () => {
     const img = document.querySelector('.hero-img') as HTMLImageElement | null;
-    if (img) registerSurface(img, heroShader);
+    if (!img) return;
+    const stopFeed = stopVelocityFeed;
+    registerSurface(img, heroShader, { onDestroy: () => stopFeed?.() });
   });
 </script>
