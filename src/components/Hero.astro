@@ -448,11 +448,19 @@ const { lang } = Astro.props;
    * both of those call teardownWebGL() and nothing else, leaving a forced
    * layout per frame running for uniforms no GPU program reads any more.
    * Binding the feed that is live AT REGISTRATION TIME, rather than reading
-   * `stopVelocityFeed` when the callback fires, is what makes this safe on a
-   * View Transition: initMotion() runs before initWebGL(), so by the time
-   * initWebGL()'s opening teardownWebGL() destroys the previous page's
-   * surface, `stopVelocityFeed` already points at the NEW page's feed, which
-   * must not be the thing that gets stopped.
+   * `stopVelocityFeed` when the callback fires, is load-bearing — but the
+   * case that actually exercises it is the COLD LOAD, not a View Transition.
+   * webgl:ready fires twice on a cold load (Layout.astro calls initMotion()
+   * and initWebGL() once synchronously and again on astro:page-load), with
+   * this listener registered before both. The second initWebGL() opens with
+   * teardownWebGL(), destroying the surface the first one registered. Read
+   * at fire time, `stopVelocityFeed` would by then point at the feed the
+   * page is still using, and stopping it kills the effect outright:
+   * measured, uVelocity stays at 0.0000 across 386 samples.
+   *
+   * On a View Transition this binding is dormant rather than wrong — the
+   * ordering (initMotion() before initWebGL()) is the same, but the previous
+   * page's surface and feed are both already gone by then.
    */
   document.addEventListener(WEBGL_READY_EVENT, () => {
     const img = document.querySelector('.hero-img') as HTMLImageElement | null;
