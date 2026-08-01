@@ -52,11 +52,14 @@ test('a canvas is created and does not cover the content', async ({ page }) => {
  *     elevates to z-index: 1 specifically so text/controls stay legible
  *     over the photograph behind them — this must stay ON TOP of the
  *     canvas.
- *   - a NON-positioned probe (no `position` set at all) inside `.hero-bg`,
- *     standing in for "a photograph the canvas is meant to visually
- *     replace" — CSS stacking rules put any non-positioned element behind
- *     a positioned one with z-index >= 0 regardless of DOM order, so this
- *     must end up UNDER the canvas.
+ *   - a probe inside `.hero-bg`, standing in for "a photograph the canvas
+ *     is meant to visually replace". It is `position: absolute` with no
+ *     explicit z-index, landing in the SAME "z-index: 0/auto" paint step
+ *     as the canvas (not the plain non-positioned step — that distinction
+ *     matters, see the comment at its creation below) — it must still end
+ *     up UNDER the canvas because it is earlier in `<main>`'s DOM order,
+ *     the same tie-break mechanism `.project-scale` is tested against
+ *     below.
  *
  * Filling the canvas via its own CSS `background` (not WebGL drawing) is
  * deliberate: this task registers no surfaces yet, so the WebGL bitmap
@@ -87,12 +90,19 @@ test('the canvas paints between a plain photograph and the text/controls layered
     Object.assign(above.style, { width: '40px', height: '40px', background: GREEN });
     document.querySelector('.hero-content')!.prepend(above);
 
-    // "Plain photograph": intentionally NOT positioned, so it belongs to
-    // CSS's non-positioned paint step — behind any positioned z-index >= 0
-    // element regardless of DOM order, exactly like Hero's own <img>.
-    // Placed inside .hero-bg (absolute, sized to the hero) rather than
-    // appended to <body>, so it's on-screen without needing to scroll to
-    // wherever normal document flow would otherwise put a plain block.
+    // "Plain photograph" stand-in. This is `position: absolute` (not
+    // literally non-positioned) with z-index left at `auto`, so it lands in
+    // the same "z-index: 0/auto" tied paint step as the canvas — it wins or
+    // loses that tie by DOM order alone, same as Hero's own <img> actually
+    // does (Hero.astro's registerMotion('hero', ...) puts a continuous
+    // GSAP `scale` scrub on it, present from the first frame, which
+    // establishes its own untagged stacking context too — see renderer.ts's
+    // z-index comment). Placed inside .hero-bg (sized to the hero, earlier
+    // in <main> than the canvas, which is appended as <main>'s LAST child)
+    // rather than appended to <body>, so it's on-screen without needing to
+    // scroll to wherever normal document flow would otherwise put a plain
+    // block, and so it genuinely exercises the DOM-order tie-break rather
+    // than a step the canvas would win unconditionally regardless of order.
     const below = document.createElement('div');
     below.id = 'e2e-below-probe';
     Object.assign(below.style, { position: 'absolute', top: '10px', left: '10px', width: '40px', height: '40px', background: BLUE });
@@ -185,6 +195,82 @@ test('the canvas paints above SelectedWork\'s scrubbed .project-scale photograph
   expect(pixel[2]).toBeLessThan(40);
 });
 
+/**
+ * Regression coverage for a re-review finding: the two `Hero.astro` changes
+ * this task made (`.hero-bg` dropping its `z-index: -1`, `.hero-overlay`
+ * gaining an explicit `z-index: 1`) had no test coverage at all — the full
+ * 67-unit/46-e2e suite stayed green with either one individually reverted,
+ * even though both are load-bearing: revert either and `.hero-overlay`'s
+ * readability gradient is silently swallowed by whatever a mesh draws over
+ * the hero, the moment Task 6 registers one.
+ *
+ * This registers a REAL surface over `.hero-img` with an opaque fragment
+ * shader — exactly what Task 6 will do — and asserts the gradient's three
+ * darkening stops (0.3 / 0.5 / 0.7 opacity black, top to bottom) are still
+ * visible on top of the mesh, rather than a flat, undarkened mesh colour.
+ * Dynamic `import('/src/webgl/index.ts')` resolves against the same Vite
+ * dev server `astro dev` (this suite's webServer) already serves raw TS
+ * modules from, and hits the same module cache `initWebGL()` already
+ * populated from Layout.astro's script — so `registerSurface()` attaches to
+ * the live, already-running scene rather than a separate one.
+ *
+ * Verified by reverting each of the two Hero.astro changes in turn and
+ * re-running this test — both individually turned it red (task-5-report.md
+ * documents the exact revert and restore commands used).
+ */
+test('.hero-overlay darkens a registered surface instead of being hidden beneath it', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+
+  await page.evaluate(async () => {
+    const mod = await import('/src/webgl/index.ts');
+    const img = document.querySelector('.hero-img') as HTMLImageElement;
+    mod.registerSurface(img, {
+      fragment: `
+        precision highp float;
+        void main() { gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0); }
+      `,
+    });
+  });
+  // Let at least one gsap.ticker frame render the newly-registered mesh.
+  await page.waitForTimeout(300);
+
+  const heroBox = (await page.locator('.hero-bg').boundingBox())!;
+  const shot = await page.screenshot();
+
+  async function meanRedAt(yFrac: number): Promise<number> {
+    const y = Math.max(0, Math.round(heroBox.y + heroBox.height * yFrac) - 2);
+    const x = Math.max(0, Math.round(heroBox.x + heroBox.width / 2) - 20);
+    const region = await sharp(shot)
+      .extract({ left: x, top: y, width: 40, height: 4 })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let sum = 0, count = 0;
+    for (let i = 0; i < region.data.length; i += region.info.channels) {
+      sum += region.data[i];
+      count++;
+    }
+    return sum / count;
+  }
+
+  const top = await meanRedAt(0.05);
+  const mid = await meanRedAt(0.5);
+  const bottom = await meanRedAt(0.95);
+
+  // The opaque magenta mesh's red channel is 255 everywhere on its own;
+  // .hero-overlay's gradient must darken it strictly more towards the
+  // bottom, and even the lightest (top) stop must show *some* darkening —
+  // a flat 255/255/255 here means the gradient is not actually on top of
+  // the mesh, which is exactly what happens if either Hero.astro change is
+  // reverted (the mesh instead paints over the gradient, or the whole
+  // .hero-bg subtree — image and gradient bundled together — sits entirely
+  // behind the canvas).
+  expect(top).toBeLessThan(250);
+  expect(top).toBeGreaterThan(mid);
+  expect(mid).toBeGreaterThan(bottom);
+});
+
 test('reduced motion creates no context at all', async ({ browser }) => {
   const ctx = await browser.newContext({ reducedMotion: 'reduce' });
   const page = await ctx.newPage();
@@ -240,6 +326,36 @@ test('the context is released across navigation', async ({ page }) => {
 });
 
 /**
+ * Instruments every `HTMLCanvasElement.getContext('webgl'|'webgl2')` call
+ * and every `WEBGL_lose_context.loseContext()` invocation, session-wide,
+ * into `window.__glStats`. Shared by both tests below via `addInitScript`
+ * so the exact same instrumentation backs both assertions.
+ */
+function installGlStatsProbe(): void {
+  (window as unknown as { __glStats: { created: number; lost: number } }).__glStats = { created: 0, lost: 0 };
+  const stats = (window as unknown as { __glStats: { created: number; lost: number } }).__glStats;
+  const origGetContext = HTMLCanvasElement.prototype.getContext;
+  // @ts-expect-error overriding a browser built-in for instrumentation
+  HTMLCanvasElement.prototype.getContext = function (type: string, ...args: unknown[]) {
+    const ctx = origGetContext.call(this, type, ...args);
+    if (ctx && (type === 'webgl' || type === 'webgl2')) {
+      stats.created++;
+      const glCtx = ctx as WebGLRenderingContext;
+      const origGetExtension = glCtx.getExtension.bind(glCtx);
+      glCtx.getExtension = ((name: string) => {
+        const ext = origGetExtension(name);
+        if (name === 'WEBGL_lose_context' && ext) {
+          const origLose = ext.loseContext.bind(ext);
+          ext.loseContext = () => { stats.lost++; origLose(); };
+        }
+        return ext;
+      }) as typeof glCtx.getExtension;
+    }
+    return ctx;
+  };
+}
+
+/**
  * Regression coverage for a review finding: `supported()`'s WebGL-capability
  * probe used to create a throwaway canvas + context on *every* call and
  * never release it, while the real renderer's own context was correctly
@@ -261,31 +377,17 @@ test('the context is released across navigation', async ({ page }) => {
  * the two stay in lockstep — every context that isn't the one currently in
  * use must have been explicitly released, not left for the browser's own
  * (unpredictable, capped) reclamation.
+ *
+ * Note on what this specific test does and doesn't prove: `created - lost`
+ * stays at 1 whether or not the probe result is *cached* — an uncached
+ * `supported()` that creates a fresh probe context on every call and
+ * releases it immediately still keeps created/lost in lockstep, since each
+ * extra probe nets to zero. This test proves the *release* half of the fix
+ * (nothing is ever abandoned); it does not by itself prove caching engaged.
+ * See the next test for that.
  */
 test('supported() does not leak a probe WebGL context on repeated calls', async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __glStats: { created: number; lost: number } }).__glStats = { created: 0, lost: 0 };
-    const stats = (window as unknown as { __glStats: { created: number; lost: number } }).__glStats;
-    const origGetContext = HTMLCanvasElement.prototype.getContext;
-    // @ts-expect-error overriding a browser built-in for instrumentation
-    HTMLCanvasElement.prototype.getContext = function (type: string, ...args: unknown[]) {
-      const ctx = origGetContext.call(this, type, ...args);
-      if (ctx && (type === 'webgl' || type === 'webgl2')) {
-        stats.created++;
-        const glCtx = ctx as WebGLRenderingContext;
-        const origGetExtension = glCtx.getExtension.bind(glCtx);
-        glCtx.getExtension = ((name: string) => {
-          const ext = origGetExtension(name);
-          if (name === 'WEBGL_lose_context' && ext) {
-            const origLose = ext.loseContext.bind(ext);
-            ext.loseContext = () => { stats.lost++; origLose(); };
-          }
-          return ext;
-        }) as typeof glCtx.getExtension;
-      }
-      return ctx;
-    };
-  });
+  await page.addInitScript(installGlStatsProbe);
 
   await page.goto('/');
   await page.waitForTimeout(1200);
@@ -306,9 +408,48 @@ test('supported() does not leak a probe WebGL context on repeated calls', async 
   // probe, and every prior navigation's renderer context) was explicitly
   // released.
   expect(stats.created - stats.lost).toBe(1);
-  // Confirms the cache actually engaged: a probe on every one of the ~8
-  // initWebGL() calls across 1 initial load + 3 round trips would show up
-  // here as created counts far above what real-renderer-per-navigation
-  // alone would produce.
-  expect(stats.created).toBeGreaterThan(0);
+});
+
+/**
+ * Regression coverage for the gap the previous test's own comment used to
+ * overstate: that test's `created - lost === 1` invariant holds regardless
+ * of whether `supported()`'s probe result is cached, so it cannot tell a
+ * working cache apart from a probe that is simply re-created and
+ * re-released correctly every time. This test isolates the cache directly:
+ * it fires several `initWebGL()`/`teardownWebGL()` cycles back-to-back
+ * *without navigating* (so the number of cycles is exact, not an estimate
+ * of how many the lifecycle wiring produces), and checks the ABSOLUTE
+ * count of contexts created — a metric the delta-based test above never
+ * inspects. With caching, each cycle after the first creates exactly one
+ * new context (the real renderer only; the probe was already answered).
+ * Without it, each cycle would create two (a fresh probe alongside the
+ * real renderer), so the same five cycles would produce roughly ten.
+ */
+test("supported()'s capability probe is cached, not re-created every call", async ({ page }) => {
+  await page.addInitScript(installGlStatsProbe);
+
+  await page.goto('/');
+  await page.waitForTimeout(1200);
+
+  const before = await page.evaluate(
+    () => (window as unknown as { __glStats: { created: number } }).__glStats.created
+  );
+
+  const CYCLES = 5;
+  await page.evaluate((n) => {
+    for (let i = 0; i < n; i++) {
+      document.dispatchEvent(new Event('astro:before-swap'));
+      document.dispatchEvent(new Event('astro:page-load'));
+    }
+  }, CYCLES);
+
+  const after = await page.evaluate(
+    () => (window as unknown as { __glStats: { created: number } }).__glStats.created
+  );
+
+  // Exactly one new context per cycle (the real renderer), not two — the
+  // capability probe was answered once, before this loop ever ran, and
+  // every one of these five re-inits reused that cached answer instead of
+  // creating and releasing another throwaway context.
+  expect(after - before).toBe(CYCLES);
 });

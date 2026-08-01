@@ -157,12 +157,16 @@ export function initWebGL(): void {
     position: 'fixed', inset: '0', width: '100%', height: '100%',
     pointerEvents: 'none',
     // An explicit, non-negative z-index puts this canvas in CSS's "z-index:
-    // 0 or auto" paint step — after plain, non-positioned photographs
-    // (Hero's <img>, ImageBand's <img>, none of which carry position/
-    // z-index of their own) and, for anything tied at that same step
-    // (elements that gained a stacking context from a GSAP transform
-    // without an explicit z-index — see below), after whichever comes
-    // earlier in the DOM. Explicit positive z-index (Hero.astro's
+    // 0 or auto" paint step — after plain, non-positioned photographs with
+    // no transform of their own (ImageBand's <img>, which nothing here
+    // animates) and, for anything ELSE tied at that same step — including
+    // Hero's own <img>, which is not actually "plain, non-positioned":
+    // Hero.astro's registerMotion('hero', ...) puts a continuous scrubbed
+    // `scale` on it via GSAP, present from the very first frame (the
+    // scrollTrigger's "from" state at scroll 0), and any non-`none`
+    // transform establishes its own stacking context with no explicit
+    // z-index of its own, same as `.project-scale` below — after whichever
+    // comes earlier in the DOM. Explicit positive z-index (Hero.astro's
     // .hero-overlay / .hero-content, both z-index: 1) unconditionally wins
     // regardless of DOM order.
     zIndex: '0',
