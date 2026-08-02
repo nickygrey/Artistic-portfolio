@@ -12,6 +12,13 @@ import type { ShaderSpec } from '../surface';
  * one cursor, and a shared `uHover`/`uMouse` would make all four ripple
  * together from whichever card the pointer happened to be over.
  *
+ * `uMouse` and `uOrigin` are separate on purpose. `uMouse` is a live cursor
+ * position and moves on every `pointermove`; `uOrigin` is captured once, when
+ * a card's link is activated, and must then hold still until the re-form that
+ * converges on it has finished. Sharing one uniform between them let a pointer
+ * that happened to cross the card during a re-form drag the iris around with
+ * it.
+ *
  * The cover uniforms default to the identity window, so a card whose sync has
  * not run yet samples the whole texture — the plain, uncorrected mapping —
  * rather than a broken one. `uAspect` defaults to the 16:9 the
@@ -21,6 +28,7 @@ export interface WorkUniforms {
   uHover: { value: number };
   uDissolve: { value: number };
   uMouse: { value: [number, number] };
+  uOrigin: { value: [number, number] };
   uAspect: { value: [number, number] };
   uCoverScale: { value: [number, number] };
   uCoverOffset: { value: [number, number] };
@@ -31,6 +39,7 @@ export function createWorkUniforms(): WorkUniforms {
     uHover: { value: 0 },
     uDissolve: { value: 0 },
     uMouse: { value: [0.5, 0.5] },
+    uOrigin: { value: [0.5, 0.5] },
     uAspect: { value: [16 / 9, 1] },
     uCoverScale: { value: [1, 1] },
     uCoverOffset: { value: [0, 0] },
@@ -59,6 +68,10 @@ export function createWorkUniforms(): WorkUniforms {
  * A zero-sized rect (an element in a `display: none` ancestor, or measured
  * before layout) returns the centre rather than dividing by zero — NaN in a
  * uniform does not fail loudly in GLSL, it blows out the whole frame.
+ *
+ * Clamping is right for the LIVE ripple, which has to keep tracking a pointer
+ * that has wandered onto the caption. It is wrong for the dissolve's origin —
+ * see `dissolveOriginUv` below.
  */
 export function elementUv(
   rect: { left: number; top: number; width: number; height: number },
@@ -74,37 +87,131 @@ export function elementUv(
 }
 
 /**
- * Whether a click is the plain, primary one the dissolve is allowed to react
- * to.
+ * Where the iris converges: the point on the photograph that was activated.
  *
- * The dissolve must not run on a modifier- or middle-click. Those open the
- * video in a *background* tab, leaving the user looking at the card they just
- * clicked — and a dissolve is a visual that ends on black, so running it there
- * would black out a card on a page the user never left. The same predicate
- * also keeps this in step with `preventNativeAnchorJump()` in
- * `src/motion/engine.ts`, which already excludes exactly this set of clicks
- * for a related reason (see tests/e2e/modifier-click.spec.ts for the
- * regression that produced it).
+ * Not `elementUv`, because clamping is actively wrong here. `.card-link` wraps
+ * the caption as well as the photograph, so two ordinary activations land
+ * outside the <img> entirely and clamping puts the iris on an edge:
  *
- * This deliberately does not call `preventDefault()` anywhere, on any branch:
- * the link's own navigation is the point, and the dissolve is an
- * accompaniment to it.
+ * - **A click on the title or category.** Measured on the live page: the
+ *   coordinate clamps to the frame's BOTTOM edge, so on a portrait the
+ *   sitter's head is the first thing to go and the last thing left is their
+ *   torso — the exact opposite of the effect's stated design.
+ * - **Keyboard activation.** `Enter` on a focused card dispatches a click with
+ *   `clientX`/`clientY` of 0, which clamps to the top-left CORNER. There is no
+ *   pointer position to honour at all: a keyboard user did not aim at a point.
+ *
+ * Both fall back to the centre of the frame, which is the honest answer to
+ * "the visitor activated this card without indicating where". Only a genuine
+ * hit inside the photograph produces an off-centre origin.
+ *
+ * `keyboard` is passed rather than inferred from the coordinates because
+ * (0, 0) is a legitimate viewport position; `MouseEvent.detail === 0` is the
+ * reliable signal and belongs at the call site, where the event is.
  */
-export function isPlainPrimaryClick(event: {
-  metaKey?: boolean;
-  ctrlKey?: boolean;
-  shiftKey?: boolean;
-  altKey?: boolean;
-  button?: number;
-}): boolean {
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
-  // `button` is absent on a keyboard-activated click in some engines and 0 in
-  // Chromium; both mean "the primary action", so absent counts as primary.
-  return event.button == null || event.button === 0;
+export function dissolveOriginUv(
+  rect: { left: number; top: number; width: number; height: number },
+  clientX: number,
+  clientY: number,
+  keyboard: boolean
+): [number, number] {
+  if (keyboard) return [0.5, 0.5];
+  if (!(rect.width > 0) || !(rect.height > 0)) return [0.5, 0.5];
+  const u = (clientX - rect.left) / rect.width;
+  const v = 1 - (clientY - rect.top) / rect.height;
+  if (u < 0 || u > 1 || v < 0 || v > 1) return [0.5, 0.5];
+  return [u, v];
+}
+
+// ---------------------------------------------------------------------------
+// The re-form state machine
+// ---------------------------------------------------------------------------
+
+/**
+ * How long after an activation a hide still counts as "that click sent the
+ * visitor away", in milliseconds.
+ *
+ * A `target="_blank"` click that opens a foreground tab backgrounds this page
+ * within roughly 100-200ms, so this is generous by more than an order of
+ * magnitude. Its job is the other end: a click whose tab never opened (a popup
+ * blocker, an extension that cancels the navigation) must not leave a card
+ * armed indefinitely, so that an unrelated alt-tab minutes later reassembles a
+ * card out of nowhere. Exceeding the window loses the effect and shows an
+ * ordinary, fully-revealed card — the safe direction, which is the direction
+ * every branch of this machine fails in.
+ */
+export const REFORM_ARM_MS = 5000;
+
+export interface ReformState {
+  /** The card whose link was activated, and when. Consumed by a hide. */
+  clicked: { card: number; at: number } | null;
+  /** The card to re-form the next time this page is looked at again. */
+  pending: number | null;
+}
+
+export type ReformEvent =
+  | { type: 'click'; card: number; at: number }
+  | { type: 'hidden'; at: number }
+  | { type: 'visible' };
+
+export function initialReformState(): ReformState {
+  return { clicked: null, pending: null };
 }
 
 /**
- * Hover ripple + click dissolve over a work card's photograph.
+ * The whole trigger, as a pure function: given the state and one event, the
+ * next state and which card (if any) should re-form now.
+ *
+ * **The single non-negotiable property this exists to make checkable: no
+ * state in this machine describes a card that is dark.** A click draws
+ * nothing at all — `uDissolve` stays 0 — and the only thing that ever raises
+ * it is the start of a re-form, which is a tween straight back down to 0 in
+ * the same breath. So a trigger that is missed, delayed, duplicated or
+ * arrives out of order leaves a card that looks completely normal. That is
+ * the inversion of the arrangement this replaces, where the same unreliability
+ * left a permanently black rectangle.
+ *
+ * The rules, and the case each one is for:
+ *
+ * - **Only a HIDE promotes a click into a pending re-form.** So a `visible`
+ *   that arrives when nobody has clicked anything — a first page load, an
+ *   ordinary tab switch — finds nothing pending and does nothing. A visitor
+ *   who has never clicked a card must never see cards animate in from black.
+ * - **One pending slot, not one per card.** Clicking several cards and then
+ *   returning re-forms the last one activated, which is the one the visitor
+ *   just came back from. The others were never dark, so there is nothing to
+ *   put right about them.
+ * - **`visible` always clears everything.** Two `visible` events in a row
+ *   re-form once, not twice; a re-form interrupted by another hide is
+ *   abandoned rather than resumed part-way (the component sets `uDissolve`
+ *   back to 0 on every transition regardless of what this returns).
+ * - **A hide with nothing newly clicked leaves `pending` alone**, so a
+ *   duplicated hide does not lose a re-form that was already promoted.
+ */
+export function nextReformState(
+  state: ReformState,
+  event: ReformEvent
+): { state: ReformState; reform: number | null } {
+  switch (event.type) {
+    case 'click':
+      return { state: { clicked: { card: event.card, at: event.at }, pending: null }, reform: null };
+    case 'hidden': {
+      const recent =
+        state.clicked !== null && event.at - state.clicked.at <= REFORM_ARM_MS
+          ? state.clicked.card
+          : null;
+      return {
+        state: { clicked: null, pending: recent !== null ? recent : state.pending },
+        reform: null,
+      };
+    }
+    case 'visible':
+      return { state: initialReformState(), reform: state.pending };
+  }
+}
+
+/**
+ * Hover ripple + a burn that plays in reverse, as the card re-forms.
  *
  * GLSL comments are ASCII-only for the reason `hero.ts` documents: WebGL
  * restricts shader source to the GLSL ES character set and a stray em dash
@@ -122,12 +229,15 @@ export function isPlainPrimaryClick(event: {
  *   is `object-fit: cover` into an `aspect-ratio: 16/9` box. Sampling raw
  *   `uv` would show a differently-framed, differently-proportioned photograph
  *   than the DOM <img> the mesh is supposed to be replacing frame for frame
- *   — measured at 13.4% of horizontal crop on `work-audience.png`
- *   (3024x1964, aspect 1.5397, against 1.7778). See computeCoverUv.
+ *   — `work-audience.png` is 3024x1964 (aspect 1.5397) against 1.7778, so it
+ *   is taller in proportion than its box and `cover` crops 13.4% off the top
+ *   and bottom. (Uncorrected, that reads as a horizontal stretch, which is
+ *   what an earlier version of this comment called it. The crop is VERTICAL:
+ *   computeCoverUv returns scale [1, 0.8659].)
  * - **Opaque output.** The canvas is `alpha: true` and the DOM photograph is
  *   still underneath, so writing a low alpha would reveal an *identical*
- *   picture rather than dissolving anything. The dissolve therefore resolves
- *   to black in the shader, and alpha stays 1 throughout.
+ *   picture rather than dissolving anything. The burn therefore resolves to
+ *   black in the shader, and alpha stays 1 throughout.
  */
 export function workShader(uniforms: WorkUniforms): ShaderSpec {
   return { fragment: WORK_FRAGMENT, uniforms };
@@ -139,11 +249,30 @@ uniform sampler2D tMap;
 uniform float uTime;
 uniform float uHover;      // 0 at rest, 1 fully hovered
 uniform float uDissolve;   // 0 intact, 1 fully burned through
-uniform vec2  uMouse;      // cursor in element UV space, v up
+uniform vec2  uMouse;      // live cursor in element UV space, v up
+uniform vec2  uOrigin;     // where the iris converges; frozen at activation
 uniform vec2  uAspect;     // (width/height, 1) - makes radial terms isotropic
 uniform vec2  uCoverScale;
 uniform vec2  uCoverOffset;
 varying vec2 vUv;
+
+// --- OWNER-TUNABLE -------------------------------------------------------
+// The one constant here with no objective answer, and the one to re-judge
+// when the owner's four chosen film frames replace the stand-ins (see Owner
+// Actions in the task brief). It is a FIXED warm hue, so against a cool or
+// desaturated grade it can read as an orange contamination rather than as
+// celluloid. Change it HERE and nowhere else - both are used exactly once,
+// at the "col += rim * RIM_TINT * RIM_GAIN" line near the bottom of main().
+// RIM_GAIN of 0.0 removes the hot edge entirely and touches nothing else.
+//
+// Deliberately not scaled by the photograph's own luminance: one of these
+// four frames is a near-black title card, and a luminance-scaled edge would
+// dissolve black into black there, i.e. show nothing at all. Deliberately not
+// a white flash either - a full-frame blowout on a 0.7s timeline is a
+// photosensitivity hazard, and a saturated orange one reads as a cheap fire
+// filter.
+const vec3  RIM_TINT = vec3(1.0, 0.74, 0.46);
+const float RIM_GAIN = 0.30;
 
 // Cheap hash, same one hero.ts uses - no texture lookup, no dependency.
 float hash(vec2 p) {
@@ -170,12 +299,11 @@ void main() {
 
   // --- Hover ripple ------------------------------------------------------
   // Rings radiating from the cursor. The envelope is zero AT the cursor and
-  // peaks a fifth of a frame-height out, because a wave whose crest sits on
+  // peaks an eighth of a frame-height out, because a wave whose crest sits on
   // the pointer makes the one spot the eye is actually looking at wobble,
-  // which reads as a rendering fault rather than as a ripple.
-  // The envelope peaks an eighth of a frame-height out and is spent by half
-  // a frame-height; the frequency is set so roughly three rings fit inside
-  // that reach. Tuned by looking: at the first tuning (peak at 0.2, 22
+  // which reads as a rendering fault rather than as a ripple. It is spent by
+  // half a frame-height; the frequency is set so roughly three rings fit
+  // inside that reach. Tuned by looking: at the first tuning (peak at 0.2, 22
   // rings/unit) the lit region ran to the corners of the frame and one and a
   // half rings fitted inside it, which reads as a torch being shone at the
   // photograph rather than as a surface responding to a touch.
@@ -188,9 +316,9 @@ void main() {
   float ripple = sin(d * 44.0 - uTime * 6.0) * envelope * uHover * 0.010;
   uv += (dir / uAspect) * ripple;
 
-  // --- Dissolve push -----------------------------------------------------
-  // A slight push in as the frame gives way, so the shot advances into the
-  // cut rather than simply switching off.
+  // --- Burn push ---------------------------------------------------------
+  // A slight push in while the frame is broken up, so the shot settles back
+  // out as it re-forms rather than simply switching on.
   uv = mix(uv, (uv - 0.5) * 0.96 + 0.5, uDissolve);
 
   // Sample through the object-fit: cover window so the mesh shows the same
@@ -212,56 +340,84 @@ void main() {
   float lift = envelope * uHover;
   col = col * (1.0 + lift * 0.12) + lift * 0.022;
 
-  // --- Dissolve ----------------------------------------------------------
-  // The burn front advances radially from the point that was clicked,
-  // perturbed by two octaves of noise so the edge is ragged like a film
-  // gate burning rather than a clean expanding circle. "field" is the order
-  // in which the frame gives way; "front" is how far the burn has got.
+  // --- The burn ----------------------------------------------------------
+  // Read at uDissolve = 1 -> 0, which is the only direction this ever plays:
+  // the visitor comes back to the portfolio and the card they left through
+  // re-forms from the point they activated. "field" is the order in which the
+  // frame gives way; "front" is how far the burn has got.
   // (No backticks anywhere below - this whole shader is a JS template
   // literal, and one would end it mid-comment.)
+  //
   // The radial term dominates and the noise only roughens it. That balance
   // is the whole difference between a front and a texture: weighted the
   // other way round (noise 0.80 against radius 0.62, as this was first
   // written) the frame came apart everywhere at once in warm blobs, which
   // reads as marble or lava, not as a shot ending. Judged by eye against
-  // all four photographs at uDissolve = 0.2, 0.4, 0.6.
+  // all four photographs.
   //
-  // It burns INWARDS - note the "1.0 - radial" - so the frame gives way at its edges
-  // first and what was clicked is the last thing left. Outwards was tried
-  // first, since it seems the obvious reading of "radiating from the
-  // click", and it is wrong: people click the subject, so the frame opens a
-  // spreading black hole exactly over the face and holds it there for half
-  // a second. Inwards is both kinder to the photograph and the older piece
-  // of film grammar - it is an iris out.
-  float radial = clamp(length((vUv - uMouse) * uAspect) / 1.35, 0.0, 1.0);
+  // It burns INWARDS - note the "1.0 - radial" - so the frame gives way at
+  // its edges first and what was activated is the last thing left, which run
+  // backwards means the surviving island opens outwards from that point.
+  // Outwards was tried first, since it seems the obvious reading of
+  // "radiating from the click", and it is wrong: people click the subject, so
+  // the frame opens a spreading black hole exactly over the face. Inwards is
+  // both kinder to the photograph and the older piece of film grammar - it is
+  // an iris.
+  //
+  // *** The defect the next two lines exist to fix ***
+  // The divisor used to be a fixed 1.35. From a centre origin the largest
+  // attainable distance in this aspect-corrected space is
+  // length(0.889, 0.5) = 1.020, so "radial" capped at 0.756, "field" bottomed
+  // out near 0.244 and "front" did not reach it until a third of the tween
+  // had already elapsed. Measured on the committed shader: 0.25 seconds of
+  // visible effect inside a 0.7 second timeline, starting 0.29s in. Worse,
+  // the cap was origin-dependent - only an origin within 0.33 of a corner
+  // could reach the [0, 1] range the unit test derived its bounds from, which
+  // is how a third of the tween being dead time shipped behind a green test.
+  // Normalising by the distance to the farthest corner of THIS frame from
+  // THIS origin makes radial reach exactly 1 wherever the visitor clicked.
+  vec2 corner = max(uOrigin, 1.0 - uOrigin) * uAspect;
+  float reach = max(length(corner), 1e-4);
   // Weighted towards the FINER octaves. An equal-ish split led by the
   // coarse one (0.26 at scale 7 against 0.10 at 19) deformed the surviving
   // shape itself rather than its edge: the iris closed as a lumpy blob
   // instead of a disc with a torn rim. Three octaves led by the middle one
   // keep the shape a disc and put the irregularity where it belongs.
-  float field =
-    (1.0 - radial) +
+  float n =
     vnoise(vUv * uAspect * 7.0) * 0.12 +
     vnoise(vUv * uAspect * 19.0) * 0.13 +
     vnoise(vUv * uAspect * 47.0) * 0.06;
-  // Ends past the maximum "field" plus the band width below, so uDissolve = 1
-  // leaves nothing of the photograph anywhere, and starts below zero, so
-  // uDissolve = 0 leaves all of it.
-  float front = uDissolve * 1.53 - 0.11;
+  // The noise goes INSIDE the clamp, and zero-meaned (its three weights sum
+  // to 0.31, so 0.155 is its midpoint). Displacing the front by d is
+  // identical to displacing the threshold by -d, so the burn looks exactly as
+  // it did - same octaves, same weights, same 0.31 peak-to-peak swing. What
+  // changes is the BOUND: "field" now spans exactly [0, 1] and attains both
+  // ends, instead of [0, 1.31] with a floor that no pixel actually reached.
+  //
+  // That gap was the second half of the dead lead-in. The first half was the
+  // fixed 1.35 divisor above; with it gone, the frame still sat untouched
+  // through the opening fifth of the tween, because the smallest "field" any
+  // pixel produced was the noise's own value at the far corner (around 0.05,
+  // never 0) and the front had to travel that far before anything at all
+  // happened.
+  float radial = clamp(length((vUv - uOrigin) * uAspect) / reach - (n - 0.155), 0.0, 1.0);
+  float field = 1.0 - radial;
+  // So the two ends of the tween are now the two ends of the effect, with
+  // 0.01 of slack at each and no more: front + 0.01 < 0 at uDissolve = 0
+  // (every pixel intact - the resting, fully-revealed state) and
+  // front - 0.10 > 1 at uDissolve = 1 (nothing of the photograph anywhere).
+  // Pinned by a rendered measurement rather than by this arithmetic, which is
+  // what the last version of this shader got wrong - see "the burn is visible
+  // across almost all of its tween" in tests/e2e/webgl.spec.ts.
+  float front = uDissolve * 1.13 - 0.02;
   // 1 where the frame is still intact, 0 where it has gone.
   float intact = smoothstep(front - 0.10, front + 0.01, field);
   // Peaks inside the transition band and is zero on both sides of it.
   float rim = intact * (1.0 - intact) * 4.0;
 
   col = mix(vec3(0.0), col, intact);
-  // A warm, restrained hot edge. Deliberately not a white flash: a
-  // full-frame blowout on a 0.7s timeline is a photosensitivity hazard, and
-  // a saturated orange one reads as a cheap fire filter rather than as
-  // celluloid. It is a FIXED addition rather than one scaled by the
-  // photograph's own luminance, because one of these four frames is a
-  // near-black title card and a luminance-scaled edge would dissolve black
-  // into black there, i.e. show nothing at all.
-  col += rim * vec3(1.0, 0.74, 0.46) * 0.30;
+  // A warm, restrained hot edge - see RIM_TINT / RIM_GAIN at the top.
+  col += rim * RIM_TINT * RIM_GAIN;
 
   // --- Grain -------------------------------------------------------------
   // Fine and constant at rest, so a card matches the hero's treatment.
@@ -271,12 +427,13 @@ void main() {
   // MULTIPLICATIVE, unlike hero.ts's additive version, because one of these
   // four frames is a near-black title card and additive noise on black can
   // only ever add: the negative half of the swing clips at zero. Measured
-  // with additive grain at the same nominal amplitude, on that card, against
-  // the DOM <img> the mesh is supposed to be reproducing: mean luma 7.1 ->
-  // 7.9 and high-frequency energy 2.88 -> 7.69, i.e. a clean black frame
+  // with hero's additive grain at its real amplitude, on that card, against
+  // the DOM <img> the mesh is supposed to be reproducing: mean luma 6.94 ->
+  // 8.32 and high-frequency energy 4.48 -> 10.86, i.e. a clean black frame
   // visibly turned into a dithered one. Scaling by the pixel's own value
   // leaves black black and puts the density variation where a photograph
-  // actually has density, which is also how film behaves.
+  // actually has density, which is also how film behaves - and it measures
+  // MORE present than the additive form on a photographic card.
   float g = hash(vUv * 900.0 + fract(uTime) * 100.0);
   col *= 1.0 + (g - 0.5) * 0.075;
 

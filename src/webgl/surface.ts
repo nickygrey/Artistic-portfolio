@@ -78,19 +78,49 @@ function clippingAncestors(el: Element): Element[] {
   return out;
 }
 
+/**
+ * Registers a mesh over `el`, and reports **whether it actually did**.
+ *
+ * The return value is not decoration. This function no-ops when no scene is
+ * alive, and `onDestroy` is only ever reached through a surface's `destroy()`
+ * — so a caller that registers *late* (after its image lazily decodes, as
+ * SelectedWork.astro must) and does not check gets no `onDestroy` and no way
+ * to know that. Measured before this returned anything: forcing a teardown
+ * through the fps-guard/lost-context path and *then* scrolling to `#work` left
+ * four `document` listeners orphaned and 26 forced layouts per 25 pointer
+ * moves over a dead card — verbatim the leak `SurfaceOptions.onDestroy` exists
+ * to prevent, on the same path, because the mechanism keys off a `destroy()`
+ * that never existed.
+ */
 export function registerSurface(
   el: HTMLImageElement,
   shader: ShaderSpec,
   options: SurfaceOptions = {}
-): void {
+): boolean {
   const { renderer, scene, camera, surfaces } = getScene();
-  if (!renderer || !scene || !camera) return;
+  if (!renderer || !scene || !camera) return false;
   const gl = renderer.gl;
 
   const texture = new Texture(gl);
-  const load = () => { texture.image = el; };
+  /**
+   * `needsUpdate` matters as much as the assignment. OGL's `Texture.update()`
+   * short-circuits on `this.image === this.store.image && !this.needsUpdate`
+   * (ogl/src/core/Texture.js), so re-decoding the SAME element with a new
+   * bitmap — which is exactly what a `srcset` swap does — never re-uploads
+   * without it. Both `Hero.astro` and `SelectedWork.astro` use `widths`/
+   * `sizes`, and measured on a card taken from 390px up to 1280px: the mesh
+   * kept painting the 400w bitmap upscaled and measured 30% softer in
+   * high-frequency energy than the DOM <img> beside it.
+   *
+   * The listener is therefore NOT `{ once: true }` — the first decode is not
+   * the last one. `destroy()` removes it.
+   */
+  const load = () => {
+    texture.image = el;
+    texture.needsUpdate = true;
+  };
   if (el.complete && el.naturalWidth > 0) load();
-  else el.addEventListener('load', load, { once: true });
+  el.addEventListener('load', load);
 
   const program = new Program(gl, {
     vertex: VERTEX,
@@ -200,7 +230,25 @@ export function registerSurface(
           .filter(([, u]) => typeof (u as { value: unknown }).value === 'number')
           .map(([k, u]) => [k, (u as { value: number }).value])
       ) as Record<string, number>,
+      /**
+       * The vec2s, separately, for the same reason and with the same
+       * constraint: numbers only, copied by value, nothing that cannot cross
+       * a Playwright serialisation boundary. `uOrigin` in particular is
+       * otherwise unobservable — it is set once, at activation, and decides
+       * where a re-form converges, so "a caption click does not put the iris
+       * on the frame's bottom edge" is only checkable in a real browser
+       * through this.
+       */
+      vectors: Object.fromEntries(
+        Object.entries(program.uniforms)
+          .filter(([, u]) => {
+            const v = (u as { value: unknown }).value;
+            return Array.isArray(v) && v.every(n => typeof n === 'number');
+          })
+          .map(([k, u]) => [k, [...(u as { value: number[] }).value]])
+      ) as Record<string, number[]>,
       visible: mesh.visible,
     }),
   });
+  return true;
 }

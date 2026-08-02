@@ -16,10 +16,11 @@ export const DURATION = {
   /** How long gsap.quickTo takes to settle onto a new target value (e.g.
    *  the marquee's scroll-velocity speed boost). */
   quickTo: 0.4,
-  /** A work card's click dissolve (SelectedWork.astro). Sits between `fast`
-   *  and `base` on purpose: long enough to read as a transition rather than a
-   *  cut, short enough to still be a transition rather than a wait. Named
-   *  rather than inlined so it cannot drift away from the rest of the scale. */
+  /** A work card re-forming after the visitor comes back to the tab
+   *  (SelectedWork.astro). Sits between `fast` and `base` on purpose: long
+   *  enough to read as a transition rather than a cut, short enough to still
+   *  be a transition rather than a wait. Named rather than inlined so it
+   *  cannot drift away from the rest of the scale. */
   dissolve: 0.7,
 } as const;
 

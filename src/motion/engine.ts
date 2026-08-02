@@ -7,6 +7,7 @@ import {
   buildScrollTriggerVars, isMotionName,
 } from './primitives';
 import { LENIS, num } from './tokens';
+import { isPlainPrimaryClick } from '../lib/click';
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
@@ -80,10 +81,13 @@ function tick(time: number): void {
  * the capture-phase preventDefault() below fired for those too, silently
  * cancelling the new tab and leaving Lenis's bubble-phase handler (which
  * has no modifier check of its own) to smooth-scroll the current tab
- * instead — a regression this same fix introduced. `event.button !== 0`
- * catches non-primary buttons the same way; middle-click is not in scope
- * here since Chromium and Firefox fire `auxclick`, not `click`, for the
- * middle button, so this listener never observes it regardless.
+ * instead — a regression this same fix introduced. `isPlainPrimaryClick()`
+ * (src/lib/click.ts) catches non-primary buttons the same way; middle-click
+ * is not in scope here since Chromium and Firefox fire `auxclick`, not
+ * `click`, for the middle button, so this listener never observes it
+ * regardless. That predicate is shared with SelectedWork.astro, which needs
+ * the identical answer for a related reason — it used to be a copy in each,
+ * and the two had already started to diverge.
  */
 function preventNativeAnchorJump(event: MouseEvent): void {
   const link = (event.target as Element | null)?.closest?.('a[href]');
@@ -99,7 +103,7 @@ function preventNativeAnchorJump(event: MouseEvent): void {
   const current = new URL(window.location.href);
   if (url.host !== current.host || url.pathname !== current.pathname || !url.hash) return;
 
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+  if (!isPlainPrimaryClick(event)) {
     suppressNextLenisAnchorClick = true;
     return;
   }

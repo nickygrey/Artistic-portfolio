@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import sharp from 'sharp';
+import { WORK_FRAGMENT } from '../../src/webgl/shaders/work';
 
 declare global {
   interface Window {
@@ -12,6 +13,7 @@ declare global {
         mesh: { x: number; y: number; sx: number; sy: number };
         scissor: { x: number; y: number; width: number; height: number; visible: boolean };
         uniforms: Record<string, number>;
+        vectors: Record<string, number[]>;
         visible: boolean;
       }>;
     };
@@ -216,28 +218,28 @@ test('the canvas paints between a plain photograph and the text/controls layered
  * pixel the probe sampled — the test went red on a page where the z-order
  * was, in fact, right.
  *
- * The replacement asserts the same z-order with the real mesh instead of a
- * stand-in: it runs the card's own dissolve to completion, which drives the
- * mesh to solid black over a photograph whose own mean luminance is 100+.
- * If `.project-scale` won the DOM-order tie, that photograph would still be
- * on screen. Hiding the canvas afterwards and finding the photograph again
- * is what proves the black came from the mesh rather than from anything
- * else that might have gone dark.
+ * REWRITTEN AGAIN in this round. The first rewrite drove the card's own
+ * dissolve to solid black and sampled the result — which no longer exists as a
+ * state: the burn now runs only in reverse, on return, and a card must never
+ * rest at `uDissolve = 1`. It also picked the second card, a live
+ * `img.youtube.com` fetch, so it failed offline or behind a proxy on a page
+ * that was perfectly correct (a gratuitous dependency the review flagged;
+ * three other tests in this file have it by necessity, this one did not).
+ *
+ * The replacement needs neither. It inverts the DOM `<img>` with a CSS filter,
+ * which the mesh cannot see — `texImage2D` uploads the decoded bitmap, not the
+ * element's filtered rendering — so the two layers now hold visibly different
+ * pictures and whichever one is on top is simply the one you can read. The
+ * FIRST card is deliberate here: `work-audience.png` is a near-black title
+ * card (mean luma ~7/255), so inverting it is the largest signal available
+ * anywhere on the page (~7 against ~248) and it is a local asset, so this test
+ * runs with no network at all.
  */
-test('the canvas paints above SelectedWork\'s scrubbed .project-scale photograph', async ({ page, context }) => {
+test('the canvas paints above SelectedWork\'s scrubbed .project-scale photograph', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
-  // The click below is a real one on a real link; let it open its tab, but
-  // do not spend the time fetching YouTube.
-  await context.route('**://www.youtube.com/**', r => r.abort());
   await page.goto('/');
   await page.waitForTimeout(1500);
-
-  // Scroll .project-scale into view — this is what drives its scrub, via
-  // the same ScrollTrigger the real page already wires up.
-  await page.evaluate(() => {
-    document.querySelector<HTMLElement>('#work')!.scrollIntoView({ block: 'start' });
-  });
-  await page.waitForTimeout(2500);
+  await workReady(page);
 
   const transform = await page.evaluate(
     () => getComputedStyle(document.querySelector('.project-scale')!).transform
@@ -247,10 +249,7 @@ test('the canvas paints above SelectedWork\'s scrubbed .project-scale photograph
   // trivially passing because nothing is transformed at sample time.
   expect(transform).not.toBe('none');
 
-  // The SECOND card, not the first: the first is a near-black title card
-  // (work-audience.png, mean luma ~7/255), against which "the mesh went
-  // black" and "the photograph is showing" are the same measurement.
-  const card = page.locator('#work .card-link').nth(1);
+  const card = page.locator('#work .card-link').first();
   const box = (await card.locator('.project-thumbnail').boundingBox())!;
   const sample = {
     left: Math.round(box.x + box.width / 2) - 20,
@@ -263,22 +262,31 @@ test('the canvas paints above SelectedWork\'s scrubbed .project-scale photograph
   };
 
   const before = await meanOf(await page.screenshot());
-  expect(before, 'the card shows a photograph before anything is clicked').toBeGreaterThan(60);
+  expect(before, 'the title card is near-black to begin with').toBeLessThan(40);
 
-  await card.click();
-  await page.waitForTimeout(1200); // DURATION.dissolve is 0.7s
-  const dissolved = await meanOf(await page.screenshot());
+  // Invert the DOM <img> only. The mesh's texture is the decoded bitmap and
+  // is unaffected, so from here the two layers hold opposite pictures.
+  await page.evaluate(() => {
+    const img = document.querySelector<HTMLElement>('#work .project-scale img')!;
+    img.style.filter = 'invert(1)';
+  });
+  await page.waitForTimeout(300);
+  const withMesh = await meanOf(await page.screenshot());
 
   await page.evaluate(() => {
     (document.querySelector('canvas') as HTMLCanvasElement).style.display = 'none';
   });
   await page.waitForTimeout(200);
-  const canvasHidden = await meanOf(await page.screenshot());
+  const withoutMesh = await meanOf(await page.screenshot());
 
-  // The mesh painted black OVER the scrubbed photograph...
-  expect(dissolved, 'the fully dissolved mesh covers the photograph').toBeLessThan(12);
-  // ...and the photograph was there the whole time, underneath it.
-  expect(canvasHidden, 'the DOM photograph is untouched beneath the mesh').toBeGreaterThan(60);
+  // The filter really applied: with the canvas out of the way, the card is
+  // now near-white. Without this, "the region stayed dark" would also be
+  // satisfied by a filter that silently did nothing.
+  expect(withoutMesh, 'the inverted DOM photograph is near-white').toBeGreaterThan(180);
+  // And with the canvas back, the mesh is what you see: still near-black.
+  // If `.project-scale` won the DOM-order tie — or if no surface registered
+  // at all — this would read as the inverted image instead.
+  expect(withMesh, 'the mesh, not the inverted DOM <img>, is what paints here').toBeLessThan(60);
 });
 
 /**
@@ -1319,12 +1327,40 @@ test('uVelocity rises with a scroll, stays clamped, and returns to rest afterwar
  * surface registered against an undecoded image paints a solid black
  * rectangle (OGL uploads a transparent-black 1x1 while it waits, and the
  * shader writes alpha 1).
+ *
+ * The reload is not flake-hiding, and it is bounded at two attempts. `fpsGuard`
+ * tears the whole scene down for the rest of a page's life if it measures
+ * under 50fps over its first 60 frames, and on a cold `astro dev` those frames
+ * are competing with TypeScript transforms and image-derivative generation on
+ * the same machine — measured here at 19.6fps for the first 60 frames, with a
+ * single 1.1s main-thread block inside them, on a tree with no changes at all.
+ * A second load in the same context has those modules in the HTTP cache. If it
+ * trips twice, this fails with the real diagnosis rather than letting a torn
+ * down scene masquerade as a broken effect.
  */
 async function workReady(page: import('@playwright/test').Page): Promise<void> {
-  await page.evaluate(() => document.querySelector('#work')!.scrollIntoView({ block: 'start' }));
-  await page.waitForFunction(() => window.__webgl.surfaces() >= 5, null, { timeout: 12000 });
-  // Let the scrub settle and the hover tweens start from rest.
-  await page.waitForTimeout(600);
+  for (let attempt = 0; ; attempt++) {
+    await page.evaluate(() => document.querySelector('#work')!.scrollIntoView({ block: 'start' }));
+    try {
+      await page.waitForFunction(() => window.__webgl.surfaces() >= 5, null, { timeout: 12000 });
+      // Let the scrub settle and the hover tweens start from rest — and check
+      // the scene survived it, since the guard's window can still be open.
+      await page.waitForTimeout(600);
+      if (await page.evaluate(() => window.__webgl.surfaces() >= 5)) return;
+    } catch {
+      /* fall through to the retry / diagnosis below */
+    }
+    const active = await page.evaluate(() => window.__webgl.active());
+    if (attempt >= 1) {
+      throw new Error(
+        `#work never held five surfaces (webgl active: ${active}). If active is false, ` +
+        `fpsGuard measured this machine under its 50fps floor and tore the scene down: ` +
+        `the effect cannot be asserted about here.`
+      );
+    }
+    await page.reload();
+    await page.waitForTimeout(1500);
+  }
 }
 
 /** uHover for each registered surface, in registration order. */
@@ -1334,6 +1370,93 @@ const hovers = (page: import('@playwright/test').Page) =>
 /** uDissolve for each registered surface; -1 for the hero, which has none. */
 const dissolves = (page: import('@playwright/test').Page) =>
   page.evaluate(() => window.__webgl.debug().map(d => d.uniforms.uDissolve ?? -1));
+
+/**
+ * `uDissolve` and `uOrigin` per work card **in DOM order**, which is not
+ * registration order — cards register as their lazy thumbnails decode, and
+ * that order is a race. Surfaces are matched back to cards by their live rect,
+ * which `debug()` already reports; a card with no surface reads -1.
+ *
+ * This is what makes "the RIGHT card re-formed" a checkable claim rather than
+ * "some card re-formed".
+ */
+function cardState(page: import('@playwright/test').Page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll<HTMLImageElement>('#work .project-scale img')].map(img => {
+      const r = img.getBoundingClientRect();
+      const s = window.__webgl.debug().find(
+        d => d.rect.width > 0 && Math.abs(d.rect.left - r.left) < 1 && Math.abs(d.rect.top - r.top) < 1
+      );
+      return {
+        dissolve: s ? s.uniforms.uDissolve ?? -1 : -1,
+        origin: s ? s.vectors.uOrigin ?? [-1, -1] : [-1, -1],
+      };
+    })
+  );
+}
+
+/**
+ * A visibility transition, as faithfully as anything available here can
+ * produce one.
+ *
+ * Stated plainly, because it is the load-bearing caveat of this whole section:
+ * **no automation available on this machine can reproduce a real tab switch.**
+ * The implementer's CDP `Emulation.setPageVisibilityOverride` no longer exists
+ * in this Chrome; `popup.bringToFront()` leaves the opener's `document.hidden`
+ * false; and the reviewer demonstrated with a bare control page — one
+ * `target="_blank"` link and a logger, no portfolio code — that the opener
+ * never hides under automation at all, with and without Playwright's
+ * backgrounding flags. So this redefines the two properties the handler
+ * actually reads and dispatches a real `visibilitychange`, which is the same
+ * substitution the review used.
+ *
+ * That limitation is exactly why the trigger was inverted. Every test below
+ * that uses this is asking "does the effect play when the event DOES arrive";
+ * the tests that matter more — the ones asking what happens when it does not,
+ * or arrives twice, or out of order — use no substitution at all, because the
+ * answer there is "nothing happens", which needs no event to observe.
+ */
+async function setVisibility(
+  page: import('@playwright/test').Page,
+  hidden: boolean
+): Promise<void> {
+  await page.evaluate((h) => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => (h ? 'hidden' : 'visible'),
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, hidden);
+}
+
+/**
+ * Every work card is registered AND fully revealed — which is the resting
+ * state this whole round exists to guarantee.
+ *
+ * Both halves matter. `cardState` reports -1 for a card with no surface, and
+ * -1 satisfies a naive "< 0.01": a run where `fpsGuard` had torn the scene
+ * down, or where registration silently failed, would pass every "the card is
+ * not burned" assertion in this file while proving nothing. That is exactly
+ * the green-but-meaningless outcome this project asks to be hunted down.
+ */
+async function expectAllRevealed(
+  page: import('@playwright/test').Page,
+  why: string
+): Promise<void> {
+  const state = await cardState(page);
+  expect(state.length, 'four work cards').toBe(4);
+  for (const [i, c] of state.entries()) {
+    expect(c.dissolve, `card ${i} still has a live surface (${why})`).toBeGreaterThanOrEqual(0);
+    expect(c.dissolve, `card ${i} is fully revealed (${why})`).toBeLessThan(0.01);
+  }
+}
+
+/** Leave the tab and come back — the only sequence that ever re-forms a card. */
+async function leaveAndReturn(page: import('@playwright/test').Page): Promise<void> {
+  await setVisibility(page, true);
+  await setVisibility(page, false);
+}
 
 /**
  * *** The defect this test exists for ***
@@ -1385,18 +1508,20 @@ test('hovering a work card raises that card\'s uHover and no other', async ({ pa
 /**
  * *** The defect this test exists for ***
  *
- * A modifier-click opens a BACKGROUND tab: the visitor never leaves this
- * page. Running the dissolve there would fade the card they are still looking
- * at to black and leave it there, because the "come back and re-form" path is
- * driven by `visibilitychange`, which never fires when the tab was never
- * hidden. `isPlainPrimaryClick()` is what excludes it — the same set of
- * clicks `preventNativeAnchorJump()` in src/motion/engine.ts already excludes
- * for a related reason (tests/e2e/modifier-click.spec.ts).
+ * A modifier-click opens a BACKGROUND tab: the visitor never leaves this page
+ * and never returns to it. Arming the re-form there would leave a card
+ * reassembling for no reason at their next unrelated tab switch, on a page
+ * they never left. `isPlainPrimaryClick()` is what excludes it — the same
+ * predicate `preventNativeAnchorJump()` in src/motion/engine.ts uses, now
+ * genuinely shared (src/lib/click.ts) rather than copied, for a related reason
+ * (tests/e2e/modifier-click.spec.ts).
  *
  * The first assertion is the brief's: the click must not be intercepted at
- * all, i.e. the tab really opens. The second is the visual half.
+ * all, i.e. the tab really opens. The second is that it armed nothing — which
+ * only a subsequent leave-and-return can reveal, since a click on its own is
+ * now silent for every card.
  */
-test('modifier-click on a work card is not intercepted and does not dissolve it', async ({ page, context }) => {
+test('modifier-click on a work card is not intercepted and arms no re-form', async ({ page, context }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await context.route('**://www.youtube.com/**', r => r.abort());
   await page.goto('/');
@@ -1407,41 +1532,337 @@ test('modifier-click on a work card is not intercepted and does not dissolve it'
   await page.locator('#work .card-link').first().click({ modifiers: ['Meta'] });
   expect(await popup, 'cmd-click still opens a new tab').not.toBeNull();
 
-  await page.waitForTimeout(1200); // longer than DURATION.dissolve
-  for (const v of await dissolves(page)) {
-    expect(v, 'no card dissolves on a modifier-click').toBeLessThan(0.01);
-  }
+  await leaveAndReturn(page);
+  await expectAllRevealed(page, 'a modifier-click armed nothing');
+  await page.waitForTimeout(1000);
+  await expectAllRevealed(page, 'and still nothing a second later');
 });
 
 /**
- * The other half of the click contract: a plain primary click DOES run the
- * dissolve, and still navigates. Nothing in this codebase may `preventDefault`
- * on it — the link opening the film is the point, and the dissolve is an
- * accompaniment.
+ * *** THE defect this whole round exists for (the review's Critical) ***
+ *
+ * The burn used to run forwards, on the click. Every `.card-link` is
+ * `target="_blank"`, so measured on the live page: click -> `uDissolve` 1 ->
+ * the thumbnail at mean **0.8/255, 97.4% pure black**, unchanged after 4s,
+ * with clicking again doing nothing. The only reset in the code was a
+ * `visibilitychange` listener, and there are real configurations where the
+ * opener never hides after a plain `target="_blank"` click — a new window that
+ * does not occlude it, a background-tab preference, a blocked popup, an
+ * assistive activation that never raises the new tab. That output is the one
+ * thing this task's acceptance bar names as forbidden: a blank rectangle where
+ * the work should be.
+ *
+ * So the click now draws NOTHING, and this test is the guard on that. It uses
+ * no visibility substitution at all, deliberately: the claim is about what
+ * happens when the visitor simply does not come back, which needs no event to
+ * observe. Pixels as well as uniforms, because "the uniform stayed at 0" would
+ * not catch a card blacked out by any other means.
  */
-test('a plain click runs the dissolve to completion and still opens the link', async ({ page, context }) => {
+test('a plain click opens the link and never darkens the card, however long nobody returns', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await context.route('**://www.youtube.com/**', r => r.abort());
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+  // The scroll cue pulses on a CSS keyframe loop — the one thing that would
+  // otherwise differ between two frames taken a moment apart.
+  await page.addStyleTag({ content: '.scroll-line { animation: none !important; }' });
+
+  const box = (await page.locator('#work .card-link').nth(1).locator('.project-thumbnail').boundingBox())!;
+  const region = {
+    left: Math.round(box.x) + 4, top: Math.round(box.y) + 4,
+    width: Math.round(box.width) - 8, height: Math.round(box.height) - 8,
+  };
+  const statsOf = async (shot: Buffer) => {
+    const px = await sharp(shot).extract(region).greyscale().raw().toBuffer();
+    let sum = 0, black = 0;
+    for (const v of px) { sum += v; if (v < 8) black++; }
+    return { mean: sum / px.length, blackFrac: black / px.length };
+  };
+
+  const before = await statsOf(await page.screenshot());
+  expect(before.mean, 'the card shows a photograph to begin with').toBeGreaterThan(60);
+
+  const popup = context.waitForEvent('page', { timeout: 5000 }).catch(() => null);
+  await page.locator('#work .card-link').nth(1).click();
+  expect(await popup, 'a plain click still opens the film').not.toBeNull();
+
+  // Right through the window the old dissolve occupied, and well past it.
+  await page.waitForTimeout(300);
+  await expectAllRevealed(page, '0.3s after the click');
+  await page.waitForTimeout(900);
+  await expectAllRevealed(page, '1.2s after the click, past the whole old tween');
+  await page.waitForTimeout(1800);
+  await expectAllRevealed(page, '3s after the click');
+
+  const after = await statsOf(await page.screenshot());
+  // Measured on the committed version at this exact point: mean 0.8/255,
+  // 97.4% pure black, permanently.
+  expect(after.blackFrac, 'the card is not a black rectangle').toBeLessThan(0.05);
+  expect(after.mean, 'the card still shows its photograph').toBeGreaterThan(60);
+  expect(Math.abs(after.mean - before.mean), 'the click changed nothing at all').toBeLessThan(6);
+});
+
+/**
+ * The other half: when the visitor DOES come back, the card they left through
+ * re-forms — and settles at fully revealed, which is the only state it rests
+ * in.
+ */
+test('returning to the page re-forms the card that was clicked, and settles it whole', async ({ page, context }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await context.route('**://www.youtube.com/**', r => r.abort());
   await page.goto('/');
   await page.waitForTimeout(1500);
   await workReady(page);
 
-  const popup = context.waitForEvent('page', { timeout: 5000 }).catch(() => null);
   await page.locator('#work .card-link').nth(1).click();
-  expect(await popup, 'a plain click still opens the film').not.toBeNull();
+  await page.waitForTimeout(400);
+  await expectAllRevealed(page, 'the click itself drew nothing');
 
-  // Mid-flight: exactly one card is dissolving, and it is not yet finished.
-  await page.waitForTimeout(300);
-  const mid = (await dissolves(page)).filter(v => v > 0.05);
-  expect(mid.length, 'exactly one card is dissolving').toBe(1);
-  expect(mid[0], 'and it is still in flight 0.3s in').toBeLessThan(0.99);
+  await leaveAndReturn(page);
 
+  const start = await cardState(page);
+  expect(start[1].dissolve, 'the clicked card starts its re-form from a burned frame').toBeGreaterThan(0.7);
+  for (const i of [0, 2, 3]) {
+    expect(start[i].dissolve, `card ${i} was not clicked and does not move`).toBeLessThan(0.01);
+  }
+
+  // Mid-tween it is genuinely in flight, not snapped.
+  await page.waitForTimeout(350);
+  const mid = (await cardState(page))[1].dissolve;
+  expect(mid).toBeGreaterThan(0.02);
+  expect(mid).toBeLessThan(start[1].dissolve);
+
+  // And it lands on the resting, fully-revealed state.
   await page.waitForTimeout(900);
-  const done = (await dissolves(page)).filter(v => v > 0.99);
-  expect(done.length, 'that card reaches a full dissolve').toBe(1);
-  // The other three are untouched. (The hero reports -1: it has no
-  // uDissolve at all, so it must not be counted as an untouched card.)
-  expect((await dissolves(page)).filter(v => v >= 0 && v < 0.01).length).toBe(3);
+  await expectAllRevealed(page, 'the re-form settles whole');
+});
+
+/**
+ * *** The state-machine sweep ***
+ *
+ * Every serious defect in this task passed a green suite, and the trigger
+ * change alters a state machine — so these are the cases that break state
+ * machines. Each one asks the same question: **is the card fully revealed at
+ * the end of it?**
+ */
+test('clicking several cards and returning re-forms only the last one', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await context.route('**://www.youtube.com/**', r => r.abort());
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  await page.locator('#work .card-link').nth(0).click();
+  await page.waitForTimeout(200);
+  await page.locator('#work .card-link').nth(2).click();
+  await page.waitForTimeout(200);
+  await page.locator('#work .card-link').nth(3).click();
+  await page.waitForTimeout(200);
+  await expectAllRevealed(page, 'three clicks, nothing drawn');
+
+  await leaveAndReturn(page);
+  const state = await cardState(page);
+  expect(state[3].dissolve, 'the last card clicked is the one that re-forms').toBeGreaterThan(0.7);
+  for (const i of [0, 1, 2]) {
+    expect(state[i].dissolve, `card ${i} stays revealed`).toBeLessThan(0.01);
+  }
+
+  await page.waitForTimeout(1100);
+  await expectAllRevealed(page, 'and it settles whole');
+});
+
+test('an ordinary tab switch, with nothing ever clicked, does nothing at all', async ({ page }) => {
+  // The first-page-load guarantee: a visitor who has never activated a card
+  // must never see cards animate in from black.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  for (let i = 0; i < 3; i++) {
+    await leaveAndReturn(page);
+    await expectAllRevealed(page, `nothing was clicked, so nothing re-forms (round ${i})`);
+  }
+  await page.waitForTimeout(900);
+  await expectAllRevealed(page, 'still nothing a moment later');
+});
+
+test('leaving again mid re-form leaves the card revealed, not part-burned', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await context.route('**://www.youtube.com/**', r => r.abort());
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  await page.locator('#work .card-link').nth(1).click();
+  await leaveAndReturn(page);
+  expect((await cardState(page))[1].dissolve, 'the re-form started').toBeGreaterThan(0.7);
+
+  // Gone again, part way through.
+  await page.waitForTimeout(200);
+  await setVisibility(page, true);
+  await expectAllRevealed(page, 'the abandoned re-form snaps to revealed, not to black');
+  // And coming back does not replay it: that visit is over.
+  await setVisibility(page, false);
+  await expectAllRevealed(page, 'and returning does not replay it');
+  await page.waitForTimeout(900);
+  await expectAllRevealed(page, 'nor does it start late');
+});
+
+test('a duplicated return re-forms once, not twice', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await context.route('**://www.youtube.com/**', r => r.abort());
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  await page.locator('#work .card-link').nth(1).click();
+  await leaveAndReturn(page);
+  await page.waitForTimeout(1100);
+  await expectAllRevealed(page, 'the first re-form finished');
+
+  // A second `visible` with no intervening hide must find nothing pending.
+  await setVisibility(page, false);
+  await expectAllRevealed(page, 'the re-form is not replayed');
+});
+
+test('a soft navigation away and back clears a pending re-form', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await context.route('**://www.youtube.com/**', r => r.abort());
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  await page.locator('#work .card-link').nth(1).click();
+  await page.waitForTimeout(200);
+
+  // Link clicks, not page.goto(): ClientRouter only intercepts same-document
+  // navigations, and a goto() would discard the JS realm and prove nothing.
+  await page.locator('footer a[href="/privacy"]').click();
+  await page.waitForTimeout(2000);
+  await page.locator('a.logo[href="/"]').click();
+  await page.waitForTimeout(2000);
+  await workReady(page);
+
+  // The scene those uniform objects belonged to is gone; an activation from
+  // before the navigation must not re-form anything in the new one.
+  await leaveAndReturn(page);
+  await expectAllRevealed(page, 'no activation survives the navigation');
+  await page.waitForTimeout(900);
+  await expectAllRevealed(page, 'and none arrives late');
+});
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * `.card-link` wraps the caption as well as the photograph, and the origin
+ * governs where the re-form converges. Measured on the live page before this
+ * was fixed: clicking `.project-title` ran the effect with `uMouse.y = 0`, so
+ * the iris closed on the frame's BOTTOM edge — on a portrait the sitter's head
+ * burned first, the exact opposite of the stated design. `Enter` on a focused
+ * card was the same class of problem from the other direction: it dispatches a
+ * click at clientX/clientY 0, clamped to the top-left CORNER.
+ *
+ * `uOrigin` is otherwise unobservable — it is written once, at activation —
+ * which is why surface.ts's debug hook reports vec2 uniforms.
+ */
+test('the re-form converges on the photograph, not on a clamped edge or corner', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await context.route('**://www.youtube.com/**', r => r.abort());
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  const card = page.locator('#work .card-link').nth(1);
+
+  // 1. A genuine hit inside the frame is honoured.
+  const thumb = (await card.locator('.project-thumbnail').boundingBox())!;
+  await page.mouse.click(thumb.x + thumb.width * 0.25, thumb.y + thumb.height * 0.25);
+  let origin = (await cardState(page))[1].origin;
+  expect(origin[0], 'u follows the click').toBeCloseTo(0.25, 1);
+  expect(origin[1], 'v follows the click, y-flipped').toBeCloseTo(0.75, 1);
+
+  // 2. A click on the caption falls back to the centre of the frame — it
+  //    must NOT clamp to the bottom edge (v = 0).
+  await card.locator('.project-title').click();
+  origin = (await cardState(page))[1].origin;
+  expect(origin, 'a caption click converges on the centre').toEqual([0.5, 0.5]);
+
+  // 3. Keyboard activation likewise — and it must still arm, since a keyboard
+  //    user is as entitled to the effect as anyone.
+  await card.focus();
+  await page.keyboard.press('Enter');
+  origin = (await cardState(page))[1].origin;
+  expect(origin, 'Enter converges on the centre, not the top-left corner').toEqual([0.5, 0.5]);
+
+  await leaveAndReturn(page);
+  expect(
+    (await cardState(page))[1].dissolve,
+    'a keyboard activation still re-forms on return'
+  ).toBeGreaterThan(0.7);
+  await page.waitForTimeout(1100);
+  await expectAllRevealed(page, 'and settles whole');
+});
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * `pointerenter` skips `pointerType === 'touch'` so a finger on a hybrid
+ * laptop (touchscreen + trackpad — which does NOT match
+ * `(hover: none) and (pointer: coarse)`, and therefore does register) gets no
+ * hover state it cannot dismiss. `pointermove` and `click` did not, so the
+ * same finger still paid a forced layout read per move and still armed the
+ * full effect, with no hover context and via the branch that used to lead to
+ * a permanently black card.
+ *
+ * Synthetic `PointerEvent`s, because the gate under test is the listener's own
+ * reading of `pointerType` and no real device here can produce a hybrid.
+ */
+test('touch-typed pointer events on a hybrid device neither feed nor arm the card', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.addInitScript(() => {
+    const w = window as unknown as { __workRect: number };
+    w.__workRect = 0;
+    const orig = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      if (this instanceof HTMLImageElement && this.closest('#work .project-scale')) w.__workRect++;
+      return orig.call(this);
+    };
+  });
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  // Counted INSIDE one evaluate, so `surface.ts`'s own per-frame rect read —
+  // four of them a frame, for the four live surfaces — cannot land between the
+  // two samples and drown the signal. Nothing but these listeners runs here.
+  const cost = await page.evaluate(() => {
+    const w = window as unknown as { __workRect: number };
+    const link = document.querySelectorAll<HTMLElement>('#work .card-link')[1];
+    const r = link.getBoundingClientRect();
+    const ev = (type: string, pointerType: string) => new PointerEvent(type, {
+      bubbles: true, cancelable: true, pointerType,
+      clientX: r.left + r.width / 2, clientY: r.top + 20, button: 0,
+    });
+
+    const beforeTouch = w.__workRect;
+    for (let i = 0; i < 25; i++) link.dispatchEvent(ev('pointermove', 'touch'));
+    link.dispatchEvent(ev('click', 'touch'));
+    const touch = w.__workRect - beforeTouch;
+
+    // A mouse pointermove for contrast, so a gate that simply broke every
+    // listener would show up here rather than reading as a pass.
+    const beforeMouse = w.__workRect;
+    link.dispatchEvent(ev('pointermove', 'mouse'));
+    return { touch, mouse: w.__workRect - beforeMouse };
+  });
+
+  expect(cost.touch, '25 touch moves and a tap force no layout at all').toBe(0);
+  expect(cost.mouse, 'one mouse move still costs its one read').toBe(1);
+
+  await leaveAndReturn(page);
+  await expectAllRevealed(page, 'a finger tap armed nothing');
 });
 
 /**
@@ -1745,12 +2166,11 @@ test('with WebGL unavailable every work thumbnail is visible, positioned and cli
  *
  * `initWebGL()` opens by destroying every surface, so a View Transition
  * rebuilds the scene from scratch — and `SelectedWork.astro` re-registers
- * from module scope on `webgl:ready`, adding a fresh set of pointer and
- * `visibilitychange` listeners each time. If the previous set were not
- * aborted, hovering one card after a couple of navigations would drive
- * several dead uniform objects and the page would accumulate listeners
- * silently: the motion suite's leak test counts ScrollTriggers only and would
- * never see it (AGENTS.md says so explicitly).
+ * from module scope on `webgl:ready`, adding a fresh set of pointer listeners
+ * each time. If the previous set were not aborted, hovering one card after a
+ * couple of navigations would drive several dead uniform objects and the page
+ * would accumulate listeners silently: the motion suite's leak test counts
+ * ScrollTriggers only and would never see it (AGENTS.md says so explicitly).
  *
  * Soft navigation away and back, then hover: the count must be exactly what
  * it was, and exactly one surface may respond.
@@ -1843,3 +2263,341 @@ test('a network that refuses CORS costs the shader, never the photograph', async
     expect(max - min, `card at ${b.left},${b.top} has photographic range, not a flat rectangle`).toBeGreaterThan(80);
   }
 });
+
+/**
+ * *** The defect this test exists for (the review's I1 / L-1) ***
+ *
+ * `registerSurface()` silently no-ops when no scene is alive, and `onDestroy`
+ * is only ever reached through a surface's `destroy()`. SelectedWork.astro
+ * registers LATE — each card waits for its own lazy thumbnail to decode, which
+ * needs a 4,316px scroll — so if `teardownWebGL()` has already run, every
+ * `registerCard()` still executed in full and installed listeners that nothing
+ * could ever abort. Two of teardown's three entry points do exactly that
+ * without a navigation: the fps guard deciding this device cannot hold 50fps,
+ * and a lost GPU context.
+ *
+ * Measured before the fix, on the lost-context path (the same entry point
+ * class as the guard's): `document` 'visibilitychange' listeners 3 -> 7, one
+ * per card, and 26 `getBoundingClientRect()` calls during 25 pointer moves
+ * over a dead card, against 0 for the same moves away from any card. Every
+ * pointer move forcing a layout to feed uniforms no GPU program reads — on the
+ * device that just failed the fps test. Verbatim the leak
+ * `SurfaceOptions.onDestroy` was written to prevent, reintroduced on the same
+ * path, because the mechanism keyed off a `destroy()` that never existed.
+ *
+ * The fix is that `registerSurface()` now reports whether it registered, and
+ * `registerCard()` installs nothing when it did not.
+ */
+test('a teardown before the thumbnails decode leaves no listener and no per-move feed', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await ctx.addInitScript(() => {
+    const w = window as unknown as { __added: Record<string, number>; __workRect: number };
+    w.__added = {};
+    w.__workRect = 0;
+    const add = document.addEventListener.bind(document);
+    document.addEventListener = function (type: string, ...rest: unknown[]) {
+      w.__added[type] = (w.__added[type] ?? 0) + 1;
+      // @ts-expect-error instrumentation passthrough
+      return add(type, ...rest);
+    } as typeof document.addEventListener;
+    const origRect = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      if (this instanceof HTMLImageElement && this.closest('#work .project-scale')) w.__workRect++;
+      return origRect.call(this);
+    };
+  });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => window.__webgl.active()), 'WebGL really started').toBe(true);
+
+  // Force the teardown, through a real entry point, BEFORE anything in #work
+  // has decoded — which is the whole precondition.
+  const decodedBefore = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLImageElement>('#work .project-scale img')]
+      .filter(i => i.complete && i.naturalWidth > 0).length
+  );
+  expect(decodedBefore, 'no work thumbnail has decoded yet').toBe(0);
+
+  await page.evaluate(() => {
+    document.querySelector('canvas')!.dispatchEvent(new Event('webglcontextlost'));
+  });
+  expect(await page.evaluate(() => window.__webgl.active()), 'the scene is gone').toBe(false);
+  expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(0);
+
+  const base = await page.evaluate(() => {
+    const w = window as unknown as { __added: Record<string, number>; __workRect: number };
+    return { vis: w.__added['visibilitychange'] ?? 0, rect: w.__workRect };
+  });
+
+  // Now let all four thumbnails decode, exactly as a visitor scrolling down a
+  // torn-down page would.
+  await page.evaluate(() => document.querySelector('#work')!.scrollIntoView({ block: 'start' }));
+  await page.waitForFunction(
+    () => [...document.querySelectorAll<HTMLImageElement>('#work .project-scale img')]
+      .every(i => i.complete && i.naturalWidth > 0),
+    null,
+    { timeout: 15000 }
+  );
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => window.__webgl.surfaces()), 'still no surfaces').toBe(0);
+
+  const added = await page.evaluate(() =>
+    ((window as unknown as { __added: Record<string, number> }).__added['visibilitychange'] ?? 0)
+  );
+  // Measured before the fix: +4, one per card. The component's own trigger
+  // listener is a single one added at module scope, long before this point.
+  expect(added - base.vis, 'no document listener was added by a card that never registered').toBe(0);
+
+  // 25 real pointer moves across a dead card.
+  const box = (await page.locator('#work .card-link').first().boundingBox())!;
+  const rectBefore = await page.evaluate(() => (window as unknown as { __workRect: number }).__workRect);
+  for (let i = 0; i < 25; i++) {
+    await page.mouse.move(box.x + 10 + i * 4, box.y + 10 + (i % 5));
+  }
+  const rectAfter = await page.evaluate(() => (window as unknown as { __workRect: number }).__workRect);
+
+  // Control: the same 25 moves nowhere near a card.
+  const ctrlBefore = rectAfter;
+  for (let i = 0; i < 25; i++) await page.mouse.move(5 + i, 5 + (i % 5));
+  const ctrlAfter = await page.evaluate(() => (window as unknown as { __workRect: number }).__workRect);
+
+  // Measured before the fix: 26 over a card against 0 for the control.
+  expect(rectAfter - rectBefore, 'no forced layout per pointer move over a dead card').toBeLessThan(2);
+  expect(ctrlAfter - ctrlBefore, 'control').toBeLessThan(2);
+
+  // And the degradation contract still holds: the photographs were never
+  // hidden by any of this.
+  const cards = page.locator('#work .card-link');
+  for (let i = 0; i < 4; i++) await expect(cards.nth(i).locator('img')).toBeVisible();
+
+  await ctx.close();
+});
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * `registerSurface` sets `texture.image = el` once, and OGL's
+ * `Texture.update()` short-circuits on
+ * `this.image === this.store.image && !this.needsUpdate`
+ * (ogl/src/core/Texture.js) — so re-decoding the SAME element with a new
+ * bitmap never re-uploaded. A `srcset` swap is exactly that: the element does
+ * not change, its `naturalWidth` does. `syncCover` was already wired to the
+ * element's `load` for this case and refreshed only the cover window.
+ *
+ * Measured in review, two runs ending in an identical DOM state (naturalWidth
+ * 576 both times): fresh load at 1280 gave mesh HF 3.838 against DOM 3.153;
+ * load at 390 then resize to 1280 gave mesh HF **2.707** — 30% softer, because
+ * the mesh was still painting the 400w bitmap upscaled into a 506px box.
+ *
+ * Only the local `<Image>` card carries a `srcset`, so this drives that one,
+ * and it counts the uploads rather than measuring sharpness: the upload is
+ * unambiguous, whereas a sharpness threshold on a live screenshot is a
+ * judgement call that would have to be re-tuned with the owner's real images.
+ */
+test('a srcset swap re-uploads the new bitmap instead of leaving a stale texture', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await ctx.addInitScript(() => {
+    const w = window as unknown as { __uploads: number[] };
+    w.__uploads = [];
+    for (const proto of [
+      (window as unknown as { WebGLRenderingContext?: { prototype: WebGLRenderingContext } }).WebGLRenderingContext,
+      (window as unknown as { WebGL2RenderingContext?: { prototype: WebGL2RenderingContext } }).WebGL2RenderingContext,
+    ]) {
+      if (!proto) continue;
+      const orig = proto.prototype.texImage2D;
+      // @ts-expect-error instrumentation passthrough
+      proto.prototype.texImage2D = function (...args: unknown[]) {
+        const src = args[args.length - 1];
+        if (src instanceof HTMLImageElement && src.closest('#work .project-scale')) {
+          w.__uploads.push(src.naturalWidth);
+        }
+        // @ts-expect-error instrumentation passthrough
+        return orig.apply(this, args);
+      };
+    }
+  });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  const small = await page.evaluate(() =>
+    document.querySelector<HTMLImageElement>('#work .project-scale img')!.naturalWidth
+  );
+  const uploadsSmall = await page.evaluate(() => [...(window as unknown as { __uploads: number[] }).__uploads]);
+  expect(uploadsSmall, 'the narrow bitmap reached the GPU').toContain(small);
+
+  // Cross the `sizes` breakpoint — "(max-width: 900px) 90vw, 45vw" — so the
+  // browser picks a wider candidate and re-decodes the SAME element.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForFunction(
+    (w) => document.querySelector<HTMLImageElement>('#work .project-scale img')!.naturalWidth > w,
+    small,
+    { timeout: 10000 }
+  );
+  const large = await page.evaluate(() =>
+    document.querySelector<HTMLImageElement>('#work .project-scale img')!.naturalWidth
+  );
+  expect(large, 'the element really swapped to a wider bitmap').toBeGreaterThan(small);
+  await page.waitForTimeout(600);
+  // The surface has to still be alive for an upload to be possible at all —
+  // otherwise "no upload happened" would be true for a reason that has nothing
+  // to do with the texture.
+  expect(await page.evaluate(() => window.__webgl.surfaces()), 'the scene survived the resize').toBe(5);
+
+  const uploads = await page.evaluate(() => [...(window as unknown as { __uploads: number[] }).__uploads]);
+  // Before the fix this list ended at `small` and the mesh went on painting
+  // it upscaled for the rest of the page's life.
+  expect(uploads, 'the wider bitmap reached the GPU too').toContain(large);
+
+  await ctx.close();
+});
+
+/**
+ * *** The defect this test exists for (the review's I2/I3) ***
+ *
+ * There used to be a unit test called "covers the whole frame at
+ * uDissolve = 1 and none of it at 0". It re-derived the shader's own
+ * arithmetic and was arithmetically correct — and it certified a span the
+ * effect did not have. The divisor was a fixed 1.35, so from a centre origin
+ * `radial` capped at 0.756 and the frame sat untouched through the first third
+ * of the tween: 0.25 seconds of visible effect inside a 0.7 second timeline.
+ * The test could not see that, because it derived its bounds from
+ * "radial is clamped to [0, 1]" — a range only an origin within 0.33 of a
+ * corner could reach.
+ *
+ * So this asserts what is actually SEEN. It compiles the shipped
+ * `WORK_FRAGMENT`, verbatim and imported rather than re-typed, in a real GL
+ * context, and measures the rendered frame across the tween. Three origins,
+ * because the defect was origin-dependent and a centre-only measurement
+ * understates it. A synthetic texture, so this needs no network and the
+ * meaning of "went black" is unambiguous.
+ *
+ * Measured on the committed shader: first dark pixel at d = 0.35, complete at
+ * d = 0.90 — a visible span of 55%. On this one: d = 0.075-0.10 to d = 1.00,
+ * a span of 92%.
+ */
+async function burnSweep(
+  page: import('@playwright/test').Page,
+  origin: [number, number]
+): Promise<Array<{ d: number; dark: number; minLuma: number }>> {
+  return page.evaluate(({ FRAG, origin }) => {
+    const W = 505, H = 284;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const gl = canvas.getContext('webgl')!;
+    const compile = (type: number, src: string) => {
+      const s = gl.createShader(type)!;
+      gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) ?? 'compile failed');
+      return s;
+    };
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, `attribute vec2 p; varying vec2 vUv;
+      void main(){ vUv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }`));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) ?? 'link failed');
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, 'p');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+    // Deterministic stand-in for a photograph: structured, and every channel
+    // well clear of black, so "this pixel went dark" can only mean the burn.
+    const TW = 256, TH = 144;
+    const px = new Uint8Array(TW * TH * 4);
+    for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {
+      const i = (y * TW + x) * 4;
+      px[i] = 90 + ((x * 7 + y * 3) % 120);
+      px[i + 1] = 80 + ((x * 3 + y * 11) % 130);
+      px[i + 2] = 100 + ((x * 5 + y * 5) % 110);
+      px[i + 3] = 255;
+    }
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, TW, TH, 0, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    const u = (n: string) => gl.getUniformLocation(prog, n);
+    gl.uniform1i(u('tMap'), 0);
+    gl.uniform1f(u('uTime'), 3.5);
+    gl.uniform1f(u('uHover'), 0);
+    gl.uniform2f(u('uMouse'), 0.5, 0.5);
+    gl.uniform2f(u('uOrigin'), origin[0], origin[1]);
+    gl.uniform2f(u('uAspect'), W / H, 1);
+    gl.uniform2f(u('uCoverScale'), 1, 1);
+    gl.uniform2f(u('uCoverOffset'), 0, 0);
+    gl.viewport(0, 0, W, H);
+
+    const rows: Array<{ d: number; dark: number; minLuma: number }> = [];
+    for (let i = 0; i <= 40; i++) {
+      const d = i / 40;
+      gl.uniform1f(u('uDissolve'), d);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      const out = new Uint8Array(W * H * 4);
+      gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, out);
+      let dark = 0, minLuma = 255;
+      for (let p = 0; p < W * H; p++) {
+        const l = 0.2126 * out[p * 4] + 0.7152 * out[p * 4 + 1] + 0.0722 * out[p * 4 + 2];
+        if (l < 8) dark++;
+        if (l < minLuma) minLuma = l;
+      }
+      rows.push({ d, dark: dark / (W * H), minLuma });
+    }
+    return rows;
+  }, { FRAG: WORK_FRAGMENT, origin });
+}
+
+for (const [name, origin] of [
+  ['centre', [0.5, 0.5]],
+  ['off-centre', [0.42, 0.62]],
+  ['near a corner', [0.06, 0.94]],
+] as Array<[string, [number, number]]>) {
+  test(`the burn is visible across almost all of its tween, from an origin ${name}`, async ({ page }) => {
+    await page.goto('/');
+    const rows = await burnSweep(page, origin);
+
+    const at = (d: number) => rows.find(r => Math.abs(r.d - d) < 1e-9)!;
+
+    // uDissolve 0 IS the resting, fully-revealed state: not one pixel is even
+    // PARTLY darkened. The texture's own darkest luma is ~83; a pixel at half
+    // intact would read ~42.
+    expect(at(0).dark, 'nothing is black at rest').toBe(0);
+    expect(at(0).minLuma, 'nothing is even partly darkened at rest').toBeGreaterThan(60);
+
+    // uDissolve 1 clears the frame completely — the single instant the re-form
+    // starts from, and the only moment the card is ever dark.
+    expect(at(1).dark, 'the frame is entirely gone at uDissolve 1').toBe(1);
+
+    // Monotone: the burn only ever advances.
+    for (let i = 1; i < rows.length; i++) {
+      expect(rows[i].dark + 1e-9, `dark coverage does not go backwards at d=${rows[i].d}`)
+        .toBeGreaterThanOrEqual(rows[i - 1].dark);
+    }
+
+    // *** The assertion the old unit test could not make ***
+    // The span over which the frame is genuinely mid-burn — neither intact
+    // nor finished — must cover almost the whole tween. Measured on the
+    // committed shader from a centre origin: [0.35, 0.90], 55%. Here: 92%.
+    const onset = rows.find(r => r.dark > 0)!.d;
+    const complete = rows.find(r => r.dark >= 0.999)!.d;
+    expect(onset, `the burn starts early (onset ${onset})`).toBeLessThan(0.15);
+    expect(complete, `and is not finished long before the end (complete ${complete})`).toBeGreaterThan(0.95);
+    expect(complete - onset, 'visible span as a fraction of the tween').toBeGreaterThan(0.85);
+
+    // And it is actually PROGRESSING throughout, not sitting at one value:
+    // roughly a tenth of the frame changes state in every fifth of the tween.
+    for (const [lo, hi] of [[0.2, 0.4], [0.4, 0.6], [0.6, 0.8]] as Array<[number, number]>) {
+      expect(at(hi).dark - at(lo).dark, `the burn advances between d=${lo} and d=${hi}`)
+        .toBeGreaterThan(0.05);
+    }
+  });
+}

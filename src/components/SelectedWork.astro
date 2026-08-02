@@ -248,14 +248,19 @@ const projects = [
 
 <script>
   import gsap from 'gsap';
+  import { isPlainPrimaryClick } from '../lib/click';
   import { DURATION, EASE } from '../motion/tokens';
   import { registerSurface, WEBGL_READY_EVENT } from '../webgl';
   import { computeCoverUv, parseObjectPosition } from '../webgl/geometry';
   import {
     createWorkUniforms,
+    dissolveOriginUv,
     elementUv,
-    isPlainPrimaryClick,
+    initialReformState,
+    nextReformState,
     workShader,
+    type ReformState,
+    type WorkUniforms,
   } from '../webgl/shaders/work';
 
   /**
@@ -309,6 +314,92 @@ const projects = [
   armCorsFallback();
   document.addEventListener('astro:page-load', armCorsFallback);
 
+  // --- the re-form trigger -------------------------------------------------
+  //
+  // A click DRAWS NOTHING. The burn plays once, in reverse, when the visitor
+  // comes back to this tab: the card they left through re-forms from the
+  // point they activated.
+  //
+  // It used to run forwards, on the click itself. Measured on the committed
+  // version: every `.card-link` is `target="_blank"`, so the tab backgrounds
+  // 100-200ms after the click, while the frame is still pixel-wise
+  // indistinguishable from rest — and Chrome throttles a hidden tab's
+  // requestAnimationFrame, which is what gsap.ticker runs on, to roughly
+  // 1fps. The effect played to nobody and then rested on black: mean
+  // 0.8/255, 97.4% pure black, and it stayed there, because the ONLY reset
+  // was the `visibilitychange` listener and clicking again did nothing.
+  //
+  // This still depends on `visibilitychange`, which is exactly as unreliable
+  // as it was — nobody on this plan has ever observed it firing after a
+  // `target="_blank"` click, and a bare control page proved no automation
+  // available here can reproduce a real tab switch. What changed is the
+  // FAILURE MODE. Before: the event is missed and a card is stuck black, a
+  // blank rectangle where the work should be, which this task's acceptance
+  // bar forbids outright. After: the event is missed and nothing happens at
+  // all. So this is built so that every path where the trigger is missed,
+  // delayed, duplicated or arrives out of order leaves the card fully
+  // revealed — see nextReformState()'s comment for the rules, which are pure
+  // and unit-tested, and the sweep of state-machine cases in
+  // tests/e2e/webgl.spec.ts.
+
+  interface LiveCard {
+    uniforms: WorkUniforms;
+  }
+
+  /** Registered cards of the CURRENT scene, by their index in `#work`. */
+  const live = new Map<number, LiveCard>();
+  let reform: ReformState = initialReformState();
+
+  /**
+   * The resting state, which is also the fully-revealed one (AGENTS.md).
+   * Killing the tween first matters: a re-form abandoned half way through
+   * would otherwise keep running down to 0 from wherever it was, which is
+   * correct but slow, and this is called from paths that want the card whole
+   * immediately.
+   */
+  function reveal(card: LiveCard): void {
+    gsap.killTweensOf(card.uniforms.uDissolve);
+    card.uniforms.uDissolve.value = 0;
+  }
+
+  function onVisibilityChange(): void {
+    const step = nextReformState(
+      reform,
+      document.hidden ? { type: 'hidden', at: performance.now() } : { type: 'visible' }
+    );
+    reform = step.state;
+
+    // Unconditionally, and BEFORE anything else, whatever the machine
+    // decided: every card goes back to fully revealed. This is what makes a
+    // duplicated, late or out-of-order event harmless — the worst it can do
+    // is re-reveal something already revealed, or abandon a re-form that was
+    // in flight when the visitor left again.
+    for (const card of live.values()) reveal(card);
+
+    if (step.reform === null) return;
+    const card = live.get(step.reform);
+    if (!card) return;
+
+    // The one and only moment uDissolve is ever 1, and it is already tweening
+    // away from it in the same breath. Nothing rests here.
+    card.uniforms.uDissolve.value = 1;
+    gsap.to(card.uniforms.uDissolve, {
+      value: 0,
+      duration: DURATION.dissolve,
+      ease: EASE.inOut,
+      overwrite: true,
+    });
+  }
+
+  /**
+   * ONE listener, at module scope, for the life of the page — not one per
+   * card per scene, which is what the first version did and what showed up in
+   * review as four orphaned `document` listeners after a teardown. It is
+   * inert unless a registered card's click handler has armed the machine, and
+   * a torn-down page has no registered cards.
+   */
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
   // --- surface registration ------------------------------------------------
 
   /** Aborts the `load` listeners of cards still waiting to be registered. */
@@ -347,11 +438,45 @@ const projects = [
     }
   }
 
-  function registerCard(link: HTMLElement, img: HTMLImageElement): void {
+  function registerCard(link: HTMLElement, img: HTMLImageElement, index: number): void {
     const uniforms = createWorkUniforms();
     const listeners = new AbortController();
     const { signal } = listeners;
+
+    /**
+     * *** Registration comes FIRST, and its answer is checked. ***
+     *
+     * `registerSurface()` no-ops when no scene is alive, and `onDestroy` is
+     * only ever reached through a surface's `destroy()` — so a card that gets
+     * here after a teardown would install every listener below with nothing
+     * that could ever abort them. That is not hypothetical: this component
+     * registers LATE, when each lazy thumbnail decodes, and two of
+     * `teardownWebGL()`'s three entry points (the fps guard tripping, a lost
+     * GPU context) happen without a navigation and long before a visitor has
+     * scrolled the 4,316px to get here. Measured on the committed version, on
+     * the lost-context path: +4 orphaned `document` listeners and 26 forced
+     * layouts per 25 pointer moves over a dead card, against 0 for the same
+     * moves away from one — the exact leak SurfaceOptions.onDestroy exists to
+     * prevent, on the exact path it was written for.
+     *
+     * Nothing has been added to `live` or `cards` at this point and no
+     * listener has been installed, so bailing here leaves nothing behind.
+     */
+    if (
+      !registerSurface(img, workShader(uniforms), {
+        onDestroy: () => {
+          gsap.killTweensOf(uniforms.uHover);
+          gsap.killTweensOf(uniforms.uDissolve);
+          live.delete(index);
+          listeners.abort();
+        },
+      })
+    ) {
+      return;
+    }
+
     cards.push(listeners);
+    live.set(index, { uniforms });
 
     /**
      * The `object-fit: cover` window and the frame's aspect ratio.
@@ -382,7 +507,11 @@ const projects = [
 
     syncCover();
     window.addEventListener('resize', syncCover, { passive: true, signal });
-    // A srcset swap replaces the decoded bitmap without resizing anything.
+    // A srcset swap replaces the decoded bitmap without resizing anything, so
+    // the cover window has to be recomputed against the new natural size.
+    // (The other half of that swap — re-uploading the new bitmap to the GPU —
+    // is surface.ts's `needsUpdate`; handling only this half left the mesh
+    // painting the old, smaller bitmap upscaled.)
     img.addEventListener('load', syncCover, { signal });
 
     // Tweened, not assigned: a step change between 0 and 1 makes the ripple
@@ -420,87 +549,63 @@ const projects = [
       },
       { signal }
     );
-    link.addEventListener('pointermove', setMouse, { signal });
+    link.addEventListener(
+      'pointermove',
+      (event: PointerEvent) => {
+        // Same gate as pointerenter, and for a second reason on top of the
+        // aesthetic one: every one of these forces a layout read, and on a
+        // hybrid laptop a finger drag across the card would pay for one per
+        // move to feed a ripple that is deliberately never raised.
+        if (event.pointerType === 'touch') return;
+        setMouse(event);
+      },
+      { signal }
+    );
     link.addEventListener('pointerleave', () => setHover(0), { signal });
     // A pointer can leave without a pointerleave when its device is removed
     // or capture is broken mid-gesture; without this the ripple stays lit.
     link.addEventListener('pointercancel', () => setHover(0), { signal });
 
-    let dissolving = false;
-
     link.addEventListener(
       'click',
       (event: MouseEvent) => {
-        // No preventDefault on any branch. The link opens the film on
-        // YouTube and that navigation is the point; the dissolve accompanies
-        // it. Modifier and non-primary clicks are skipped outright rather
-        // than merely un-prevented: those open a BACKGROUND tab, so the user
-        // stays on this page, and a dissolve that resolves to black would
-        // black out a card they never left.
+        // No preventDefault on any branch, and nothing drawn. The link opens
+        // the film on YouTube and that navigation is the point; all this does
+        // is remember which card the visitor left through, and from which
+        // point, so it can re-form when they come back.
+        //
+        // A finger tap on a hybrid laptop (touchscreen + trackpad, which does
+        // not match COARSE and so does register) is excluded for the same
+        // reason its hover state is: the whole effect is a pointer
+        // interaction, and half of one is worse than none.
+        if ((event as PointerEvent).pointerType === 'touch') return;
+        // Modifier and non-primary clicks are skipped outright: those open a
+        // BACKGROUND tab, so the visitor never leaves this page and never
+        // "returns" to it. Arming on one would leave a card re-forming for no
+        // reason at the visitor's next unrelated tab switch.
         if (!isPlainPrimaryClick(event)) return;
-        setMouse(event);
-        dissolving = true;
-        gsap.to(uniforms.uDissolve, {
-          value: 1,
-          duration: DURATION.dissolve,
-          ease: EASE.inOut,
-          overwrite: true,
-        });
+
+        // Where the iris will converge, frozen now. Not `elementUv`: a click
+        // on the caption, or a keyboard `Enter` (which dispatches a click at
+        // clientX/clientY 0, hence `detail === 0`), has no meaningful point
+        // on the photograph and must fall back to its centre rather than
+        // clamp onto an edge or a corner. Its own uniform, not `uMouse`, so a
+        // pointer crossing the card during the re-form cannot drag the iris
+        // around with it.
+        uniforms.uOrigin.value = dissolveOriginUv(
+          img.getBoundingClientRect(),
+          event.clientX,
+          event.clientY,
+          event.detail === 0
+        );
+        reform = nextReformState(reform, {
+          type: 'click',
+          card: index,
+          at: performance.now(),
+        }).state;
       },
       { signal }
     );
-
-    /**
-     * `target="_blank"` means the click that starts the dissolve also hands
-     * focus to a new tab, and Chrome throttles a background tab's
-     * requestAnimationFrame to roughly 1fps — which is what gsap.ticker, and
-     * therefore the timeline above, runs on. Left alone, the dissolve would
-     * freeze part-way and then finish visibly, minutes later, at the moment
-     * the visitor came back to look at the portfolio again.
-     *
-     * So: snap to the end when the tab goes away, and re-form the frame when
-     * it comes back. Returning to an intact page is the correct resting
-     * state — the card is a link the visitor may well want to use again —
-     * and re-forming rather than snapping keeps it a transition (AGENTS.md).
-     * Guarded on `dissolving` so an ordinary tab switch, on a page where
-     * nobody has clicked anything, does nothing at all.
-     */
-    document.addEventListener(
-      'visibilitychange',
-      () => {
-        if (!dissolving) return;
-        if (document.hidden) {
-          gsap.killTweensOf(uniforms.uDissolve);
-          gsap.set(uniforms.uDissolve, { value: 1 });
-        } else {
-          dissolving = false;
-          gsap.to(uniforms.uDissolve, {
-            value: 0,
-            duration: DURATION.base,
-            ease: EASE.out,
-            overwrite: true,
-          });
-        }
-      },
-      { signal }
-    );
-
-    /**
-     * `onDestroy` is what makes the listeners above safe. `teardownWebGL()`
-     * is reached from three places and only one of them is a navigation:
-     * fpsGuard deciding this device cannot hold 50fps, and a lost GPU
-     * context, both destroy every surface while leaving this component's DOM
-     * and its listeners exactly where they are. Without this, a device that
-     * had just failed the fps test would keep running getBoundingClientRect
-     * on every pointermove to feed uniforms no GPU program reads any more.
-     */
-    registerSurface(img, workShader(uniforms), {
-      onDestroy: () => {
-        gsap.killTweensOf(uniforms.uHover);
-        gsap.killTweensOf(uniforms.uDissolve);
-        listeners.abort();
-      },
-    });
   }
 
   /**
@@ -520,14 +625,22 @@ const projects = [
     // this is safe to run over the ones that did register too.
     for (const controller of cards.splice(0)) controller.abort();
     pending = new AbortController();
+    // The scene these uniform objects belonged to has just been destroyed, so
+    // a re-form pending against one of them would drive an object no GPU
+    // program reads. Resetting is also what makes a soft navigation away and
+    // back safe: an activation from before the navigation is forgotten, and
+    // the visitor's next tab switch does nothing.
+    live.clear();
+    reform = initialReformState();
 
     if (window.matchMedia(COARSE).matches) return;
 
-    for (const link of document.querySelectorAll<HTMLElement>('#work .card-link')) {
+    const links = [...document.querySelectorAll<HTMLElement>('#work .card-link')];
+    for (const [index, link] of links.entries()) {
       const img = link.querySelector<HTMLImageElement>('.project-scale img');
       if (!img) continue;
       if (textureSafe(img)) {
-        registerCard(link, img);
+        registerCard(link, img, index);
       } else {
         // Lazy, below the fold, and not decoded yet at ready time — which is
         // every card on a cold load. Register when it decodes instead of
@@ -536,7 +649,7 @@ const projects = [
         img.addEventListener(
           'load',
           () => {
-            if (textureSafe(img)) registerCard(link, img);
+            if (textureSafe(img)) registerCard(link, img, index);
           },
           { once: true, signal: pending.signal }
         );

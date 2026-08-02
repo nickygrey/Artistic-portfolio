@@ -16,6 +16,7 @@ export interface SurfaceHandle {
     mesh: { x: number; y: number; sx: number; sy: number };
     scissor: { x: number; y: number; width: number; height: number; visible: boolean };
     uniforms: Record<string, number>;
+    vectors: Record<string, number[]>;
     visible: boolean;
   };
 }
