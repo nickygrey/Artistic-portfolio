@@ -249,20 +249,29 @@ test('the canvas paints above SelectedWork\'s scrubbed .project-scale photograph
   // trivially passing because nothing is transformed at sample time.
   expect(transform).not.toBe('none');
 
+  /**
+   * The WHOLE thumbnail, and the scroll pinned to one offset for every
+   * sample. A 40x40 patch at the centre was tried first and is flaky here for
+   * a reason worth recording: `.project-scale`'s scrub is still settling for a
+   * moment after `workReady`, and this card is the UGEGRAFF title card — a
+   * near-black frame with a bright wordmark right where that patch lands. A
+   * few pixels of scale drift slides the wordmark in or out of it and moves
+   * the mean by 30+/255 on its own, with nothing about paint order involved.
+   */
   const card = page.locator('#work .card-link').first();
-  const box = (await card.locator('.project-thumbnail').boundingBox())!;
-  const sample = {
-    left: Math.round(box.x + box.width / 2) - 20,
-    top: Math.round(box.y + box.height / 2) - 20,
-    width: 40, height: 40,
-  };
-  const meanOf = async (shot: Buffer) => {
-    const px = await sharp(shot).extract(sample).greyscale().raw().toBuffer();
-    return px.reduce((a, b) => a + b, 0) / px.length;
+  const anchor = await page.evaluate(() => window.scrollY);
+  const meanOf = async () => {
+    await page.evaluate((y) => window.scrollTo(0, y), anchor);
+    await page.waitForTimeout(500);
+    const b = (await card.locator('.project-thumbnail').boundingBox())!;
+    const px = await sharp(await page.screenshot()).extract({
+      left: Math.round(b.x) + 4, top: Math.round(b.y) + 4,
+      width: Math.round(b.width) - 8, height: Math.round(b.height) - 8,
+    }).greyscale().raw().toBuffer();
+    return px.reduce((a, v) => a + v, 0) / px.length;
   };
 
-  const before = await meanOf(await page.screenshot());
-  expect(before, 'the title card is near-black to begin with').toBeLessThan(40);
+  const before = await meanOf();
 
   // Invert the DOM <img> only. The mesh's texture is the decoded bitmap and
   // is unaffected, so from here the two layers hold opposite pictures.
@@ -270,23 +279,28 @@ test('the canvas paints above SelectedWork\'s scrubbed .project-scale photograph
     const img = document.querySelector<HTMLElement>('#work .project-scale img')!;
     img.style.filter = 'invert(1)';
   });
-  await page.waitForTimeout(300);
-  const withMesh = await meanOf(await page.screenshot());
+  const withMesh = await meanOf();
 
   await page.evaluate(() => {
     (document.querySelector('canvas') as HTMLCanvasElement).style.display = 'none';
   });
-  await page.waitForTimeout(200);
-  const withoutMesh = await meanOf(await page.screenshot());
+  const withoutMesh = await meanOf();
 
-  // The filter really applied: with the canvas out of the way, the card is
-  // now near-white. Without this, "the region stayed dark" would also be
-  // satisfied by a filter that silently did nothing.
-  expect(withoutMesh, 'the inverted DOM photograph is near-white').toBeGreaterThan(180);
-  // And with the canvas back, the mesh is what you see: still near-black.
-  // If `.project-scale` won the DOM-order tie — or if no surface registered
-  // at all — this would read as the inverted image instead.
-  expect(withMesh, 'the mesh, not the inverted DOM <img>, is what paints here').toBeLessThan(60);
+  // Deliberately relative, not absolute. Pinning "near-black" would have to be
+  // re-tuned the moment the owner swaps the stand-in frames. What is asserted
+  // instead is the direction: with the
+  // canvas out of the way the DOM layer is dramatically BRIGHTER than what the
+  // mesh was painting, which is only true if the filter really applied.
+  expect(withoutMesh - before, 'the filter really inverted the DOM <img>').toBeGreaterThan(30);
+  // So the two layers now differ enough for the comparison below to have any
+  // power at all.
+  expect(Math.abs(withoutMesh - withMesh), 'the two layers hold visibly different pictures')
+    .toBeGreaterThan(30);
+  // And the mesh is what you see. If `.project-scale` won the DOM-order tie —
+  // or if no surface registered at all — this patch would read as the
+  // inverted image instead.
+  expect(Math.abs(withMesh - before), 'the mesh, not the inverted DOM <img>, is what paints here')
+    .toBeLessThan(12);
 });
 
 /**
@@ -1568,19 +1582,31 @@ test('a plain click opens the link and never darkens the card, however long nobo
   // otherwise differ between two frames taken a moment apart.
   await page.addStyleTag({ content: '.scroll-line { animation: none !important; }' });
 
-  const box = (await page.locator('#work .card-link').nth(1).locator('.project-thumbnail').boundingBox())!;
-  const region = {
-    left: Math.round(box.x) + 4, top: Math.round(box.y) + 4,
-    width: Math.round(box.width) - 8, height: Math.round(box.height) - 8,
-  };
-  const statsOf = async (shot: Buffer) => {
-    const px = await sharp(shot).extract(region).greyscale().raw().toBuffer();
+  /**
+   * Re-reads the card's live box every time, and normalises the two things
+   * that would otherwise make the before/after pair incomparable for reasons
+   * having nothing to do with the burn: `click()` scrolls the card into view
+   * (which moves the box AND changes the scrub's scale), and it leaves the
+   * pointer sitting on the card, where `.card-link:hover` adds a
+   * translateY(-4px) and `.card-link:hover img` a scale(1.05).
+   */
+  const anchor = await page.evaluate(() => window.scrollY);
+  const statsOfCard = async () => {
+    await page.mouse.move(5, 5);
+    await page.evaluate((y) => window.scrollTo(0, y), anchor);
+    await page.waitForTimeout(800);
+    const b = (await page.locator('#work .card-link').nth(1).locator('.project-thumbnail').boundingBox())!;
+    const region = {
+      left: Math.round(b.x) + 4, top: Math.round(b.y) + 4,
+      width: Math.round(b.width) - 8, height: Math.round(b.height) - 8,
+    };
+    const px = await sharp(await page.screenshot()).extract(region).greyscale().raw().toBuffer();
     let sum = 0, black = 0;
     for (const v of px) { sum += v; if (v < 8) black++; }
     return { mean: sum / px.length, blackFrac: black / px.length };
   };
 
-  const before = await statsOf(await page.screenshot());
+  const before = await statsOfCard();
   expect(before.mean, 'the card shows a photograph to begin with').toBeGreaterThan(60);
 
   const popup = context.waitForEvent('page', { timeout: 5000 }).catch(() => null);
@@ -1595,7 +1621,7 @@ test('a plain click opens the link and never darkens the card, however long nobo
   await page.waitForTimeout(1800);
   await expectAllRevealed(page, '3s after the click');
 
-  const after = await statsOf(await page.screenshot());
+  const after = await statsOfCard();
   // Measured on the committed version at this exact point: mean 0.8/255,
   // 97.4% pure black, permanently.
   expect(after.blackFrac, 'the card is not a black rectangle').toBeLessThan(0.05);
@@ -2440,11 +2466,21 @@ test('a srcset swap re-uploads the new bitmap instead of leaving a stale texture
     document.querySelector<HTMLImageElement>('#work .project-scale img')!.naturalWidth
   );
   expect(large, 'the element really swapped to a wider bitmap').toBeGreaterThan(small);
-  await page.waitForTimeout(600);
-  // The surface has to still be alive for an upload to be possible at all —
-  // otherwise "no upload happened" would be true for a reason that has nothing
-  // to do with the texture.
+
+  // The re-upload happens inside the mesh's own draw call (OGL's Program.use()
+  // calls Texture.update() per draw), and `surface.ts` culls a mesh whose
+  // element is off screen. Widening the viewport reflows the document, so the
+  // card has to be brought back into view or it is simply never drawn again —
+  // which would read as "the texture was never refreshed" for a reason that
+  // has nothing to do with the texture. Measured while chasing exactly that:
+  // the load handler fired and `needsUpdate` was true, and stayed true.
+  await page.evaluate(() => document.querySelector('#work')!.scrollIntoView({ block: 'start' }));
+  await page.waitForTimeout(900);
   expect(await page.evaluate(() => window.__webgl.surfaces()), 'the scene survived the resize').toBe(5);
+  expect(
+    await page.evaluate(() => window.__webgl.debug().filter(d => d.visible).length),
+    'and the card is actually being drawn again'
+  ).toBeGreaterThan(1);
 
   const uploads = await page.evaluate(() => [...(window as unknown as { __uploads: number[] }).__uploads]);
   // Before the fix this list ended at `small` and the mesh went on painting
