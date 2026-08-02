@@ -55,11 +55,28 @@ const projects = [
           <div class="project-thumbnail">
             <div class="project-scale" data-animation="scale" data-from="1.15" data-to="1" data-scrub>
               {typeof project.image === 'string' ? (
+                /*
+                 * crossorigin="anonymous" is here for WebGL, not for the
+                 * layout. These three thumbnails are third-party
+                 * (img.youtube.com), and WebGL refuses to upload a
+                 * non-origin-clean image: texImage2D throws a SecurityError.
+                 * That throw would land inside OGL's Texture.update(), inside
+                 * renderer.render(), inside the shared gsap.ticker callback —
+                 * so it would not skip one card, it would kill the frame loop
+                 * for every surface on the page, hero included. Measured
+                 * directly against all three URLs before this attribute
+                 * existed.
+                 *
+                 * Safe to ask for: img.youtube.com answers with
+                 * `access-control-allow-origin: *` (verified). The script
+                 * below covers the case where something in between does not.
+                 */
                 <img
                   src={project.image}
                   alt={project.title}
                   loading="lazy"
                   decoding="async"
+                  crossorigin="anonymous"
                 />
               ) : (
                 <Image
@@ -228,3 +245,302 @@ const projects = [
     }
   }
 </style>
+
+<script>
+  import gsap from 'gsap';
+  import { DURATION, EASE } from '../motion/tokens';
+  import { registerSurface, WEBGL_READY_EVENT } from '../webgl';
+  import { computeCoverUv, parseObjectPosition } from '../webgl/geometry';
+  import {
+    createWorkUniforms,
+    elementUv,
+    isPlainPrimaryClick,
+    workShader,
+  } from '../webgl/shaders/work';
+
+  /**
+   * This codebase's definition of a touch device — the same query
+   * global.css uses to strip `.card-link`'s hover transforms and the one
+   * this file's own tap-target rule is written against.
+   *
+   * Nothing below runs when it matches. A ripple that chases a finger it
+   * cannot see is meaningless, the GPU and per-frame cost buy nothing, and
+   * the card has to stay entirely usable without any hover state at all.
+   */
+  const COARSE = '(hover: none) and (pointer: coarse)';
+
+  // --- crossorigin fallback ------------------------------------------------
+  //
+  // Runs whether or not WebGL is involved, because it protects the
+  // PHOTOGRAPH, not the effect. The three third-party thumbnails carry
+  // crossorigin="anonymous" so their pixels can reach a WebGL texture (see
+  // the attribute's comment above). img.youtube.com answers
+  // `access-control-allow-origin: *`, but a corporate proxy that strips or
+  // rewrites that header would turn a CORS request into a hard load failure
+  // — a blank card where the work should be, which is the one outcome this
+  // component is not allowed to produce. Retrying once without the attribute
+  // costs a wasted request in that case and restores exactly the behaviour
+  // this component had before WebGL existed: the image loads, and no shader
+  // is registered against it (registration re-checks origin-cleanliness).
+  function armCorsFallback(): void {
+    const imgs = document.querySelectorAll<HTMLImageElement>(
+      '#work img[crossorigin]:not([data-cors-fallback])'
+    );
+    for (const img of imgs) {
+      img.dataset.corsFallback = '';
+      img.addEventListener(
+        'error',
+        () => {
+          if (!img.hasAttribute('crossorigin')) return;
+          const src = img.getAttribute('src');
+          if (!src) return;
+          img.removeAttribute('crossorigin');
+          // removeAttribute/setAttribute rather than re-assigning the same
+          // string: assigning an identical `src` is not guaranteed to re-run
+          // the image-loading algorithm, removing it is.
+          img.removeAttribute('src');
+          img.setAttribute('src', src);
+        },
+        { once: true }
+      );
+    }
+  }
+
+  armCorsFallback();
+  document.addEventListener('astro:page-load', armCorsFallback);
+
+  // --- surface registration ------------------------------------------------
+
+  /** Aborts the `load` listeners of cards still waiting to be registered. */
+  let pending: AbortController | null = null;
+  /** One per registered card, so its listeners die with its surface. */
+  const cards: AbortController[] = [];
+
+  /**
+   * Whether this image can safely become a texture *right now*.
+   *
+   * Both halves were measured, not assumed:
+   *
+   * - **Decoded.** `ogl/src/core/Texture.js` uploads a transparent-black 1x1
+   *   `emptyPixel` while no image is set, and this shader writes alpha 1 — so
+   *   a surface registered against an image that has not decoded paints a
+   *   SOLID BLACK rectangle over the card until it does, and forever if it
+   *   never does. `.project-scale img` is `loading="lazy"` and well below the
+   *   fold, so at `webgl:ready` none of them have decoded; registration is
+   *   deferred to each image's own `load` rather than racing it.
+   * - **Origin-clean.** `texImage2D` throws `SecurityError` for a
+   *   cross-origin image without CORS. That throw happens inside the shared
+   *   `gsap.ticker` render callback, so it does not degrade one card — it
+   *   kills the frame loop for every surface on the page. Verified against
+   *   all three img.youtube.com URLs.
+   */
+  function textureSafe(img: HTMLImageElement): boolean {
+    if (!img.complete || img.naturalWidth === 0) return false;
+    // The attribute is only ever present on an image that then loaded
+    // successfully — a CORS failure fails the load, which the check above
+    // already rejected — so its presence means the pixels are readable.
+    if (img.crossOrigin) return true;
+    try {
+      return new URL(img.currentSrc || img.src, location.href).origin === location.origin;
+    } catch {
+      return false;
+    }
+  }
+
+  function registerCard(link: HTMLElement, img: HTMLImageElement): void {
+    const uniforms = createWorkUniforms();
+    const listeners = new AbortController();
+    const { signal } = listeners;
+    cards.push(listeners);
+
+    /**
+     * The `object-fit: cover` window and the frame's aspect ratio.
+     *
+     * Deliberately NOT per frame, unlike Hero.astro's equivalent. Three
+     * separate transforms move this element's rect continuously —
+     * `.project-scale`'s scrubbed GSAP `scale`, `.card-link:hover`'s
+     * `translateY(-4px)` and `.card-link:hover img`'s `scale(1.05)` — and
+     * not one of them can change either value this reads: a uniform scale
+     * cannot change an aspect ratio, and a translation cannot change
+     * anything at all. Only a resize or a srcset swap can, and both fire an
+     * event. Four cards each paying a forced layout read per frame for a
+     * value that moves twice a session is exactly the per-surface cost this
+     * section cannot afford.
+     */
+    function syncCover(): void {
+      const r = img.getBoundingClientRect();
+      if (!(r.width > 0) || !(r.height > 0)) return;
+      uniforms.uAspect.value = [r.width / r.height, 1];
+      const cover = computeCoverUv(
+        { width: img.naturalWidth, height: img.naturalHeight },
+        { width: r.width, height: r.height },
+        parseObjectPosition(getComputedStyle(img).objectPosition)
+      );
+      uniforms.uCoverScale.value = cover.scale;
+      uniforms.uCoverOffset.value = cover.offset;
+    }
+
+    syncCover();
+    window.addEventListener('resize', syncCover, { passive: true, signal });
+    // A srcset swap replaces the decoded bitmap without resizing anything.
+    img.addEventListener('load', syncCover, { signal });
+
+    // Tweened, not assigned: a step change between 0 and 1 makes the ripple
+    // appear and vanish mechanically. Same gsap.quickTo treatment, and the
+    // same tokens, the hero's velocity smoothing and the marquee's speed
+    // boost already use.
+    const setHover = gsap.quickTo(uniforms.uHover, 'value', {
+      duration: DURATION.quickTo,
+      ease: EASE.smooth,
+    });
+
+    function setMouse(event: { clientX: number; clientY: number }): void {
+      uniforms.uMouse.value = elementUv(
+        img.getBoundingClientRect(),
+        event.clientX,
+        event.clientY
+      );
+    }
+
+    // Pointer events, not mouse events, and bound to the whole `.card-link`
+    // rather than the <img>: the card is one interactive unit (its caption
+    // included), and `.card-link:hover` already treats it as one. `uMouse`
+    // is still measured against the IMAGE's rect, because that is the box
+    // the mesh occupies — elementUv clamps the caption's coordinates onto
+    // the frame's bottom edge.
+    link.addEventListener(
+      'pointerenter',
+      (event: PointerEvent) => {
+        // A hybrid laptop (touchscreen + trackpad) does not match COARSE, so
+        // it gets here — but a finger on it should still not raise a hover
+        // state it cannot then dismiss.
+        if (event.pointerType === 'touch') return;
+        setMouse(event);
+        setHover(1);
+      },
+      { signal }
+    );
+    link.addEventListener('pointermove', setMouse, { signal });
+    link.addEventListener('pointerleave', () => setHover(0), { signal });
+    // A pointer can leave without a pointerleave when its device is removed
+    // or capture is broken mid-gesture; without this the ripple stays lit.
+    link.addEventListener('pointercancel', () => setHover(0), { signal });
+
+    let dissolving = false;
+
+    link.addEventListener(
+      'click',
+      (event: MouseEvent) => {
+        // No preventDefault on any branch. The link opens the film on
+        // YouTube and that navigation is the point; the dissolve accompanies
+        // it. Modifier and non-primary clicks are skipped outright rather
+        // than merely un-prevented: those open a BACKGROUND tab, so the user
+        // stays on this page, and a dissolve that resolves to black would
+        // black out a card they never left.
+        if (!isPlainPrimaryClick(event)) return;
+        setMouse(event);
+        dissolving = true;
+        gsap.to(uniforms.uDissolve, {
+          value: 1,
+          duration: DURATION.dissolve,
+          ease: EASE.inOut,
+          overwrite: true,
+        });
+      },
+      { signal }
+    );
+
+    /**
+     * `target="_blank"` means the click that starts the dissolve also hands
+     * focus to a new tab, and Chrome throttles a background tab's
+     * requestAnimationFrame to roughly 1fps — which is what gsap.ticker, and
+     * therefore the timeline above, runs on. Left alone, the dissolve would
+     * freeze part-way and then finish visibly, minutes later, at the moment
+     * the visitor came back to look at the portfolio again.
+     *
+     * So: snap to the end when the tab goes away, and re-form the frame when
+     * it comes back. Returning to an intact page is the correct resting
+     * state — the card is a link the visitor may well want to use again —
+     * and re-forming rather than snapping keeps it a transition (AGENTS.md).
+     * Guarded on `dissolving` so an ordinary tab switch, on a page where
+     * nobody has clicked anything, does nothing at all.
+     */
+    document.addEventListener(
+      'visibilitychange',
+      () => {
+        if (!dissolving) return;
+        if (document.hidden) {
+          gsap.killTweensOf(uniforms.uDissolve);
+          gsap.set(uniforms.uDissolve, { value: 1 });
+        } else {
+          dissolving = false;
+          gsap.to(uniforms.uDissolve, {
+            value: 0,
+            duration: DURATION.base,
+            ease: EASE.out,
+            overwrite: true,
+          });
+        }
+      },
+      { signal }
+    );
+
+    /**
+     * `onDestroy` is what makes the listeners above safe. `teardownWebGL()`
+     * is reached from three places and only one of them is a navigation:
+     * fpsGuard deciding this device cannot hold 50fps, and a lost GPU
+     * context, both destroy every surface while leaving this component's DOM
+     * and its listeners exactly where they are. Without this, a device that
+     * had just failed the fps test would keep running getBoundingClientRect
+     * on every pointermove to feed uniforms no GPU program reads any more.
+     */
+    registerSurface(img, workShader(uniforms), {
+      onDestroy: () => {
+        gsap.killTweensOf(uniforms.uHover);
+        gsap.killTweensOf(uniforms.uDissolve);
+        listeners.abort();
+      },
+    });
+  }
+
+  /**
+   * One registration pass per live scene, for the reasons renderer.ts sets
+   * out on WEBGL_READY_EVENT: the scene is destroyed and rebuilt on every
+   * View Transition and on both of a cold load's two `initWebGL()` calls, so
+   * a registration made at any other moment is silently discarded by the
+   * next one. Module scope, not a lifecycle listener of our own, so this does
+   * not depend on where this component's script lands relative to
+   * Layout.astro's.
+   */
+  document.addEventListener(WEBGL_READY_EVENT, () => {
+    pending?.abort();
+    // Cards whose surface never actually registered (the scene went away
+    // between the image decoding and the call) hold listeners no onDestroy
+    // will ever abort. Aborting an already-aborted controller is a no-op, so
+    // this is safe to run over the ones that did register too.
+    for (const controller of cards.splice(0)) controller.abort();
+    pending = new AbortController();
+
+    if (window.matchMedia(COARSE).matches) return;
+
+    for (const link of document.querySelectorAll<HTMLElement>('#work .card-link')) {
+      const img = link.querySelector<HTMLImageElement>('.project-scale img');
+      if (!img) continue;
+      if (textureSafe(img)) {
+        registerCard(link, img);
+      } else {
+        // Lazy, below the fold, and not decoded yet at ready time — which is
+        // every card on a cold load. Register when it decodes instead of
+        // registering a black rectangle now. registerSurface() no-ops when
+        // no scene is alive, and `pending` aborts these on the next scene.
+        img.addEventListener(
+          'load',
+          () => {
+            if (textureSafe(img)) registerCard(link, img);
+          },
+          { once: true, signal: pending.signal }
+        );
+      }
+    }
+  });
+</script>

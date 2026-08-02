@@ -207,25 +207,37 @@ test('the canvas paints between a plain photograph and the text/controls layered
  * renderer.ts) or the scrubbed photograph would win that tie and cover
  * whatever a mesh registered against it later draws, backwards from what
  * Task 6/7 need.
+ *
+ * REWRITTEN IN TASK 7, because Task 7 made its old method impossible and its
+ * claim directly observable. It used to paint the canvas element's CSS
+ * `background` red and assert red pixels over `.project-scale`. Task 7
+ * registers a real surface on every `.project-scale img`, and an opaque mesh
+ * covering that whole box hides the element's background from exactly the
+ * pixel the probe sampled — the test went red on a page where the z-order
+ * was, in fact, right.
+ *
+ * The replacement asserts the same z-order with the real mesh instead of a
+ * stand-in: it runs the card's own dissolve to completion, which drives the
+ * mesh to solid black over a photograph whose own mean luminance is 100+.
+ * If `.project-scale` won the DOM-order tie, that photograph would still be
+ * on screen. Hiding the canvas afterwards and finding the photograph again
+ * is what proves the black came from the mesh rather than from anything
+ * else that might have gone dark.
  */
-test('the canvas paints above SelectedWork\'s scrubbed .project-scale photograph', async ({ page }) => {
+test('the canvas paints above SelectedWork\'s scrubbed .project-scale photograph', async ({ page, context }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
+  // The click below is a real one on a real link; let it open its tab, but
+  // do not spend the time fetching YouTube.
+  await context.route('**://www.youtube.com/**', r => r.abort());
   await page.goto('/');
   await page.waitForTimeout(1500);
 
-  await page.evaluate(() => {
-    (document.querySelector('canvas') as HTMLCanvasElement).style.background = 'rgb(255, 0, 0)';
-  });
-
   // Scroll .project-scale into view — this is what drives its scrub, via
   // the same ScrollTrigger the real page already wires up.
-  const info = await page.evaluate(() => {
-    const el = document.querySelector<HTMLElement>('.project-scale')!;
-    el.scrollIntoView({ block: 'center' });
-    return true;
+  await page.evaluate(() => {
+    document.querySelector<HTMLElement>('#work')!.scrollIntoView({ block: 'start' });
   });
-  expect(info).toBe(true);
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(2500);
 
   const transform = await page.evaluate(
     () => getComputedStyle(document.querySelector('.project-scale')!).transform
@@ -235,19 +247,38 @@ test('the canvas paints above SelectedWork\'s scrubbed .project-scale photograph
   // trivially passing because nothing is transformed at sample time.
   expect(transform).not.toBe('none');
 
-  // Four project cards all use this class; scrollIntoView above targeted
-  // the first, so sample the same one.
-  const box = (await page.locator('.project-scale').first().boundingBox())!;
-  const shot = await page.screenshot();
-  const pixel = await sharp(shot).extract({
-    left: Math.round(box.x + box.width / 2) - 2,
-    top: Math.round(box.y + box.height / 2) - 2,
-    width: 4, height: 4,
-  }).raw().toBuffer();
+  // The SECOND card, not the first: the first is a near-black title card
+  // (work-audience.png, mean luma ~7/255), against which "the mesh went
+  // black" and "the photograph is showing" are the same measurement.
+  const card = page.locator('#work .card-link').nth(1);
+  const box = (await card.locator('.project-thumbnail').boundingBox())!;
+  const sample = {
+    left: Math.round(box.x + box.width / 2) - 20,
+    top: Math.round(box.y + box.height / 2) - 20,
+    width: 40, height: 40,
+  };
+  const meanOf = async (shot: Buffer) => {
+    const px = await sharp(shot).extract(sample).greyscale().raw().toBuffer();
+    return px.reduce((a, b) => a + b, 0) / px.length;
+  };
 
-  expect(pixel[0]).toBeGreaterThan(200);
-  expect(pixel[1]).toBeLessThan(40);
-  expect(pixel[2]).toBeLessThan(40);
+  const before = await meanOf(await page.screenshot());
+  expect(before, 'the card shows a photograph before anything is clicked').toBeGreaterThan(60);
+
+  await card.click();
+  await page.waitForTimeout(1200); // DURATION.dissolve is 0.7s
+  const dissolved = await meanOf(await page.screenshot());
+
+  await page.evaluate(() => {
+    (document.querySelector('canvas') as HTMLCanvasElement).style.display = 'none';
+  });
+  await page.waitForTimeout(200);
+  const canvasHidden = await meanOf(await page.screenshot());
+
+  // The mesh painted black OVER the scrubbed photograph...
+  expect(dissolved, 'the fully dissolved mesh covers the photograph').toBeLessThan(12);
+  // ...and the photograph was there the whole time, underneath it.
+  expect(canvasHidden, 'the DOM photograph is untouched beneath the mesh').toBeGreaterThan(60);
 });
 
 /**
@@ -1272,4 +1303,543 @@ test('uVelocity rises with a scroll, stays clamped, and returns to rest afterwar
   expect(Math.min(...trace.map(s => s.v))).toBeGreaterThanOrEqual(0);
   // ...and settles back to rest instead of latching a frozen smear.
   expect(Math.max(...atRestAfter)).toBeLessThan(0.01);
+});
+
+// ---------------------------------------------------------------------------
+// Task 7 — Selected Work hover ripple and click dissolve
+// ---------------------------------------------------------------------------
+
+/**
+ * Scrolls `#work` into view and waits for its four surfaces to register.
+ *
+ * They do not register at `webgl:ready` like the hero's does. All four
+ * `.project-scale img` are `loading="lazy"` and roughly 4,300px below the
+ * fold, so none has decoded when the scene is built; SelectedWork.astro
+ * defers each registration to that image's own `load` event, because a
+ * surface registered against an undecoded image paints a solid black
+ * rectangle (OGL uploads a transparent-black 1x1 while it waits, and the
+ * shader writes alpha 1).
+ */
+async function workReady(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => document.querySelector('#work')!.scrollIntoView({ block: 'start' }));
+  await page.waitForFunction(() => window.__webgl.surfaces() >= 5, null, { timeout: 12000 });
+  // Let the scrub settle and the hover tweens start from rest.
+  await page.waitForTimeout(600);
+}
+
+/** uHover for each registered surface, in registration order. */
+const hovers = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => window.__webgl.debug().map(d => d.uniforms.uHover ?? -1));
+
+/** uDissolve for each registered surface; -1 for the hero, which has none. */
+const dissolves = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => window.__webgl.debug().map(d => d.uniforms.uDissolve ?? -1));
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * Four cards, one cursor, and `registerSurface()` reads `.value` off the very
+ * uniform objects a shader module hands it — so uniforms declared at module
+ * scope (which is what `hero.ts` correctly does, having exactly one surface)
+ * would be SHARED by all four cards here, and hovering any one of them would
+ * ripple all four. `createWorkUniforms()` being a factory is the fix, and
+ * nothing about a page at rest reveals whether it is one.
+ *
+ * Hover is a pointer state, so this drives a real pointer: Playwright's
+ * `.hover()` dispatches through CDP and produces genuine `pointerenter` /
+ * `pointermove` events, which is what the component listens for. Reading the
+ * uniforms back off the live OGL `Program` (see surface.ts's `debug()`) means
+ * the assertion is about the value the GPU is actually handed.
+ */
+test('hovering a work card raises that card\'s uHover and no other', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  const before = await page.evaluate(() => window.__webgl.surfaces());
+  expect(before, 'hero + four work cards').toBe(5);
+  expect(await hovers(page), 'nothing is hovered to begin with').toEqual([0, 0, 0, 0, 0]);
+
+  const cards = page.locator('#work .card-link');
+  for (const index of [0, 1, 2, 3]) {
+    await cards.nth(index).hover();
+    await page.waitForTimeout(700); // DURATION.quickTo is 0.4s
+
+    const lit = (await hovers(page)).filter(v => v > 0.9).length;
+    const dark = (await hovers(page)).filter(v => v < 0.05).length;
+    expect(lit, `exactly one surface is hovered (card ${index})`).toBe(1);
+    expect(dark, `the other four are at rest (card ${index})`).toBe(4);
+
+    // The card is still a link and still points where it did.
+    const href = await cards.nth(index).getAttribute('href');
+    expect(href).toContain('youtube.com');
+  }
+
+  // And it comes back down when the pointer leaves.
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(900);
+  for (const v of await hovers(page)) expect(v).toBeLessThan(0.05);
+});
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * A modifier-click opens a BACKGROUND tab: the visitor never leaves this
+ * page. Running the dissolve there would fade the card they are still looking
+ * at to black and leave it there, because the "come back and re-form" path is
+ * driven by `visibilitychange`, which never fires when the tab was never
+ * hidden. `isPlainPrimaryClick()` is what excludes it — the same set of
+ * clicks `preventNativeAnchorJump()` in src/motion/engine.ts already excludes
+ * for a related reason (tests/e2e/modifier-click.spec.ts).
+ *
+ * The first assertion is the brief's: the click must not be intercepted at
+ * all, i.e. the tab really opens. The second is the visual half.
+ */
+test('modifier-click on a work card is not intercepted and does not dissolve it', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await context.route('**://www.youtube.com/**', r => r.abort());
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  const popup = context.waitForEvent('page', { timeout: 5000 }).catch(() => null);
+  await page.locator('#work .card-link').first().click({ modifiers: ['Meta'] });
+  expect(await popup, 'cmd-click still opens a new tab').not.toBeNull();
+
+  await page.waitForTimeout(1200); // longer than DURATION.dissolve
+  for (const v of await dissolves(page)) {
+    expect(v, 'no card dissolves on a modifier-click').toBeLessThan(0.01);
+  }
+});
+
+/**
+ * The other half of the click contract: a plain primary click DOES run the
+ * dissolve, and still navigates. Nothing in this codebase may `preventDefault`
+ * on it — the link opening the film is the point, and the dissolve is an
+ * accompaniment.
+ */
+test('a plain click runs the dissolve to completion and still opens the link', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await context.route('**://www.youtube.com/**', r => r.abort());
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  const popup = context.waitForEvent('page', { timeout: 5000 }).catch(() => null);
+  await page.locator('#work .card-link').nth(1).click();
+  expect(await popup, 'a plain click still opens the film').not.toBeNull();
+
+  // Mid-flight: exactly one card is dissolving, and it is not yet finished.
+  await page.waitForTimeout(300);
+  const mid = (await dissolves(page)).filter(v => v > 0.05);
+  expect(mid.length, 'exactly one card is dissolving').toBe(1);
+  expect(mid[0], 'and it is still in flight 0.3s in').toBeLessThan(0.99);
+
+  await page.waitForTimeout(900);
+  const done = (await dissolves(page)).filter(v => v > 0.99);
+  expect(done.length, 'that card reaches a full dissolve').toBe(1);
+  // The other three are untouched. (The hero reports -1: it has no
+  // uDissolve at all, so it must not be counted as an untouched card.)
+  expect((await dissolves(page)).filter(v => v >= 0 && v < 0.01).length).toBe(3);
+});
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * This is the hero's bleed defect, one section further down the page.
+ * `.project-scale` carries a scrubbed `scale: 1.15 -> 1`, so at almost every
+ * scroll position the <img> the mesh mirrors is LARGER than the
+ * `.project-thumbnail` (`overflow: hidden`) that confines it. A mesh that
+ * replicates the transform without the clip paints photograph over the
+ * caption below it, the neighbouring card beside it, and the gap between
+ * rows. The hero's version of this bled 44-84px and every shipped visual test
+ * screenshotted at scroll 0, the one position where it is invisible.
+ *
+ * So: non-zero scroll positions only, both themes, both viewports, and a
+ * precondition asserting the overhang is genuinely there so "no bleed" cannot
+ * be trivially true. The reference frame is the same page with the canvas
+ * hidden — no layout changes, no second load, so the only thing that can
+ * differ is what the mesh painted.
+ */
+for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+  for (const theme of ['dark', 'light'] as const) {
+    test(`work meshes stay inside their thumbnails at non-zero scroll (${viewport.width}x${viewport.height}, ${theme})`, async ({ browser }) => {
+      const ctx = await browser.newContext({ viewport });
+      await ctx.addInitScript((t) => localStorage.setItem('theme', t), theme);
+      const page = await ctx.newPage();
+      await page.goto('/');
+      await page.waitForTimeout(1500);
+      await workReady(page);
+
+      const base = await page.evaluate(() => window.scrollY);
+      for (const delta of [-120, 90, 260]) {
+        await page.evaluate((y) => window.scrollTo(0, y), base + delta);
+        await page.waitForTimeout(900);
+
+        const geom = await page.evaluate(() => {
+          const out: Array<{ box: { x: number; y: number; w: number; h: number }; overhang: number }> = [];
+          for (const thumb of document.querySelectorAll('#work .project-thumbnail')) {
+            const t = thumb.getBoundingClientRect();
+            const i = thumb.querySelector('img')!.getBoundingClientRect();
+            out.push({
+              box: { x: t.left, y: t.top, w: t.width, h: t.height },
+              overhang: Math.max(t.left - i.left, i.right - t.right, t.top - i.top, i.bottom - t.bottom),
+            });
+          }
+          return { out, scrollY: window.scrollY };
+        });
+        expect(geom.scrollY, 'genuinely scrolled').toBeGreaterThan(0);
+        // At least one card's <img> really does overhang its clipping box.
+        expect(Math.max(...geom.out.map(g => g.overhang)), 'the scrub overhangs the thumbnail').toBeGreaterThan(2);
+
+        const withMesh = await page.screenshot();
+        await page.evaluate(() => {
+          (document.querySelector('canvas') as HTMLCanvasElement).style.display = 'none';
+        });
+        await page.waitForTimeout(200);
+        const withoutMesh = await page.screenshot();
+        await page.evaluate(() => {
+          (document.querySelector('canvas') as HTMLCanvasElement).style.display = '';
+        });
+        await page.waitForTimeout(200);
+
+        // A margin around each thumbnail, minus the thumbnail itself: every
+        // pixel here belongs to the caption, the gutter or the next card, and
+        // no mesh may reach any of it.
+        const M = 14;
+        const inside = (x: number, y: number) =>
+          geom.out.some(g => x >= g.box.x - 0.5 && x <= g.box.x + g.box.w + 0.5 &&
+                             y >= g.box.y - 0.5 && y <= g.box.y + g.box.h + 0.5);
+
+        const [a, b] = await Promise.all([
+          sharp(withMesh).greyscale().raw().toBuffer({ resolveWithObject: true }),
+          sharp(withoutMesh).greyscale().raw().toBuffer(),
+        ]);
+        const W = a.info.width, H = a.info.height;
+        const scale = W / viewport.width; // device pixel ratio of the shot
+        let worst = 0, bled = 0;
+        for (const g of geom.out) {
+          const x0 = Math.max(0, Math.floor((g.box.x - M) * scale));
+          const x1 = Math.min(W - 1, Math.ceil((g.box.x + g.box.w + M) * scale));
+          const y0 = Math.max(0, Math.floor((g.box.y - M) * scale));
+          const y1 = Math.min(H - 1, Math.ceil((g.box.y + g.box.h + M) * scale));
+          for (let y = y0; y <= y1; y++) {
+            for (let x = x0; x <= x1; x++) {
+              if (inside(x / scale, y / scale)) continue;
+              const d = Math.abs(a.data[y * W + x] - b[y * W + x]);
+              if (d > worst) worst = d;
+              if (d > 8) bled++;
+            }
+          }
+        }
+        expect(bled, `pixels of mesh outside a .project-thumbnail at scrollY ${geom.scrollY} (worst ${worst})`).toBe(0);
+      }
+      await ctx.close();
+    });
+  }
+}
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * Hover does not exist on touch. A ripple chasing a finger it cannot see is
+ * meaningless, the per-frame and GPU cost buys nothing, and the cards must
+ * remain completely usable with no hover state at all — which is also what
+ * global.css already assumes, stripping `.card-link`'s hover transforms under
+ * the same query. `SelectedWork.astro` skips registration entirely when
+ * `(hover: none) and (pointer: coarse)` matches.
+ */
+test('on a touch device no work surface is registered and the cards stay usable', async ({ browser }) => {
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+
+  // This is the codebase's definition of a touch device; assert the emulated
+  // context really matches it, or the rest of this test proves nothing.
+  expect(
+    await page.evaluate(() => matchMedia('(hover: none) and (pointer: coarse)').matches),
+    'the emulated context really is a touch device'
+  ).toBe(true);
+
+  await page.evaluate(() => document.querySelector('#work')!.scrollIntoView({ block: 'start' }));
+  await page.waitForTimeout(3000);
+  // Long enough for every thumbnail to have decoded...
+  expect(
+    await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLImageElement>('#work .project-scale img')]
+        .every(i => i.complete && i.naturalWidth > 0)
+    ),
+    'every thumbnail decoded, so registration had its chance'
+  ).toBe(true);
+  // ...and still only the hero has a surface.
+  expect(await page.evaluate(() => window.__webgl.surfaces()), 'hero only').toBe(1);
+
+  // The cards are entirely usable without any hover state.
+  const cards = page.locator('#work .card-link');
+  expect(await cards.count()).toBe(4);
+  for (let i = 0; i < 4; i++) {
+    await expect(cards.nth(i)).toBeVisible();
+    expect(await cards.nth(i).getAttribute('href')).toContain('youtube.com');
+    const img = cards.nth(i).locator('.project-scale img');
+    await expect(img).toBeVisible();
+    const b = (await img.boundingBox())!;
+    expect(b.width).toBeGreaterThan(100);
+    expect(b.height).toBeGreaterThan(50);
+  }
+  await ctx.close();
+});
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * Three of the four thumbnails are third-party (`img.youtube.com`). WebGL
+ * refuses to upload a non-origin-clean image — `texImage2D` throws
+ * `SecurityError` — and that throw lands inside OGL's `Texture.update()`,
+ * inside `renderer.render()`, inside the ONE `gsap.ticker` callback every
+ * surface on the page shares. It is therefore not a per-card failure: it
+ * stops the hero rendering too. Measured against all three URLs before
+ * `crossorigin="anonymous"` was added to them.
+ *
+ * The `uTime` assertion is the part that catches the frame loop dying, since
+ * a dead loop leaves every uniform frozen at its last value while surface
+ * count stays exactly as it was.
+ */
+test('the cross-origin thumbnails become textures without killing the frame loop', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const errors: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+
+  const origin = new URL(page.url()).origin;
+  const srcs = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLImageElement>('#work .project-scale img')].map(i => i.currentSrc)
+  );
+  expect(
+    srcs.filter(s => new URL(s, origin).origin !== origin).length,
+    'three of the four thumbnails really are cross-origin'
+  ).toBe(3);
+
+  expect(await page.evaluate(() => window.__webgl.surfaces()), 'all four cards registered').toBe(5);
+  expect(errors, 'no SecurityError reached the page').toEqual([]);
+
+  const t0 = await page.evaluate(() => window.__webgl.debug().map(d => d.uniforms.uTime));
+  await page.waitForTimeout(400);
+  const t1 = await page.evaluate(() => window.__webgl.debug().map(d => d.uniforms.uTime));
+  for (let i = 0; i < t0.length; i++) {
+    expect(t1[i], `surface ${i} is still being ticked`).toBeGreaterThan(t0[i]);
+  }
+});
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * `ogl/src/core/Texture.js` uploads a transparent-black 1x1 `emptyPixel`
+ * while no image is set, and this shader writes alpha 1 — so a surface
+ * registered against an image that has not decoded paints a SOLID BLACK
+ * RECTANGLE over the card, permanently if the image never arrives. The
+ * acceptance bar for this task names that exact outcome: a client on a
+ * locked-down corporate laptop must never see a blank rectangle where the
+ * work should be, and a proxy blocking `img.youtube.com` is precisely how
+ * that laptop differs from this one.
+ *
+ * `SelectedWork.astro` therefore registers nothing until an image has
+ * actually decoded. With the thumbnails blocked, only the local card may
+ * register, and the three blocked cards must be pixel-identical with the
+ * canvas shown and hidden.
+ */
+test('a thumbnail that never loads gets no surface and no black rectangle', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await context.route('**://img.youtube.com/**', r => r.abort());
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => document.querySelector('#work')!.scrollIntoView({ block: 'start' }));
+  await page.waitForTimeout(3000);
+
+  expect(
+    await page.evaluate(() => window.__webgl.surfaces()),
+    'hero + the one local thumbnail; nothing for the three that failed'
+  ).toBe(2);
+
+  const boxes = await page.evaluate(() =>
+    [...document.querySelectorAll('#work .project-thumbnail')].slice(1).map(el => {
+      const r = el.getBoundingClientRect();
+      return { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) };
+    }).filter(b => b.top >= 0 && b.top + b.height <= 900)
+  );
+  expect(boxes.length, 'at least one blocked card is on screen to sample').toBeGreaterThan(0);
+
+  const withMesh = await page.screenshot();
+  await page.evaluate(() => {
+    (document.querySelector('canvas') as HTMLCanvasElement).style.display = 'none';
+  });
+  await page.waitForTimeout(200);
+  const withoutMesh = await page.screenshot();
+
+  for (const b of boxes) {
+    const [a, c] = await Promise.all([
+      sharp(withMesh).extract(b).greyscale().raw().toBuffer(),
+      sharp(withoutMesh).extract(b).greyscale().raw().toBuffer(),
+    ]);
+    let worst = 0;
+    for (let i = 0; i < a.length; i++) worst = Math.max(worst, Math.abs(a[i] - c[i]));
+    expect(worst, `nothing is painted over the failed card at ${b.left},${b.top}`).toBeLessThan(4);
+  }
+});
+
+/**
+ * With WebGL refused outright, the section has to be exactly what it was
+ * before any of this existed. The sibling test above this block covers every
+ * <img> on the page for visibility; this one covers the part specific to
+ * Selected Work — the thumbnails are positioned inside their frames and the
+ * cards are still clickable.
+ */
+test('with WebGL unavailable every work thumbnail is visible, positioned and clickable', async ({ browser, context }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await ctx.addInitScript(() => {
+    const orig = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (t: string, ...a: unknown[]) {
+      if (t === 'webgl' || t === 'webgl2') return null;
+      // @ts-expect-error passthrough
+      return orig.call(this, t, ...a);
+    };
+  });
+  await ctx.route('**://www.youtube.com/**', r => r.abort());
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => window.__webgl.active())).toBe(false);
+  await page.evaluate(() => document.querySelector('#work')!.scrollIntoView({ block: 'start' }));
+  await page.waitForTimeout(2500);
+
+  const cards = page.locator('#work .card-link');
+  expect(await cards.count()).toBe(4);
+  for (let i = 0; i < 4; i++) {
+    const thumb = cards.nth(i).locator('.project-thumbnail');
+    const img = thumb.locator('img');
+    await expect(img).toBeVisible();
+    const [t, b] = [(await thumb.boundingBox())!, (await img.boundingBox())!];
+    expect(b.width, `card ${i} thumbnail has real width`).toBeGreaterThan(100);
+    expect(b.height, `card ${i} thumbnail has real height`).toBeGreaterThan(50);
+    // Positioned over its frame, not adrift somewhere else on the page.
+    expect(Math.abs((b.x + b.width / 2) - (t.x + t.width / 2))).toBeLessThan(4);
+    expect(Math.abs((b.y + b.height / 2) - (t.y + t.height / 2))).toBeLessThan(4);
+  }
+
+  // And still clickable.
+  const popup = ctx.waitForEvent('page', { timeout: 5000 }).catch(() => null);
+  await cards.first().click();
+  expect(await popup, 'the card is still a working link with no WebGL').not.toBeNull();
+  await ctx.close();
+});
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * `initWebGL()` opens by destroying every surface, so a View Transition
+ * rebuilds the scene from scratch — and `SelectedWork.astro` re-registers
+ * from module scope on `webgl:ready`, adding a fresh set of pointer and
+ * `visibilitychange` listeners each time. If the previous set were not
+ * aborted, hovering one card after a couple of navigations would drive
+ * several dead uniform objects and the page would accumulate listeners
+ * silently: the motion suite's leak test counts ScrollTriggers only and would
+ * never see it (AGENTS.md says so explicitly).
+ *
+ * Soft navigation away and back, then hover: the count must be exactly what
+ * it was, and exactly one surface may respond.
+ */
+test('surfaces and listeners do not accumulate across a soft navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await workReady(page);
+  expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(5);
+
+  // Link clicks, not page.goto(): ClientRouter only intercepts same-document
+  // navigations, and a goto() would discard the JS realm and prove nothing.
+  // Same route tests/e2e/lifecycle.spec.ts already uses for this.
+  await page.locator('footer a[href="/privacy"]').click();
+  await page.waitForTimeout(2000);
+  await page.locator('a.logo[href="/"]').click();
+  await page.waitForTimeout(2000);
+  await workReady(page);
+
+  expect(await page.evaluate(() => window.__webgl.surfaces()), 'no duplicates after a round trip').toBe(5);
+  await page.locator('#work .card-link').first().hover();
+  await page.waitForTimeout(700);
+  expect((await hovers(page)).filter(v => v > 0.9).length, 'still exactly one card responds').toBe(1);
+});
+
+/**
+ * *** The defect this test exists for ***
+ *
+ * The `crossorigin="anonymous"` this task put on the three third-party
+ * thumbnails is what lets their pixels reach a WebGL texture at all — but it
+ * also converts their loads into CORS requests, and a CORS request that is
+ * refused does not degrade, it FAILS. On a network that strips or rejects
+ * cross-origin image fetches (a corporate proxy; exactly the locked-down
+ * laptop in this task's acceptance bar) an unguarded `crossorigin` would turn
+ * three working photographs into three blank cards — a regression introduced
+ * purely in service of an enhancement.
+ *
+ * SelectedWork.astro therefore retries once without the attribute. This
+ * aborts every CORS-mode request to img.youtube.com and lets the plain retry
+ * through, then asserts the outcome that matters: the photographs are there,
+ * and the effect — not the content — is what was given up.
+ */
+test('a network that refuses CORS costs the shader, never the photograph', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  let corsAborted = 0, plainAllowed = 0;
+  await context.route('**://img.youtube.com/**', async route => {
+    const h = route.request().headers();
+    if (h['origin'] || h['sec-fetch-mode'] === 'cors') { corsAborted++; return route.abort('failed'); }
+    plainAllowed++;
+    return route.continue();
+  });
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => document.querySelector('#work')!.scrollIntoView({ block: 'start' }));
+  await page.waitForTimeout(5000);
+
+  expect(corsAborted, 'the CORS attempt really was refused').toBeGreaterThanOrEqual(3);
+  expect(plainAllowed, 'and the component retried without the attribute').toBeGreaterThanOrEqual(3);
+
+  const imgs = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLImageElement>('#work .project-scale img')].map(i => ({
+      loaded: i.complete && i.naturalWidth > 0,
+      width: i.naturalWidth,
+      cross: i.crossOrigin,
+    })));
+  expect(imgs.length).toBe(4);
+  for (const [i, img] of imgs.entries()) {
+    expect(img.loaded, `thumbnail ${i} decoded`).toBe(true);
+    expect(img.width, `thumbnail ${i} is a real image`).toBeGreaterThan(300);
+  }
+  // The three remote ones dropped the attribute to get there.
+  expect(imgs.slice(1).map(i => i.cross)).toEqual([null, null, null]);
+
+  // Only the same-origin card can safely become a texture now, and that is
+  // the correct trade: the effect is lost, the photographs are not.
+  expect(await page.evaluate(() => window.__webgl.surfaces()), 'hero + the local card only').toBe(2);
+
+  // And the cards really do show photographs, not blank or black rectangles.
+  const boxes = await page.evaluate(() =>
+    [...document.querySelectorAll('#work .project-thumbnail')].map(el => {
+      const r = el.getBoundingClientRect();
+      return { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) };
+    }).filter(b => b.top >= 0 && b.top + b.height <= 900));
+  const shot = await page.screenshot();
+  for (const b of boxes.slice(1)) {
+    const px = await sharp(shot).extract(b).greyscale().raw().toBuffer();
+    let min = 255, max = 0;
+    for (const v of px) { if (v < min) min = v; if (v > max) max = v; }
+    expect(max - min, `card at ${b.left},${b.top} has photographic range, not a flat rectangle`).toBeGreaterThan(80);
+  }
 });
