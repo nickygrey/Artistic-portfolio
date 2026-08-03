@@ -161,8 +161,9 @@ export function initWebGL(): void {
     pointerEvents: 'none',
     // An explicit, non-negative z-index puts this canvas in CSS's "z-index:
     // 0 or auto" paint step — after plain, non-positioned photographs with
-    // no transform of their own (ImageBand's <img>, which nothing here
-    // animates) and, for anything ELSE tied at that same step — including
+    // no transform of their own (e.g. the photo strip's <img>s, which
+    // nothing here animates) and, for anything ELSE tied at that same step —
+    // including
     // Hero's own <img>, which is not actually "plain, non-positioned":
     // Hero.astro's registerMotion('hero', ...) puts a continuous scrubbed
     // `scale` on it via GSAP, present from the very first frame (the

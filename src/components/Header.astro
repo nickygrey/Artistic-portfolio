@@ -142,10 +142,12 @@ const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
    * drawn with `background: var(--color-text)` in global.css, so unlike
    * every rule above (which hardcodes rgba(255,255,255,…) precisely so it
    * cannot go dark-on-dark), the hamburger silently inverted with the site
-   * theme instead. Over a band in light theme that painted near-black bars
-   * (var(--color-text) = #201f1d) on a darkened photo: ~1-2.5:1, the one
-   * control that opens mobile nav effectively invisible. Hero has the same
-   * exposure today; fixing it here (rather than per-component) covers both.
+   * theme instead. Over a dark section in light theme that painted near-black
+   * bars (var(--color-text) = #201f1d) on a darkened photo: ~1-2.5:1, the one
+   * control that opens mobile nav effectively invisible. Found over the
+   * (since-removed) image bands, but the hero is `data-header-theme="dark"`
+   * too and has exactly the same exposure, so this stays: it is scoped to
+   * `.is-over-dark`, not to any one component.
    */
   .header.is-over-dark .nav-toggle span,
   .header.is-over-dark .nav-toggle span::before,

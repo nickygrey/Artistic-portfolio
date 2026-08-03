@@ -12,10 +12,6 @@ import Testimonials from '../../components/Testimonials.astro';
 import Contact from '../../components/Contact.astro';
 import Partners from '../../components/Partners.astro';
 import Footer from '../../components/Footer.astro';
-import ImageBand from '../../components/ImageBand.astro';
-import band1 from '../../assets/band-1.jpg';
-import band2 from '../../assets/band-2.jpg';
-import band3 from '../../assets/band-3.jpg';
 
 const lang = 'fr';
 ---
@@ -27,12 +23,9 @@ const lang = 'fr';
     <main id="main-content" transition:name="main-content" transition:animate="slide">
       <Hero lang={lang} />
       <DisciplinesStrip />
-      <ImageBand src={band1} alt="" />
       <PhotoCarousel />
-      <ImageBand src={band3} alt="" />
       <FeaturedReel lang={lang} />
       <SelectedWork />
-      <ImageBand src={band2} alt="" />
       <About lang={lang} />
       <Services lang={lang} />
       <Testimonials lang={lang} />

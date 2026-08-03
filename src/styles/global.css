@@ -684,7 +684,7 @@ html[data-astro-transition-fallback] .page-loader {
 
   /* Carousel on phones — still the smallest tier (least vertical room of
      any breakpoint), but ceiling raised 200->270 (x1.35) so the strip
-     reads as work rather than a ribbon next to ImageBand's 66vh bands.
+     reads as work rather than a ribbon.
      See PhotoCarousel.astro's sizes= comment for the width this implies. */
   .carousel-slide {
     height: clamp(190px, 54vw, 270px);
@@ -814,10 +814,9 @@ html[data-astro-transition-fallback] .page-loader {
   }
 
   /* 35vh->55vh: roughly doubles rendered height at the reference 844x390
-     viewport (136.5px -> 214.5px). Deliberately left well under
-     ImageBand's 66vh at the same viewports (257px landscape) so the strip
-     stays visually secondary to the full-bleed bands rather than
-     competing with them. */
+     viewport (136.5px -> 214.5px). Deliberately left under a full viewport
+     so the strip still reads as a strip — a band of work to scroll past —
+     rather than taking the whole screen the way the hero does. */
   .carousel-slide {
     height: 55vh;
   }

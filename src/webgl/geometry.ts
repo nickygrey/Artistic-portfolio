@@ -69,8 +69,8 @@ export function computeMeshTransform(
     x: ((rect.left + rect.width / 2) / viewport.width - 0.5) * w,
     y: -((rect.top + rect.height / 2) / viewport.height - 0.5) * h,
     // Only the vertical extent is checked, matching the horizontal-agnostic
-    // full-bleed/full-viewport-width targets (Hero, ImageBand) this exists
-    // for — a mesh scrolled off the top or bottom is culled from rendering.
+    // full-bleed/full-viewport-width targets (Hero) this exists for — a mesh
+    // scrolled off the top or bottom is culled from rendering.
     visible: rect.bottom > 0 && rect.top < viewport.height,
   };
 }
