@@ -21,6 +21,64 @@ declare global {
 }
 
 /**
+ * "The hero is the only mesh painting right now."
+ *
+ * Deliberately NOT `surfaces() === 1`. Surface *count* is a property of how
+ * much of the page the browser has decided to lazily decode, which is a
+ * function of how long the page happens to be — `SelectedWork` registers one
+ * surface per `.project-scale img` as that thumbnail decodes, and those
+ * thumbnails are `loading="lazy"`. When the three full-bleed image bands were
+ * removed the homepage lost ~2,760px, which moved `#work` from roughly 3,000px
+ * below the fold to 875px at 390x844 — inside Chrome's lazy-load fetch
+ * threshold — so two card surfaces now exist at scroll 0 where none did
+ * before. Measured deterministic, 6 runs of 6.
+ *
+ * Those surfaces paint nothing: their `mesh.visible` and `scissor.visible` are
+ * both false at every position these tests measure, because the cards are far
+ * below the viewport. So the count changed while the thing under test did not,
+ * and a count assertion turned a page-length edit into a WebGL test failure.
+ *
+ * `visible` is `mesh.visible` (see surface.ts's debug()) — the flag the
+ * renderer actually consults before drawing — so this asserts the property the
+ * surrounding screenshot diffs genuinely depend on: exactly one mesh is
+ * contributing pixels, and it is the hero's.
+ */
+async function expectHeroIsOnlyVisibleMesh(page: import('@playwright/test').Page) {
+  const visible = await page.evaluate(() =>
+    window.__webgl.debug().filter((d) => d.visible).map((d) => d.el)
+  );
+  expect(visible, 'exactly one mesh is painting, and it is the hero').toEqual([
+    expect.stringContaining('hero-img'),
+  ]);
+}
+
+/**
+ * Stops `#carousel-track`'s marquee through the pause/resume handle
+ * PhotoCarousel.astro publishes on the element for exactly this purpose (it is
+ * what the drag script uses).
+ *
+ * Needed by any test that diffs two screenshots taken a moment apart over a
+ * region that includes the photo strip. The marquee is a GSAP timeline writing
+ * an inline `transform`, so — unlike `.scroll-line`'s CSS keyframes — no
+ * `animation: none` or `animation-play-state: paused` rule can stop it.
+ *
+ * This became load-bearing when the image bands were removed: the strip moved
+ * ~2,760px up the page and landed inside the region the hero-clipping test
+ * samples. Measured at 1280x900, scrollY 600: 406 of 600 rows below the hero
+ * differed between the two frames, worst row mean 85.5 — every one of them a
+ * carousel row (406 = 900 - the strip's top at 494), none of them the hero's.
+ * With the marquee paused: 0 rows, worst row mean 0.00.
+ */
+async function pauseMarquee(page: import('@playwright/test').Page) {
+  await page.evaluate(() => {
+    const track = document.getElementById('carousel-track') as
+      | (HTMLElement & { __marquee?: { pause(): void; resume(): void } })
+      | null;
+    track?.__marquee?.pause();
+  });
+}
+
+/**
  * Warms the dev server before any test asserts anything.
  *
  * The renderer tears WebGL down for the rest of a page's life if it measures
@@ -645,6 +703,14 @@ async function rowMeanDiff(
  * changes no layout and leaves the scroll position, the scrub state and every
  * GSAP transform byte-identical, so the only thing that can differ between
  * the two frames is what the mesh painted.
+ *
+ * That last clause is a *precondition this test has to actively maintain*, not
+ * something the technique gives for free: anything in the sampled region that
+ * animates on its own will read as mesh bleed. It holds only because the two
+ * such things are stopped first — `.scroll-line`'s CSS pulse and the photo
+ * strip's GSAP marquee (see pauseMarquee, and the measurements there for what
+ * it looks like when it is missed). Adding a new self-animating element below
+ * the hero means adding it to that list.
  */
 const CLIP_SCROLL_POSITIONS = [100, 300, 600];
 
@@ -656,10 +722,13 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 
       const page = await ctx.newPage();
       await page.goto('/');
       await page.waitForTimeout(1500);
-      expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(1);
-      // The scroll cue pulses on a CSS keyframe loop, the one thing that would
-      // otherwise differ between two frames taken a moment apart.
+      await expectHeroIsOnlyVisibleMesh(page);
+      // Two things below the hero move on their own and would otherwise differ
+      // between two frames taken a moment apart: the scroll cue's CSS keyframe
+      // pulse, and the photo strip's GSAP marquee (which no CSS rule can stop —
+      // see pauseMarquee).
       await page.addStyleTag({ content: '.scroll-line { animation: none !important; }' });
+      await pauseMarquee(page);
       await page.waitForTimeout(200);
 
       for (const target of CLIP_SCROLL_POSITIONS) {
@@ -871,7 +940,15 @@ async function heroScreenshot(
   // reasons that have nothing to do with the mesh.
   await page.addStyleTag({ content: '.scroll-line { animation: none !important; }' });
   await page.waitForTimeout(200);
-  expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(webgl ? 1 : 0);
+  if (webgl) {
+    // Not a surface count: see expectHeroIsOnlyVisibleMesh. The hero is the
+    // only mesh on screen at scroll 0 either way — any card surface that has
+    // registered by now sits far below the fold with mesh.visible false.
+    await expectHeroIsOnlyVisibleMesh(page);
+  } else {
+    // With getContext refused there is no scene at all, so nothing registers.
+    expect(await page.evaluate(() => window.__webgl.surfaces())).toBe(0);
+  }
   const shot = await page.screenshot();
   await ctx.close();
   return shot;
