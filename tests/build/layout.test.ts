@@ -35,6 +35,15 @@ describe('layout', () => {
     expect(html).toMatch(/@media \(prefers-reduced-motion: reduce\)\{:root\{--dur-fast: 0s; --dur-base: 0s; --dur-slow: 0s;\}\}/);
   });
 
+  it('the header marks the current section', () => {
+    const current = (file: string) =>
+      [...read(file).matchAll(/<a [^>]*data-nav="(\w+)"[^>]*>/g)].filter((m) => m[0].includes('aria-current="page"')).map((m) => m[1]);
+    expect(current('dist/index.html')).toEqual(['work']);
+    expect(current('dist/work/portrait/index.html')).toEqual(['work']);
+    expect(current('dist/fr/about/index.html')).toEqual(['about']);
+    expect(current('dist/privacy/index.html')).toEqual([]);
+  });
+
   it('there is no page loader any more', () => {
     for (const f of PAGES) expect(read(f)).not.toContain('page-loader');
   });

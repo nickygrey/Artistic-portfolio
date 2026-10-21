@@ -10,14 +10,16 @@ const { lang } = Astro.props;
 const { path } = stripLocale(Astro.url.pathname);
 const home = localizedPath('/', lang);
 const about = localizedPath('/about/', lang);
+const section = path === '/' || path.startsWith('/work/') ? 'work' : path === '/about/' ? 'about' : null;
+const current = (nav: string) => (nav === section ? 'page' : undefined);
 ---
 
 <header class="site-header">
   <a class="site-header__name" href={home} data-nav="home">V. Plotnikov</a>
   <p class="site-header__eyebrow eyebrow">{t(lang, 'header.eyebrow')}</p>
   <nav class="site-header__nav" aria-label={t(lang, 'nav.label')}>
-    <a href={home} data-nav="work">{t(lang, 'nav.work')}</a>
-    <a href={about} data-nav="about">{t(lang, 'nav.about')}</a>
+    <a href={home} data-nav="work" aria-current={current('work')}>{t(lang, 'nav.work')}</a>
+    <a href={about} data-nav="about" aria-current={current('about')}>{t(lang, 'nav.about')}</a>
     <a href={`${about}#contact`} data-nav="contact">{t(lang, 'nav.contact')}</a>
     <ul class="site-header__locales" aria-label={t(lang, 'nav.language')}>
       {LOCALES.map((l) => (
@@ -49,7 +51,7 @@ const about = localizedPath('/about/', lang);
   .site-header__eyebrow { margin: 0; opacity: 0.8; }
   .site-header__nav { justify-self: end; display: flex; align-items: center; gap: 16px; }
   .site-header__locales { display: flex; gap: 6px; margin: 0 0 0 8px; padding: 0; list-style: none; opacity: 0.7; }
-  .site-header__locales a[aria-current] { text-decoration: underline; }
+  .site-header__nav a[aria-current] { text-decoration: underline; }
 
   /* Same width as --rail in global.css: below it the centred eyebrow no longer fits beside the nav. */
   @media (max-width: 1100px) {

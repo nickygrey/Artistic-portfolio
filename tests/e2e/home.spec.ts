@@ -81,3 +81,13 @@ test('cmd/ctrl-click opens the gallery in a new tab and leaves home alone', asyn
   expect(new URL(tab.url()).pathname).toBe('/work/portrait/');
   expect(new URL(page.url()).pathname).toBe('/');
 });
+
+test('strips grow when there are few of them, without leaving the first screen', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await page.waitForTimeout(2500);
+  const boxes = await page.$$eval('[data-strip-media]', (els) => els.map((e) => e.getBoundingClientRect().toJSON()));
+  const span = boxes.at(-1).right - boxes[0].left;
+  expect(span, 'the strips read as a band, not a pair of thumbnails').toBeGreaterThan(380);
+  for (const b of boxes) expect(b.bottom).toBeLessThan(900 - 40);
+});

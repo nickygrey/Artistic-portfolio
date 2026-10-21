@@ -19,7 +19,7 @@ const active = await getActiveDisciplines();
   <Header lang={lang} />
   <main id="main-content" class="home">
     <h1 class="visually-hidden">{t(lang, 'home.heading')}</h1>
-    <ul class="strips" data-animation="strips">
+    <ul class="strips" data-animation="strips" style={`--count: ${active.length}`}>
       {active.map(({ discipline, frames }) => (
         <li>
           <a
@@ -53,7 +53,11 @@ const active = await getActiveDisciplines();
 
   .strips { display: flex; gap: 22px; margin: 0; padding: 0; list-style: none; }
 
-  .strip { position: relative; display: block; width: clamp(96px, 8.5vw, 122px); text-decoration: none; }
+  /* Few strips grow, many shrink: the row stays a band of about 42vw. Capped so a strip's 122:342 height fits the first screen. */
+  .strip {
+    position: relative; display: block; text-decoration: none;
+    width: min(clamp(96px, 42vw / var(--count), 200px), (100svh - 260px) * 122 / 342);
+  }
   .strip:focus-visible { outline-offset: 6px; }
 
   .strip__media { position: relative; display: block; aspect-ratio: 122 / 342; overflow: hidden; }
