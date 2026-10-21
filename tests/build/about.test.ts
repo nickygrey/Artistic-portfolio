@@ -48,3 +48,14 @@ describe('about page', () => {
     expect(readFileSync('dist/index.html', 'utf8').match(/<img[^>]*fetchpriority="high"/g)?.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('privacy policy matches the form', () => {
+  it('lists exactly what the contact form collects', () => {
+    const privacy = readFileSync('dist/privacy/index.html', 'utf8');
+    expect(privacy).toContain('Your name, email address and message.');
+    expect(privacy).not.toMatch(/project type/i);
+    const form = readFileSync('dist/about/index.html', 'utf8').match(/<form[\s\S]*?<\/form>/)![0];
+    const fields = [...form.matchAll(/<(?:input|textarea)[^>]*name="([^"]+)"/g)].map((m) => m[1]).filter((n) => n !== '_gotcha');
+    expect(fields).toEqual(['name', 'email', 'message']);
+  });
+});
