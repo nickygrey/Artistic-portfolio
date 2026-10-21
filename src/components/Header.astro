@@ -1,598 +1,69 @@
 ---
-import { type Lang, t, languages } from '../i18n/translations';
+import { type Lang, t } from '../i18n/translations';
+import { LOCALES, localizedPath, stripLocale } from '../lib/seo';
 
 interface Props {
   lang: Lang;
 }
 
 const { lang } = Astro.props;
-const base = import.meta.env.BASE_URL;
-const homeUrl = lang === 'en' ? '/' : `/${lang}/`;
+const { path } = stripLocale(Astro.url.pathname);
+const home = localizedPath('/', lang);
+const about = localizedPath('/about/', lang);
 ---
 
-<nav class="wrap header" data-base={base} transition:persist transition:name="header">
-  <a href={homeUrl} class="logo">p.v.</a>
-  <button class="nav-toggle" aria-label="Toggle navigation menu" id="nav-toggle">
-    <span></span>
-  </button>
-  <div id="nav-links" class="nav-links">
-    <a href="#photos" class="navlink">{t(lang, 'nav.photos')}</a>
-    <a href="#reel" class="navlink">{t(lang, 'nav.reel')}</a>
-    <a href="#work" class="navlink">{t(lang, 'nav.work')}</a>
-    <a href="#about" class="navlink">{t(lang, 'nav.about')}</a>
-    <a href="#services" class="navlink">{t(lang, 'nav.services')}</a>
-    <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener" class="navlink instagram">@nickygreys</a>
-    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
-      <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <circle cx="12" cy="12" r="5"/>
-        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-      </svg>
-      <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-      </svg>
-    </button>
-    <div class="lang-toggle" id="lang-toggle">
-      {Object.keys(languages).map((l) => (
-        <button
-          class:list={['lang-btn', { 'is-active': l === lang }]}
-          data-lang={l}
-        >
-          {l.toUpperCase()}
-        </button>
+<header class="site-header">
+  <a class="site-header__name" href={home} data-nav="home">V. Plotnikov</a>
+  <p class="site-header__eyebrow eyebrow">{t(lang, 'header.eyebrow')}</p>
+  <nav class="site-header__nav" aria-label={t(lang, 'nav.label')}>
+    <a href={home} data-nav="work">{t(lang, 'nav.work')}</a>
+    <a href={about} data-nav="about">{t(lang, 'nav.about')}</a>
+    <a href={`${about}#contact`} data-nav="contact">{t(lang, 'nav.contact')}</a>
+    <ul class="site-header__locales" aria-label={t(lang, 'nav.language')}>
+      {LOCALES.map((l) => (
+        <li>
+          <a href={localizedPath(path, l)} hreflang={l} lang={l} aria-current={l === lang ? 'page' : undefined} data-locale={l}>
+            {l.toUpperCase()}
+          </a>
+        </li>
       ))}
-    </div>
-  </div>
-</nav>
+    </ul>
+  </nav>
+</header>
 
 <style>
-  .header {
+  .site-header {
     position: fixed;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
-    z-index: 100;
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 24px;
-    padding-top: 22px;
-    padding-bottom: 22px;
-    background: transparent;
-    border-bottom: 1px solid transparent;
-    transition: background 0.4s ease, border-color 0.4s ease;
-  }
-
-  /* Scrolled state - back to normal colors but still transparent */
-  .header.is-scrolled {
-    /* Keep transparent, just restore normal text colors */
-  }
-
-  .header.is-scrolled .logo {
-    color: var(--color-text);
-  }
-
-  .header.is-scrolled .navlink {
-    color: var(--color-text);
-  }
-
-  .header.is-scrolled .navlink:hover {
-    color: var(--color-accent-700);
-  }
-
-  .header.is-scrolled .instagram {
-    color: var(--color-accent-700);
-  }
-
-  .header.is-scrolled .theme-toggle {
-    color: var(--color-text);
-  }
-
-  .header.is-scrolled .lang-btn {
-    color: color-mix(in srgb, var(--color-text) 50%, transparent);
-  }
-
-  .header.is-scrolled .lang-btn.is-active {
-    color: var(--color-text);
-  }
-
-  /*
-   * Over a dark section - light text. Declared *after* the .is-scrolled
-   * block on purpose: both classes carry equal selector specificity, and
-   * the hero (a dark section) spans well past the 80px scroll threshold,
-   * so .is-scrolled and .is-over-dark are both active for most of the
-   * hero's height. Source order is what makes "what's behind the header"
-   * win over "how far the page has scrolled" during that overlap — that
-   * is the actual fix for the contrast bug this task addresses.
-   */
-  .header.is-over-dark {
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  .header.is-over-dark .logo {
-    color: rgba(255, 255, 255, 0.95);
-  }
-
-  .header.is-over-dark .navlink {
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  .header.is-over-dark .navlink:hover {
-    color: rgba(255, 255, 255, 1);
-  }
-
-  .header.is-over-dark .instagram {
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  .header.is-over-dark .theme-toggle {
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  .header.is-over-dark .lang-btn {
-    color: rgba(255, 255, 255, 0.6);
-  }
-
-  .header.is-over-dark .lang-btn.is-active {
-    color: rgba(255, 255, 255, 0.95);
-  }
-
-  /*
-   * .nav-toggle's bars were never part of this inversion system — they're
-   * drawn with `background: var(--color-text)` in global.css, so unlike
-   * every rule above (which hardcodes rgba(255,255,255,…) precisely so it
-   * cannot go dark-on-dark), the hamburger silently inverted with the site
-   * theme instead. Over a dark section in light theme that painted near-black
-   * bars (var(--color-text) = #201f1d) on a darkened photo: ~1-2.5:1, the one
-   * control that opens mobile nav effectively invisible. Found over the
-   * (since-removed) image bands, but the hero is `data-header-theme="dark"`
-   * too and has exactly the same exposure, so this stays: it is scoped to
-   * `.is-over-dark`, not to any one component.
-   */
-  .header.is-over-dark .nav-toggle span,
-  .header.is-over-dark .nav-toggle span::before,
-  .header.is-over-dark .nav-toggle span::after {
-    background: rgba(255, 255, 255, 0.9);
-  }
-
-  /* Preserve the open-state animation: the middle bar hides (its two
-     siblings rotate into an X), it does not turn solid white. Higher
-     specificity than the rule above (adds .is-open) wins without relying
-     on source order. */
-  .header.is-over-dark .nav-toggle.is-open span {
-    background: transparent;
-  }
-
-  .nav-links {
-    display: flex;
-    gap: 30px;
-    align-items: baseline;
-    font-family: var(--font-body);
-    font-size: 14px;
-  }
-
-  .navlink {
-    transition: color 0.3s ease;
-  }
-
-  .instagram {
-    color: var(--color-accent-700);
-    transition: color 0.3s ease;
-  }
-
-  /* Theme Toggle */
-  .theme-toggle {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    display: flex;
+    inset: 0 0 auto;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: center;
-    color: var(--color-text);
-    opacity: 0.7;
-    transition: opacity 0.3s ease, transform 0.3s ease, color 0.3s ease;
+    padding: 22px var(--gutter);
+    font-size: var(--size-nav);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
   }
+  .site-header a { text-decoration: none; text-underline-offset: 4px; }
+  .site-header a:hover { text-decoration: underline; }
+  .site-header__eyebrow { margin: 0; opacity: 0.8; }
+  .site-header__nav { justify-self: end; display: flex; align-items: center; gap: 16px; }
+  .site-header__locales { display: flex; gap: 6px; margin: 0 0 0 8px; padding: 0; list-style: none; opacity: 0.7; }
+  .site-header__locales a[aria-current] { text-decoration: underline; }
 
-  .theme-toggle:hover {
-    opacity: 1;
-    transform: scale(1.1);
-  }
-
-  .theme-toggle:active {
-    transform: scale(0.95) rotate(15deg);
-  }
-
-  .theme-toggle .icon-sun,
-  .theme-toggle .icon-moon {
-    transition: opacity 0.3s ease, transform 0.3s ease;
-  }
-
-  /* Light mode: show sun, hide moon */
-  .theme-toggle .icon-sun {
-    display: block;
-  }
-  .theme-toggle .icon-moon {
-    display: none;
-  }
-
-  /* Dark mode: show moon, hide sun */
-  :global([data-theme="dark"]) .theme-toggle .icon-sun {
-    display: none;
-  }
-  :global([data-theme="dark"]) .theme-toggle .icon-moon {
-    display: block;
-  }
-
-  /* Mobile header adjustments */
-  @media (max-width: 900px) {
-    .header {
-      align-items: center;
-      padding-top: 16px;
-      padding-bottom: 16px;
-    }
-
-    .theme-toggle {
-      padding: 10px;
-      margin-right: 8px;
-    }
-
-    /*
-     * C1 fix: the open mobile dropdown (.nav-links.is-open, styled in
-     * global.css) is an opaque panel with background: var(--color-bg). The
-     * .header.is-over-dark inversion above is tuned for text sitting
-     * directly on the dark hero photo — applied to this panel instead it
-     * paints near-white text on a near-white (light theme) panel.
-     * is-over-dark is true at scroll 0 on every page (the hero is the dark
-     * section), so this is the default state a phone user sees on first
-     * tapping the hamburger.
-     *
-     * Fix: revert every inverted token back to its plain, un-inverted
-     * value whenever the dropdown is open, regardless of what's behind the
-     * header band. Each selector below adds `.nav-links.is-open` on top of
-     * `.header.is-over-dark .X`, so it is strictly more specific than the
-     * rule it overrides — this doesn't depend on source order the way
-     * .is-over-dark vs .is-scrolled does (see the comment above
-     * .header.is-over-dark). Dark theme was already fine (near-white text
-     * over a near-black panel); reverting to var(--color-text) here keeps
-     * it fine since --color-text is near-white in dark theme too.
-     */
-    .header.is-over-dark .nav-links.is-open .navlink {
-      color: var(--color-text);
-    }
-
-    .header.is-over-dark .nav-links.is-open .navlink:hover {
-      color: var(--color-accent-700);
-    }
-
-    .header.is-over-dark .nav-links.is-open .instagram {
-      color: var(--color-accent-700);
-    }
-
-    .header.is-over-dark .nav-links.is-open .theme-toggle {
-      color: var(--color-text);
-    }
-
-    .header.is-over-dark .nav-links.is-open .lang-btn {
-      color: color-mix(in srgb, var(--color-text) 50%, transparent);
-    }
-
-    .header.is-over-dark .nav-links.is-open .lang-btn.is-active {
-      color: var(--color-accent-700);
+  @media (max-width: 760px) {
+    .site-header { grid-template-columns: 1fr auto; }
+    .site-header__eyebrow {
+      position: fixed;
+      left: calc(var(--gutter) - 4px);
+      top: 50%;
+      writing-mode: vertical-rl;
+      transform: translateY(-50%) rotate(180deg);
     }
   }
-
-  /*
-   * Tap targets: grow the touchable region to the 44px minimum without
-   * changing how anything renders.
-   *
-   * .logo: a first pass used only padding: 5px 2px / margin: -5px -2px.
-   * That worked at 390px, but global.css shrinks the logo's font-size (and
-   * letter-spacing) at two breakpoints below the unconditional 26px base
-   * (global.css:296), not one — 22px at <=600px (global.css:725) and a
-   * further 20px at <=380px (global.css:753-756) — so the same fixed
-   * padding landed at 37.4x41 on an iPhone SE (375px) and every width below
-   * it — still under 44.
-   *
-   * A second pass tried to fix that by adding min-width/min-height and
-   * *removing* the padding, on the theory that .logo is already a
-   * blockified flex item with default top/left content flow, so a taller
-   * min-height would just add invisible space below the text. That is true
-   * in isolation, but it ignored `.header`'s `align-items: center`: an
-   * item's cross-axis position is `(row_cross_size - item_margin_box) / 2`
-   * — a function of *this item's own margin-box size*. Padding was gone,
-   * so margin alone no longer had anything to cancel against, and the
-   * margin-box grew unchecked (44px, unclamped) instead of holding at its
-   * natural size — verified as a real, visible ~1-5px glyph shift via a
-   * pixel diff against the pre-fix screenshots, not just theorized.
-   *
-   * The fix that actually holds: padding + equal negative margin (which
-   * cancels via `content position = flow_position + margin + padding`,
-   * independent of width/height — see .youtube-link/.archive-link/footer a
-   * for the same identity holding cleanly with a single padding value),
-   * sized *generously enough that padding alone clears 44px in whichever of
-   * the three font-size regimes is smallest at the current width* — so
-   * min-width/min-height are never actually the constraint that wins, only
-   * a stated-outcome safety net if some future breakpoint shrinks the font
-   * further than these three (measured with getBoundingClientRect(), touch
-   * emulation on, padding/margin temporarily zeroed to read the natural box):
-   *
-   *   <=380px,       20px font (natural 33.41x31):    +8px/+6px -> 45.41 x 47    (>=44 ✓)
-   *   381-600px,     22px font (natural 41.14x34.09):  +8px/+6px -> 53.14 x 50.09 (✓)
-   *   >600px (base), 26px font (natural 48.63x40.30):  +8px/+6px -> 60.63 x 56.30 (✓)
-   *
-   * The third row is reached on touch by any tablet — anything matching
-   * `(hover: none) and (pointer: coarse)` wider than 600px, not just
-   * phones — so it is live production surface, not a hypothetical. The
-   * invariant this rule actually has to hold is not "clear 44px at two (or
-   * three) specific widths" but "the padding must clear 44px at whatever
-   * the smallest font-size regime in play is" — whichever breakpoints
-   * global.css happens to define at the time.
-   *
-   * Because padding alone wins in all three known regimes, margin
-   * (-8px -6px) cancels back to *exactly* the natural pre-fix margin-box in
-   * each — 33.41x31, 41.14x34.09, and 48.63x40.30 — not just something
-   * under .nav-toggle's row height (36/40), but bit-for-bit the original
-   * size, so `align-items: center` computes the identical cross-axis offset
-   * it always did and the glyphs render at the identical position. Verified
-   * with getBoundingClientRect() and a pixel diff at all four widths below
-   * (all three fall in the <=600px band; the >600px band is verified above
-   * instead, since none of this component's own tests exercise a tablet
-   * width).
-   *
-   * .nav-toggle: has a real, visible border, so a plain padding/min-size
-   * trick would grow what's painted along with the hit area (as a first
-   * pass of this fix did), and a flat 44x44 override would do even more of
-   * that below 380px, silently erasing the compact 36x36 design at exactly
-   * the breakpoint that defines it (global.css:758-761). Fixed by
-   * decoupling the *box* (what getBoundingClientRect measures, and what
-   * must be >=44px) from the *ring* (what's painted): the real `border` is
-   * removed, the box is grown to a uniform 44x44 with `outline` drawing the
-   * ring, and a negative `outline-offset` pulls that ring back in to paint
-   * at the original visual size — 40x40 at/above 380px, 36x36 below it, via
-   * a nested override at that breakpoint. `outline` doesn't participate in
-   * layout or in getBoundingClientRect() at all, so this gets a real,
-   * uniform 44x44 tap target *and* keeps the compact design and the icon
-   * centered exactly where they were — verified below, not just asserted.
-   *
-   * That decorative outline has one further constraint: it must yield to
-   * the keyboard focus ring. global.css:82-86 sets
-   * `button:focus-visible { outline: 2px solid var(--color-accent);
-   * outline-offset: 3px }` at specificity (0,1,1); Astro scopes this
-   * component's `.nav-toggle` selector to `.nav-toggle[data-astro-cid-*]`,
-   * specificity (0,2,0) — which outranks it regardless of source order, so
-   * an earlier version of this rule painted the resting divider-colour ring
-   * even while focus-visible, silently erasing the focus indicator for
-   * anyone tabbing to this button on a touchscreen laptop, a tablet with a
-   * keyboard case, or a Chromebook (all of which match this same touch
-   * media query) — a WCAG 2.4.7 failure, caught in review, not written
-   * this way from the start. Fixed by scoping the decorative outline to
-   * `:not(:focus-visible)`: while focused it simply doesn't match (not a
-   * specificity contest to lose), so `button:focus-visible` is the only
-   * remaining rule setting `outline`/`outline-offset` and paints
-   * uncontested, at its own `outline-offset: 3px` (outside the box, not
-   * fighting this rule's negative offsets, since this rule isn't part of
-   * the cascade at that state at all). width/height/border/margin stay on
-   * the unconditional `.nav-toggle` rule — the tap target and layout
-   * stability must hold whether or not the button is focused, only the
-   * decorative ring itself is conditional.
-   */
-  @media (hover: none) and (pointer: coarse) {
-    .logo {
-      padding: 8px 6px;
-      margin: -8px -6px;
-      min-width: 44px;
-      min-height: 44px;
-    }
-
-    .nav-toggle {
-      width: 44px;
-      height: 44px;
-      border: none;
-      margin: -2px;
-    }
-
-    .nav-toggle:not(:focus-visible) {
-      outline: 1px solid var(--color-divider);
-      outline-offset: -2px;
-    }
-  }
-
-  /* Below the 380px breakpoint, global.css shrinks .nav-toggle's own
-     design to 36x36 (see global.css:758-761). Keep the box a uniform
-     44x44 real tap target, but pull the painted ring in further so it
-     still reads as the compact 36x36 button that breakpoint intends. */
-  @media (hover: none) and (pointer: coarse) and (max-width: 380px) {
-    .nav-toggle {
-      margin: -4px;
-    }
-
-    .nav-toggle:not(:focus-visible) {
-      outline-offset: -4px;
-    }
+  @media (max-width: 480px) {
+    .site-header { font-size: 11px; }
+    .site-header__nav { gap: 10px; }
+    .site-header__locales { gap: 4px; margin-left: 2px; }
   }
 </style>
-
-<script>
-  // Track if listeners are already set up (prevents duplicates after View Transitions)
-  let headerInitialized = false;
-
-  let themeObserver: IntersectionObserver | null = null;
-  let themeResizeTimer: ReturnType<typeof setTimeout> | undefined;
-
-  function initHeaderTheme() {
-    const header = document.querySelector('.header');
-    if (!header) return;
-
-    themeObserver?.disconnect();
-
-    const darkSections = document.querySelectorAll('[data-header-theme="dark"]');
-    if (!darkSections.length) {
-      header.classList.remove('is-over-dark');
-      return;
-    }
-
-    const band = header.getBoundingClientRect().height || 64;
-    const active = new Set<Element>();
-
-    themeObserver = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) active.add(entry.target);
-          else active.delete(entry.target);
-        }
-        header.classList.toggle('is-over-dark', active.size > 0);
-      },
-      { rootMargin: `0px 0px -${Math.max(0, window.innerHeight - band)}px 0px`, threshold: 0 }
-    );
-
-    darkSections.forEach((s) => themeObserver!.observe(s));
-  }
-
-  function initHeader() {
-    const navToggle = document.getElementById('nav-toggle');
-    const navLinks = document.getElementById('nav-links');
-    const header = document.querySelector('.header');
-    const themeToggle = document.getElementById('theme-toggle');
-    const langToggle = document.getElementById('lang-toggle');
-    const basePath = (header as HTMLElement)?.dataset.base || '/';
-
-    function closeMobileMenu() {
-      navToggle?.classList.remove('is-open');
-      navLinks?.classList.remove('is-open');
-    }
-
-    function updateHeaderState() {
-      if (!header) return;
-      const scrolled = window.scrollY > 80;
-      header.classList.toggle('is-scrolled', scrolled);
-    }
-
-    function getThemePreference(): 'light' | 'dark' {
-      const stored = localStorage.getItem('theme');
-      if (stored === 'dark' || stored === 'light') return stored;
-      // Dark is the design target for this site, so it is the default for
-      // anyone who has not chosen — matching Layout.astro's inline script.
-      // A scheduled OS appearance change is not a choice, so it must not
-      // override this default (see the removed matchMedia listener below).
-      return 'dark';
-    }
-
-    function setTheme(theme: 'light' | 'dark') {
-      document.documentElement.classList.add('theme-transitioning');
-      document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('theme', theme);
-
-      const metaTheme = document.querySelector('meta[name="theme-color"]');
-      if (metaTheme) {
-        // Read the resolved --color-bg rather than hardcoding a hex value
-        // here, so this can never drift from the palette in global.css again.
-        const bg = getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim();
-        metaTheme.setAttribute('content', bg || (theme === 'dark' ? '#0b0a09' : '#f3f2f2'));
-      }
-
-      setTimeout(() => {
-        document.documentElement.classList.remove('theme-transitioning');
-      }, 400);
-    }
-
-    // Initialize states
-    updateHeaderState();
-    initHeaderTheme();
-    const currentTheme = getThemePreference();
-    if (currentTheme === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
-
-    // Only add event listeners once
-    if (!headerInitialized) {
-      headerInitialized = true;
-
-      // Scroll detection
-      let ticking = false;
-      window.addEventListener('scroll', () => {
-        if (!ticking) {
-          requestAnimationFrame(() => {
-            updateHeaderState();
-            ticking = false;
-          });
-          ticking = true;
-        }
-      });
-
-      // Mobile menu toggle
-      navToggle?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        navToggle.classList.toggle('is-open');
-        navLinks?.classList.toggle('is-open');
-      });
-
-      // Close menu when clicking a nav link
-      navLinks?.querySelectorAll('.navlink').forEach(link => {
-        link.addEventListener('click', closeMobileMenu);
-      });
-
-      // Close menu when clicking outside
-      document.addEventListener('click', (e) => {
-        const currentHeader = document.querySelector('.header');
-        const currentNavLinks = document.getElementById('nav-links');
-        if (!currentHeader?.contains(e.target as Node) && currentNavLinks?.classList.contains('is-open')) {
-          closeMobileMenu();
-        }
-      });
-
-      // Close menu on escape key
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          closeMobileMenu();
-        }
-      });
-
-      // Close menu on resize to desktop
-      window.addEventListener('resize', () => {
-        if (window.innerWidth > 900) {
-          closeMobileMenu();
-        }
-      });
-
-      // Rebuild the theme observer on resize (its rootMargin depends on
-      // window.innerHeight). Debounced since resize fires rapidly.
-      window.addEventListener('resize', () => {
-        clearTimeout(themeResizeTimer);
-        themeResizeTimer = setTimeout(() => {
-          initHeaderTheme();
-        }, 150);
-      });
-
-      // Theme toggle
-      themeToggle?.addEventListener('click', () => {
-        const current = document.documentElement.getAttribute('data-theme');
-        setTheme(current === 'dark' ? 'light' : 'dark');
-      });
-
-      // No listener for OS-level prefers-color-scheme changes: dark is the
-      // fixed default for anyone who has not made an explicit choice via the
-      // toggle above. A scheduled OS appearance change is not a choice, so it
-      // must neither flip the applied theme nor (as the previous version did)
-      // silently persist itself to localStorage the first time it fires —
-      // that would have permanently overridden the default for a visitor who
-      // never touched the toggle.
-
-      // Language toggle
-      langToggle?.addEventListener('click', (e) => {
-        const target = e.target as HTMLElement;
-        if (target.classList.contains('lang-btn')) {
-          const newLang = target.dataset.lang;
-          if (newLang) {
-            localStorage.setItem('lang', newLang);
-            window.location.href = newLang === 'en' ? basePath : `${basePath}${newLang}/`;
-          }
-        }
-      });
-    }
-  }
-
-  // Initialize on load and after View Transitions
-  initHeader();
-  document.addEventListener('astro:page-load', initHeader);
-</script>

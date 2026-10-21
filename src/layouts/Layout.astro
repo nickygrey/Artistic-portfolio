@@ -1,263 +1,90 @@
 ---
 import '../styles/global.css';
-import { getImage } from 'astro:assets';
-import { type Lang, defaultLang } from '../i18n/translations';
+import { type Lang, defaultLang, t } from '../i18n/translations';
 import { ClientRouter } from 'astro:transitions';
 import { stripLocale, canonicalUrl, hreflangAlternates, ogLocale, siteJsonLd } from '../lib/seo';
-import { HERO_IMAGE, HERO_WIDTHS, HERO_QUALITY, HERO_FORMAT, HERO_SIZES } from '../lib/hero-image';
+import { worldColors, type World } from '../lib/disciplines';
 
 interface Props {
-  title?: string;
+  title: string;
   description?: string;
   lang?: Lang;
+  world?: World;
+  /** Absolute URL. Defaults to the site-wide 1200x630 og.jpg. */
+  ogImage?: string;
 }
 
-const {
-  title = 'Vyacheslav Plotnikov — Cinematographer in Luxembourg',
-  description = 'Professional cinematographer, photographer and editor based in Luxembourg. Specializing in short films, documentaries, commercial work, and photography with a film-trained eye.',
-  lang = defaultLang
-} = Astro.props;
+const { title, lang = defaultLang, world = 'neutral', ogImage } = Astro.props;
+const description = Astro.props.description ?? t(lang, 'meta.home.description');
 
-// Use full site URL for social media images (OG/Twitter require absolute URLs)
 const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.com';
 
-// Derive canonical/hreflang/JSON-LD from the actual pathname only — never
-// Astro.url.href or a constructed string, since stripLocale does not defend
-// against query strings or hash fragments.
+// The URL is the ground truth for where a page renders. Fail the build if a
+// page's `lang` prop disagrees with it, rather than ship mismatched SEO tags.
 const { locale, path } = stripLocale(Astro.url.pathname);
-
-// The URL is the ground truth for where a page renders — a page cannot lie
-// about its own path, but it can easily forget to pass `lang` (which then
-// silently defaults to 'en'). Trust the URL-derived locale for every piece
-// of SEO metadata below, and fail the build loudly if a page's `lang` prop
-// disagrees with it, so a forgotten or wrong prop is caught at build time
-// instead of shipping a canonical/hreflang/html-lang mismatch to production.
 if (lang !== locale) {
   throw new Error(
-    `Layout: lang prop "${lang}" does not match the locale "${locale}" implied by ` +
-    `the URL "${Astro.url.pathname}". Pass lang={'${locale}'} to <Layout>, or omit ` +
-    `the prop and let it default — canonical, hreflang and html-lang must reflect ` +
-    `where the page actually renders, not what it was told.`
+    `Layout: lang prop "${lang}" does not match the locale "${locale}" implied by the URL "${Astro.url.pathname}".`
   );
 }
 
 const canonical = canonicalUrl(path, locale);
 const alternates = hreflangAlternates(path);
-const jsonLd = siteJsonLd();
 const isHome = path === '/';
-
-// The hero is the single above-the-fold photograph on the homepage and its
-// likely LCP element. fetchpriority="high" + loading="eager" on the <img>
-// itself gets picked up by the preload scanner, but a head-level preload
-// still resolves earlier — before the body has streamed in at all. Built
-// from the exact same widths/format/quality as Hero.astro's own <Image>
-// (see ../lib/hero-image.ts) so this always references files that really
-// get requested, never a stray extra one. Only computed for the homepage:
-// Hero.astro never renders on /privacy, so preloading it there would just
-// be a wasted fetch.
-const heroPreload = isHome
-  ? await getImage({
-      src: HERO_IMAGE,
-      // Explicit width, matching Hero.astro's own <Image> call: without it,
-      // Astro's getTargetDimensions() defaults the base (non-srcset)
-      // transform to the source's full native resolution regardless of
-      // `widths` — the exact bug already fixed once for <Image> (see
-      // task-1-report.md) and silently reintroduced here for the same
-      // reason if omitted.
-      width: HERO_WIDTHS[HERO_WIDTHS.length - 1],
-      widths: HERO_WIDTHS,
-      format: HERO_FORMAT,
-      quality: HERO_QUALITY,
-    })
-  : null;
+const { bg, accent } = worldColors(world);
+const image = ogImage ?? `${siteUrl}/images/og.jpg`;
 ---
 
 <!DOCTYPE html>
-<html lang={locale}>
+<html lang={locale} data-world={world} style={`--world-bg: ${bg}; --world-accent: ${accent};`}>
 <head>
   <meta charset="utf-8">
-  <!-- Prevent flash of wrong theme -->
-  <script is:inline>
-    (function() {
-      const stored = localStorage.getItem('theme');
-      // Dark is the design target for this site, so it is the default for anyone
-      // who has not chosen. A stored choice always wins, including "light".
-      const theme = stored || 'dark';
-      if (theme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      }
-    })();
-  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{title}</title>
   <meta name="description" content={description}>
-  <meta name="keywords" content="cinematographer, photographer, editor, Luxembourg, documentary, short film, commercial, videographer">
   <meta name="author" content="Vyacheslav Plotnikov">
   <link rel="canonical" href={canonical}>
-  {alternates.map((a) => (
-    <link rel="alternate" hreflang={a.hreflang} href={a.href} />
-  ))}
-  {isHome && (
-    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
-  )}
+  {alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+  {isHome && <script type="application/ld+json" set:html={JSON.stringify(siteJsonLd())} />}
 
-  <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:title" content={title}>
-  <meta property="og:description" content="Professional cinematographer and photographer based in Luxembourg. Short films, documentaries, and commercial projects shot with a still photographer's eye.">
+  <meta property="og:description" content={description}>
   <meta property="og:url" content={canonical}>
-  <meta property="og:image" content={`${siteUrl}/images/og.jpg`}>
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
+  <meta property="og:image" content={image}>
+  {!ogImage && <meta property="og:image:width" content="1200">}
+  {!ogImage && <meta property="og:image:height" content="630">}
   <meta property="og:locale" content={ogLocale(locale)}>
-
-  <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content={title}>
-  <meta name="twitter:description" content="Professional cinematographer and photographer based in Luxembourg.">
-  <meta name="twitter:image" content={`${siteUrl}/images/og.jpg`}>
+  <meta name="twitter:description" content={description}>
+  <meta name="twitter:image" content={image}>
 
-  <!-- Theme Color -->
-  <meta name="theme-color" content="#f3f2f2">
-
-  <!-- Favicon -->
+  <meta name="theme-color" content={bg}>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon.svg">
 
-  {heroPreload && (
-    <link
-      rel="preload"
-      as="image"
-      href={heroPreload.src}
-      imagesrcset={heroPreload.srcSet.attribute}
-      imagesizes={HERO_SIZES}
-      fetchpriority="high"
-    />
-  )}
-
   <link rel="preload" href="/fonts/satoshi-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/cormorant-garamond-400-latin.woff2" as="font" type="font/woff2" crossorigin>
 
-  <!-- View Transitions -->
   <ClientRouter />
-
-  <!-- Custom transition animations -->
-  <style is:global>
-    /* Fade transition (default) */
-    @keyframes fade-in {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    @keyframes fade-out {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
-
-    /* Cinematic slide-up for content */
-    @keyframes slide-up-in {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    @keyframes slide-up-out {
-      from {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      to {
-        opacity: 0;
-        transform: translateY(-20px);
-      }
-    }
-
-    /* View Transition animations */
-    ::view-transition-old(root) {
-      animation: fade-out 0.3s ease-out forwards;
-    }
-    ::view-transition-new(root) {
-      animation: fade-in 0.4s ease-out forwards;
-    }
-
-    /* Main content slide transition */
-    ::view-transition-old(main-content) {
-      animation: slide-up-out 0.3s ease-in forwards;
-    }
-    ::view-transition-new(main-content) {
-      animation: slide-up-in 0.4s ease-out 0.1s forwards;
-    }
-
-    /* Keep header stable during transitions */
-    ::view-transition-old(header),
-    ::view-transition-new(header) {
-      animation: none;
-    }
-  </style>
 </head>
 <body>
-  <!-- Page Loader -->
-  <div class="page-loader" id="page-loader">
-    <span class="loader-logo">p.v.</span>
-  </div>
-
   <slot />
 
   <script>
     import { initMotion, teardownMotion } from '../motion';
     import { initWebGL, teardownWebGL } from '../webgl';
 
-    // Hide page loader - force hide with display:none as ultimate fallback
-    function hideLoader() {
-      const loader = document.getElementById('page-loader');
-      if (loader) {
-        loader.classList.add('is-hidden');
-        loader.style.display = 'none';
-      }
-    }
-
-    // Check if we've visited before (View Transition or reload)
-    const hasVisited = sessionStorage.getItem('astro-visited') === 'true';
-    sessionStorage.setItem('astro-visited', 'true');
-
-    if (hasVisited) {
-      // Returning visitor or View Transition: hide immediately
-      hideLoader();
-    } else {
-      // First visit: brief loader animation
-      if (document.readyState === 'complete') {
-        setTimeout(hideLoader, 300);
-      } else {
-        window.addEventListener('load', () => setTimeout(hideLoader, 300));
-      }
-    }
-
-    // Fallback: always hide after 1.5 seconds max
-    setTimeout(hideLoader, 1500);
-
-    // Hide on all View Transition lifecycle events
-    document.addEventListener('astro:before-swap', hideLoader);
-    document.addEventListener('astro:after-swap', hideLoader);
-    document.addEventListener('astro:page-load', hideLoader);
-
-    // Both calls are intentional, not redundant. The astro:page-load listener
-    // is what actually guarantees correctness: that event is spec-guaranteed
-    // to fire only after every deferred/module script on the page has run, so
-    // it always sees every registerMotion() call — including ones from
-    // components, regardless of where their <script> lands relative to this
-    // one in the emitted HTML. The synchronous call just avoids waiting for
-    // that event on first load. Do not remove either call.
+    // Both calls are intentional, not redundant. astro:page-load fires only
+    // after every module script on the page has run, so it is what guarantees
+    // late registerMotion() handlers are seen; the synchronous call avoids
+    // waiting for that event on first load. Do not remove either call.
     initMotion();
     document.addEventListener('astro:page-load', initMotion);
     document.addEventListener('astro:before-swap', teardownMotion);
 
-    // Same lifecycle as motion above: init on first load and every
-    // astro:page-load, tear down on astro:before-swap so a leaked WebGL
-    // context never survives a View Transition swap.
     initWebGL();
     document.addEventListener('astro:page-load', initWebGL);
     document.addEventListener('astro:before-swap', teardownWebGL);

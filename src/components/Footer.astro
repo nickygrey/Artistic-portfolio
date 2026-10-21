@@ -1,59 +1,21 @@
 ---
 import { type Lang, t } from '../i18n/translations';
+import { localizedPath } from '../lib/seo';
 
 interface Props {
   lang: Lang;
 }
 
 const { lang } = Astro.props;
-const privacyUrl = lang === 'en' ? '/privacy' : `/${lang}/privacy`;
 ---
 
-<footer class="wrap footer">
-  <span>
-    {t(lang, 'footer.copyright')}
-    {' · '}
-    <a href={privacyUrl}>{t(lang, 'footer.privacy')}</a>
-  </span>
-  <span>
-    <a href="https://instagram.com/nickygreys" target="_blank" rel="noopener">@nickygreys</a>
-    {' · '}
-    <a href="mailto:pv@nickygrey.com">pv@nickygrey.com</a>
-  </span>
+<footer class="site-footer eyebrow">
+  <p>{t(lang, 'footer.copyright')}</p>
+  <a href={localizedPath('/privacy/', lang)} data-nav="privacy">{t(lang, 'footer.privacy')}</a>
 </footer>
 
 <style>
-  .footer {
-    padding-top: 32px;
-    padding-bottom: 48px;
-    border-top: 1px solid var(--color-divider);
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    font-family: var(--font-body);
-    font-size: 13px;
-    color: color-mix(in srgb, var(--color-text) 55%, transparent);
-  }
-
-  /* Mobile styles */
-  @media (max-width: 600px) {
-    .footer {
-      flex-direction: column;
-      text-align: center;
-      gap: 16px;
-      padding-top: 24px;
-      padding-bottom: 32px;
-    }
-  }
-
-  /* Tap targets: grow the hit region to the 44px minimum with padding,
-     absorbed by an equal negative margin so each link renders in the same
-     place at the same size — only the invisible touch area grows. */
-  @media (hover: none) and (pointer: coarse) {
-    .footer a {
-      padding: 14px 0;
-      margin: -14px 0;
-    }
-  }
+  .site-footer { display: flex; justify-content: space-between; gap: 16px; padding: 48px var(--gutter) 32px; opacity: 0.75; }
+  .site-footer p { margin: 0; }
+  .site-footer a { text-underline-offset: 4px; }
 </style>
