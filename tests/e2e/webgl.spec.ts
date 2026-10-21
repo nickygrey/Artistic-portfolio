@@ -65,3 +65,31 @@ test.describe('gallery canvas', () => {
     expect(Number(layout.controls)).toBeGreaterThan(0);
   });
 });
+
+test.describe('home strips', () => {
+  test('tint surfaces arrive only once the strips have opened', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(300);
+    expect((await gl(page)).surfaces, 'none mid-reveal: the mesh would ignore the clip').toBe(0);
+    await page.waitForTimeout(2500);
+    expect(await gl(page)).toEqual({ active: true, surfaces: 2 });
+  });
+
+  test('hovering a strip drives its tint to full, and no other', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(2800);
+    await page.locator('a[data-discipline="portrait"]').hover();
+    await page.waitForTimeout(900);
+    const hover = await page.evaluate(() => window.__webgl.debug().map((d) => d.uniforms.uHover));
+    expect(hover[0]).toBeCloseTo(1, 2);
+    expect(hover[1]).toBeCloseTo(0, 2);
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(900);
+    expect(await page.evaluate(() => window.__webgl.debug()[0].uniforms.uHover)).toBeCloseTo(0, 2);
+  });
+
+  test('strip names paint above the WebGL layer', async ({ page }) => {
+    await page.goto('/');
+    expect(await page.locator('.strip__label').first().evaluate((el) => getComputedStyle(el).zIndex)).toBe('1');
+  });
+});

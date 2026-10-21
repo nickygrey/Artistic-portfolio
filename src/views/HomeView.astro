@@ -73,8 +73,9 @@ const active = await getActiveDisciplines();
     opacity: 0; transition: opacity var(--dur-fast) var(--ease-out);
   }
 
+  /* z-index: above the WebGL canvas, which paints over the strip photographs. */
   .strip__label {
-    position: absolute; left: 50%; top: calc(100% + 14px);
+    position: absolute; z-index: 1; left: 50%; top: calc(100% + 14px);
     translate: -50% 6px; white-space: nowrap;
     font-size: var(--step-label);
     opacity: 0; transition: opacity var(--dur-fast) var(--ease-out), translate var(--dur-fast) var(--ease-out);
@@ -96,7 +97,7 @@ const active = await getActiveDisciplines();
     .strips { flex-direction: column; gap: 28px; width: min(100% - 2 * var(--rail), 420px); }
     .strip { width: 100%; }
     .strip__media { aspect-ratio: 2.8; }
-    .strip__label { position: static; display: block; margin-top: 8px; translate: none; opacity: 1; }
+    .strip__label { position: relative; left: auto; top: auto; display: block; margin-top: 8px; translate: none; opacity: 1; }
   }
 </style>
 
