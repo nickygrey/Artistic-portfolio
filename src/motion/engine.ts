@@ -109,6 +109,15 @@ function preventNativeAnchorJump(event: MouseEvent): void {
   }
 
   event.preventDefault();
+
+  // Lenis scrolls to the target, but a prevented jump no longer moves keyboard
+  // focus: without this, a skip link scrolls the page and the next Tab still
+  // lands in the header. preventScroll leaves the scrolling to Lenis.
+  const target = document.getElementById(decodeURIComponent(url.hash.slice(1)));
+  if (target) {
+    if (!target.matches('a[href], button, input, select, textarea, [tabindex]')) target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
+  }
 }
 
 /**

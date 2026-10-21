@@ -137,12 +137,12 @@ const aspects = await Promise.all(
   /* Resting: the title leads the page and scrolls with it. Canvas mode pins it bottom-left, over the frames. */
   .gallery__title { margin-bottom: 40px; }
   /* max-width keeps a long (translated) title clear of the controls, ~230px wide, at the bottom right. */
-  .gallery.is-canvas .gallery__title { position: fixed; z-index: 2; left: calc(var(--gutter) + var(--rail)); bottom: 24px; max-width: calc(100vw - 2 * var(--gutter) - var(--rail) - 260px); margin: 0; pointer-events: none; }
+  .gallery.is-canvas .gallery__title { position: fixed; z-index: 2; left: calc(var(--gutter) + var(--rail)); bottom: calc(24px + env(safe-area-inset-bottom)); max-width: calc(100vw - 2 * var(--gutter) - var(--rail) - 260px); margin: 0; pointer-events: none; }
   .gallery__title h1 { margin: 0; font-size: var(--step-title); text-wrap: balance; }
   .gallery__title p { margin: 4px 0 0; }
 
   .gallery__controls, .single__controls {
-    position: fixed; z-index: 3; right: var(--gutter); bottom: 24px;
+    position: fixed; z-index: 3; right: var(--gutter); bottom: calc(24px + env(safe-area-inset-bottom));
     display: flex; align-items: center; gap: 10px;
   }
   .gallery__back, .single__close {
@@ -164,7 +164,7 @@ const aspects = await Promise.all(
   .pill__off:hover { text-decoration: underline; text-underline-offset: 4px; }
 
   /* Single view: the frames fade out beneath it; the title stays, as in the reference. */
-  .single { position: fixed; inset: 0; z-index: 1; }
+  .single { position: fixed; inset: 0; z-index: 1; overscroll-behavior: contain; }
   .single[hidden] { display: none; }
   /* display: none, not visibility: the WebGL meshes follow the frames' boxes, and only an empty box hides them. */
   main.gallery[data-view='single'] .gallery__frames { display: none; }

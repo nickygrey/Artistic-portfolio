@@ -61,3 +61,18 @@ test('the header eyebrow never collides with the nav or the page content', async
     await ctx.close();
   }
 });
+
+test('the first Tab reaches the skip link, and using it moves focus past the header', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  for (const path of ['/about/', '/work/portrait/']) {
+    await page.goto(path);
+    await page.waitForTimeout(600);
+    await page.keyboard.press('Tab');
+    await expect(page.locator('.skip-link')).toBeFocused();
+    await expect(page.locator('.skip-link')).toBeInViewport();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Tab');
+    const inHeader = await page.evaluate(() => !!document.activeElement?.closest('header'));
+    expect(inHeader, `${path}: the next Tab lands in the content, not the header`).toBe(false);
+  }
+});

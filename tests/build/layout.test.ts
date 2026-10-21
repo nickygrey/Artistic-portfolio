@@ -44,6 +44,17 @@ describe('layout', () => {
     expect(current('dist/privacy/index.html')).toEqual([]);
   });
 
+  it.each(PAGES)('%s opens with a skip link to the main content', (file) => {
+    const html = read(file);
+    const body = html.slice(html.indexOf('<body'));
+    expect(body).toMatch(/^<body[^>]*>\s*<a[^>]*class="skip-link"[^>]*href="#main-content"/);
+    expect(html).toContain('id="main-content"');
+  });
+
+  it('keeps the name out of machine translation', () => {
+    expect(read('dist/de/index.html')).toMatch(/<a[^>]*data-nav="home"[^>]*translate="no"|translate="no"[^>]*data-nav="home"/);
+  });
+
   it('there is no page loader any more', () => {
     for (const f of PAGES) expect(read(f)).not.toContain('page-loader');
   });

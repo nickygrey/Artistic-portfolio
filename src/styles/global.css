@@ -59,11 +59,23 @@ body {
 img { display: block; max-width: 100%; height: auto; }
 a { color: inherit; }
 a, button, input, textarea, select { -webkit-tap-highlight-color: transparent; }
+/* No double-tap-to-zoom delay on controls; pinch zoom stays available. */
+a, button { touch-action: manipulation; }
 
-.display { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.01em; line-height: 1; }
+.display { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.01em; line-height: 1; text-wrap: balance; }
 .eyebrow { font-weight: 500; font-size: var(--size-eyebrow); letter-spacing: 0.22em; text-transform: uppercase; }
 
 :focus-visible { outline: 1px solid var(--world-accent); outline-offset: 3px; }
+/* Landmarks focused by in-page links (skip link, Contact) take focus to move the Tab order, not to show a ring. */
+[tabindex="-1"]:focus { outline: none; }
+
+/* Hidden until it takes keyboard focus, then the first thing on the page. */
+.skip-link {
+  position: fixed; z-index: 100; left: var(--gutter); top: 12px; translate: 0 -200%;
+  padding: 10px 16px; border-radius: 99px; background: var(--world-accent); color: var(--world-bg);
+  text-decoration: none; font-size: var(--size-nav); letter-spacing: 0.02em; text-transform: uppercase;
+}
+.skip-link:focus-visible { translate: 0 0; outline-offset: 2px; }
 
 .visually-hidden {
   position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;

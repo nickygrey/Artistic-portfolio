@@ -38,4 +38,13 @@ describe('about page', () => {
     expect(html).toMatch(/<form[\s\S]*href="\/privacy\/"[\s\S]*<\/form>/);
     expect(html).toMatch(/data-form-status[^>]*aria-live="polite"|aria-live="polite"[^>]*data-form-status/);
   });
+
+  it('does not spell-check or translate the email address', () => {
+    expect(en()).toMatch(/name="email"[^>]*spellcheck="false"|spellcheck="false"[^>]*name="email"/);
+    expect(en()).toMatch(/<a href="mailto:pv@nickygrey\.com"[^>]*translate="no"/);
+  });
+
+  it('gives the home strips fetch priority as the page\'s main images', () => {
+    expect(readFileSync('dist/index.html', 'utf8').match(/<img[^>]*fetchpriority="high"/g)?.length).toBeGreaterThanOrEqual(2);
+  });
 });

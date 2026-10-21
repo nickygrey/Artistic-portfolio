@@ -15,7 +15,7 @@ const current = (nav: string) => (nav === section ? 'page' : undefined);
 ---
 
 <header class="site-header">
-  <a class="site-header__name" href={home} data-nav="home">V. Plotnikov</a>
+  <a class="site-header__name" href={home} data-nav="home" translate="no">V. Plotnikov</a>
   <p class="site-header__eyebrow eyebrow">{t(lang, 'header.eyebrow')}</p>
   <nav class="site-header__nav" aria-label={t(lang, 'nav.label')}>
     <a href={home} data-nav="work" aria-current={current('work')}>{t(lang, 'nav.work')}</a>

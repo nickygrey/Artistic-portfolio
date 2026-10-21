@@ -38,6 +38,7 @@ const active = await getActiveDisciplines();
                 format="webp"
                 quality={72}
                 loading="eager"
+                fetchpriority="high"
               />
             </span>
             <span class="strip__label display">{t(lang, discipline.nameKey)}</span>
