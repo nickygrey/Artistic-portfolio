@@ -1,5 +1,5 @@
 ---
-import { Image, getImage } from 'astro:assets';
+import { Image, Picture, getImage } from 'astro:assets';
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import { type Lang, type TranslationKey, t } from '../i18n/translations';
@@ -55,14 +55,16 @@ const aspects = await Promise.all(
       {frames.map((f) => (
         <li data-frame={f.index} data-aspect={aspects[f.index - 1]} data-cover={f.cover || undefined}>
           <a class="gallery__frame" href={`?frame=${f.index}`} transition:name={f.cover ? `frame-${slug}` : undefined}>
-            <Image
+            {/* AVIF (WebP fallback): film grain and textured backdrops cost WebP twice the bytes at equal quality. */}
+            <Picture
               src={f.image}
               alt={altOf(f)}
               width={1600}
               widths={[480, 960, 1600]}
               sizes="(max-width: 760px) 50vw, 340px"
-              format="webp"
-              quality={72}
+              formats={['avif']}
+              fallbackFormat="webp"
+              quality={50}
               loading={f.index <= 6 ? 'eager' : 'lazy'}
               draggable="false"
             />
@@ -83,14 +85,15 @@ const aspects = await Promise.all(
       <div class="single__stage" data-stage>
         {frames.map((f) => (
           <figure class="single__frame" data-single-frame={f.index} hidden>
-            <Image
+            <Picture
               src={f.image}
               alt={altOf(f)}
               width={1600}
               widths={[960, 1600]}
               sizes="(max-width: 760px) 92vw, 66vw"
-              format="webp"
-              quality={78}
+              formats={['avif']}
+              fallbackFormat="webp"
+              quality={55}
               loading="lazy"
               draggable="false"
             />

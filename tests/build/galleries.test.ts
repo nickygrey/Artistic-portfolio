@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
 const SLUGS = ['portrait', 'analog'];
 const IMAGE = /\.(jpe?g|png|webp)$/i;
+const imageCount = (slug: string) => readdirSync(`src/content/galleries/${slug}`).filter((f) => IMAGE.test(f)).length;
 const hasImages = (slug: string) =>
   readdirSync(`src/content/galleries/${slug}`).some((f) => IMAGE.test(f));
 
@@ -19,7 +20,7 @@ describe('gallery content', () => {
   });
 
   it('starting content is in place', () => {
-    expect(readdirSync('src/content/galleries/portrait').filter((f) => IMAGE.test(f))).toHaveLength(7);
+    expect(imageCount('portrait')).toBeGreaterThanOrEqual(7);
     expect(readdirSync('src/content/galleries/analog').filter((f) => IMAGE.test(f))).toHaveLength(6);
   });
 });
@@ -57,7 +58,7 @@ describe('gallery markup', () => {
 
   it('every frame is a link to its single view and carries its aspect ratio', () => {
     const frames = [...html().matchAll(/<li data-frame="(\d+)" data-aspect="([\d.]+)"[^>]*>\s*<a class="gallery__frame" href="\?frame=(\d+)"/g)];
-    expect(frames.length).toBe(7);
+    expect(frames.length).toBe(imageCount('portrait'));
     for (const f of frames) expect(f[1]).toBe(f[3]);
   });
 
@@ -76,8 +77,8 @@ describe('single view markup', () => {
   });
 
   it('has one stage figure and one rail button per frame, plus a live region', () => {
-    expect(html().match(/data-single-frame="\d+"/g)).toHaveLength(7);
-    expect(html().match(/data-goto="\d+"/g)).toHaveLength(7);
+    expect(html().match(/data-single-frame="\d+"/g)).toHaveLength(imageCount('portrait'));
+    expect(html().match(/data-goto="\d+"/g)).toHaveLength(imageCount('portrait'));
     expect(html()).toMatch(/aria-live="polite"[^>]*data-live/);
     expect(html()).toContain('data-position="{n} of {total}"');
   });

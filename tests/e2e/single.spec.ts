@@ -1,4 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
+import { readdirSync } from 'node:fs';
+
+/** Portraits in the gallery: the owner adds photographs over time, so never a hard-coded number. */
+const N = readdirSync('src/content/galleries/portrait').filter((f) => /\.(jpe?g|png|webp)$/i.test(f)).length;
 
 declare global {
   interface Window { __gallery: { offset(): { x: number; y: number } | null } }
@@ -25,7 +29,7 @@ test('clicking a frame opens it in single view, with focus on Close', async ({ p
   await page.goto('/work/portrait/');
   await openFrame(page, 2);
   expect(frameParam(page)).toBe('2');
-  await expect(count(page)).toHaveText('2 / 7');
+  await expect(count(page)).toHaveText(`2 / ${N}`);
   await expect(page.locator('[data-single-frame="2"] img')).toBeVisible();
   await expect(page.locator('[data-single-frame="1"]')).toBeHidden();
   const alt = await page.locator('[data-frame="2"]:not([data-clone]) img').getAttribute('alt');
@@ -34,21 +38,21 @@ test('clicking a frame opens it in single view, with focus on Close', async ({ p
 });
 
 test('arrow keys step through frames and wrap, and the URL follows', async ({ page }) => {
-  await page.goto('/work/portrait/?frame=6');
-  await expect(count(page)).toHaveText('6 / 7');
+  await page.goto(`/work/portrait/?frame=${N - 1}`);
+  await expect(count(page)).toHaveText(`${N - 1} / ${N}`);
   await page.keyboard.press('ArrowRight');
-  await expect(count(page)).toHaveText('7 / 7');
+  await expect(count(page)).toHaveText(`${N} / ${N}`);
   await page.keyboard.press('ArrowRight');
-  await expect(count(page)).toHaveText('1 / 7');
+  await expect(count(page)).toHaveText(`1 / ${N}`);
   expect(frameParam(page)).toBe('1');
   await page.keyboard.press('ArrowLeft');
-  await expect(count(page)).toHaveText('7 / 7');
+  await expect(count(page)).toHaveText(`${N} / ${N}`);
 });
 
 test('the rail jumps to a frame and marks it current', async ({ page }) => {
   await page.goto('/work/portrait/?frame=1');
   await page.locator('[data-goto="5"]').click();
-  await expect(count(page)).toHaveText('5 / 7');
+  await expect(count(page)).toHaveText(`5 / ${N}`);
   await expect(page.locator('[data-goto="5"]')).toHaveAttribute('aria-current', 'true');
   await expect(page.locator('[data-goto="1"]')).not.toHaveAttribute('aria-current', /.*/);
 });
@@ -65,7 +69,7 @@ test('Escape closes, clears the URL and returns focus to the opened frame', asyn
 test('Grid in the pill closes, and Single opens the first frame', async ({ page }) => {
   await page.goto('/work/portrait/');
   await page.locator('.gallery__controls [data-open]').click();
-  await expect(count(page)).toHaveText('1 / 7');
+  await expect(count(page)).toHaveText(`1 / ${N}`);
   await page.locator('.single__controls .pill [data-close]').click();
   await expect(dialog(page)).toBeHidden();
 });
@@ -73,8 +77,8 @@ test('Grid in the pill closes, and Single opens the first frame', async ({ page 
 test('a deep link opens straight into single view; a bad one stays on the grid', async ({ page }) => {
   await page.goto('/work/portrait/?frame=3');
   await expect(dialog(page)).toBeVisible();
-  await expect(count(page)).toHaveText('3 / 7');
-  for (const bad of ['99', 'abc', '0']) {
+  await expect(count(page)).toHaveText(`3 / ${N}`);
+  for (const bad of [String(N + 1), 'abc', '0']) {
     await page.goto(`/work/portrait/?frame=${bad}`);
     await page.waitForTimeout(200);
     await expect(dialog(page)).toBeHidden();
@@ -83,9 +87,9 @@ test('a deep link opens straight into single view; a bad one stays on the grid',
 
 test('screen readers hear the position', async ({ page }) => {
   await page.goto('/work/portrait/?frame=3');
-  await expect(page.locator('[data-live]')).toHaveText('3 of 7');
+  await expect(page.locator('[data-live]')).toHaveText(`3 of ${N}`);
   await page.goto('/fr/work/portrait/?frame=3');
-  await expect(page.locator('[data-live]')).toHaveText('3 sur 7');
+  await expect(page.locator('[data-live]')).toHaveText(`3 sur ${N}`);
 });
 
 test('Tab stays inside the dialog', async ({ page }) => {
@@ -138,12 +142,12 @@ test('on a phone a tap opens single view and a swipe moves on', async ({ browser
   const page = await ctx.newPage();
   await page.goto('/work/portrait/');
   await page.locator('[data-frame="1"] a').tap();
-  await expect(count(page)).toHaveText('1 / 7');
+  await expect(count(page)).toHaveText(`1 / ${N}`);
   const stage = (await page.locator('[data-stage]').boundingBox())!;
   const y = stage.y + stage.height / 2;
   await page.locator('[data-stage]').dispatchEvent('pointerdown', { clientX: stage.x + stage.width * 0.8, clientY: y, pointerType: 'touch', isPrimary: true });
   await page.locator('[data-stage]').dispatchEvent('pointerup', { clientX: stage.x + stage.width * 0.2, clientY: y, pointerType: 'touch', isPrimary: true });
-  await expect(count(page)).toHaveText('2 / 7');
+  await expect(count(page)).toHaveText(`2 / ${N}`);
   await ctx.close();
 });
 
