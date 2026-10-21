@@ -136,8 +136,9 @@ const aspects = await Promise.all(
 
   /* Resting: the title leads the page and scrolls with it. Canvas mode pins it bottom-left, over the frames. */
   .gallery__title { margin-bottom: 40px; }
-  .gallery.is-canvas .gallery__title { position: fixed; z-index: 2; left: calc(var(--gutter) + var(--rail)); bottom: 24px; margin: 0; pointer-events: none; }
-  .gallery__title h1 { margin: 0; font-size: var(--step-title); }
+  /* max-width keeps a long (translated) title clear of the controls, ~230px wide, at the bottom right. */
+  .gallery.is-canvas .gallery__title { position: fixed; z-index: 2; left: calc(var(--gutter) + var(--rail)); bottom: 24px; max-width: calc(100vw - 2 * var(--gutter) - var(--rail) - 260px); margin: 0; pointer-events: none; }
+  .gallery__title h1 { margin: 0; font-size: var(--step-title); text-wrap: balance; }
   .gallery__title p { margin: 4px 0 0; }
 
   .gallery__controls, .single__controls {
@@ -177,7 +178,8 @@ const aspects = await Promise.all(
   .single__frame[hidden] { display: none; }
   /* Sized by src/gallery/single.ts from the frame's aspect ratio, so it has its final size before it loads. */
   .single__frame img { object-fit: cover; }
-  .single__credit { margin: 0; }
+  /* width 0 / min-width 100%: the credit wraps to the photograph's width instead of widening the figure. */
+  .single__credit { width: 0; min-width: 100%; margin: 0; text-align: center; }
   .single__hint { position: absolute; left: 50%; bottom: 96px; translate: -50% 0; margin: 0; white-space: nowrap; }
 
   .single__rail {
