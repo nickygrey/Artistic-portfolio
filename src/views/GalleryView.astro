@@ -127,7 +127,7 @@ const aspects = await Promise.all(
     display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100% / 2 - var(--gutter), 260px), 1fr));
     gap: var(--gutter); align-items: start; margin: 0; padding: 0; list-style: none;
   }
-  .gallery:not(.is-canvas) li:nth-child(even) { translate: 0 12vh; }
+  .gallery:not(.is-canvas) .gallery__frames > li:nth-child(even) { translate: 0 12vh; }
   .gallery__frame { display: block; }
   .gallery__frame img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -171,7 +171,8 @@ const aspects = await Promise.all(
   .single__stage { position: absolute; inset: 88px 150px 128px; display: grid; place-items: center; }
   .single__frame { margin: 0; display: grid; justify-items: center; gap: 12px; max-height: 100%; }
   .single__frame[hidden] { display: none; }
-  .single__frame img { width: auto; height: auto; max-width: min(66vw, 1280px); max-height: calc(100svh - 236px); object-fit: contain; }
+  /* Sized by src/gallery/single.ts from the frame's aspect ratio, so it has its final size before it loads. */
+  .single__frame img { object-fit: cover; }
   .single__credit { margin: 0; }
   .single__hint { position: absolute; left: 50%; bottom: 96px; translate: -50% 0; margin: 0; white-space: nowrap; }
 
@@ -179,6 +180,7 @@ const aspects = await Promise.all(
     position: absolute; right: var(--gutter); top: 88px; bottom: 96px;
     display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 6px; list-style: none; overflow-y: auto; scrollbar-width: none;
   }
+  .single__rail li { flex: none; }
   .single__thumb { display: block; width: 60px; height: 60px; padding: 0; border: 0; background: none; cursor: pointer; opacity: 0.45; transition: opacity var(--dur-fast) var(--ease-out); }
   .single__thumb img { width: 100%; height: 100%; object-fit: cover; }
   .single__thumb:hover { opacity: 0.8; }
@@ -188,7 +190,6 @@ const aspects = await Promise.all(
     .gallery[data-view='single'] .gallery__title { visibility: hidden; }
     .single { background: var(--world-bg); }
     .single__stage { inset: 72px var(--gutter) 196px calc(var(--gutter) + var(--rail)); }
-    .single__frame img { max-width: 100%; max-height: calc(100svh - 300px); }
     .single__hint { display: none; }
     .single__rail { flex-direction: row; top: auto; left: calc(var(--gutter) + var(--rail)); bottom: 76px; overflow-x: auto; overflow-y: hidden; }
     .single__thumb { flex: none; width: 52px; height: 52px; }
@@ -200,7 +201,7 @@ const aspects = await Promise.all(
   .gallery.is-canvas { position: fixed; inset: 0; padding: 0; overflow: hidden; cursor: grab; user-select: none; touch-action: none; }
   .gallery.is-canvas.is-dragging { cursor: grabbing; }
   .gallery.is-canvas .gallery__frames { display: block; }
-  .gallery.is-canvas li { position: absolute; left: 0; top: 0; will-change: transform; }
+  .gallery.is-canvas .gallery__frames > li { position: absolute; left: 0; top: 0; will-change: transform; }
   .gallery.is-canvas .gallery__frame { height: 100%; }
   .gallery.is-canvas .gallery__hint {
     display: block; position: fixed; z-index: 2; left: 50%; bottom: 88px; translate: -50% 0;
@@ -210,10 +211,14 @@ const aspects = await Promise.all(
 
 <script>
   import { canvasOffset, mountCanvas, observerCount } from '../gallery/canvas';
+  import { mountSingle } from '../gallery/single';
 
   let destroy: (() => void) | null = null;
+  let destroySingle: (() => void) | null = null;
 
   function teardown() {
+    destroySingle?.();
+    destroySingle = null;
     destroy?.();
     destroy = null;
   }
@@ -221,7 +226,9 @@ const aspects = await Promise.all(
   function mount() {
     teardown();
     const root = document.querySelector<HTMLElement>('[data-gallery]');
-    if (root) destroy = mountCanvas(root);
+    if (!root) return;
+    destroy = mountCanvas(root);
+    destroySingle = mountSingle(root);
   }
 
   // astro:page-load fires on first load and after every ClientRouter navigation.

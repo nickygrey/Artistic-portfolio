@@ -83,11 +83,13 @@ export function mountCanvas(root: HTMLElement): (() => void) | null {
       root.classList.add('is-dragging');
     },
     onDrag: (self) => {
+      if (root.dataset.view === 'single') return;
       target.x += self.deltaX;
       target.y += self.deltaY;
       travelled += Math.abs(self.deltaX) + Math.abs(self.deltaY);
     },
     onWheel: (self) => {
+      if (root.dataset.view === 'single') return;
       target.x -= self.deltaX * DRAG.wheel;
       target.y -= self.deltaY * DRAG.wheel;
     },
@@ -114,7 +116,7 @@ export function mountCanvas(root: HTMLElement): (() => void) | null {
 
   function onKey(e: KeyboardEvent) {
     const step = { ArrowLeft: [CELL, 0], ArrowRight: [-CELL, 0], ArrowUp: [0, CELL], ArrowDown: [0, -CELL] }[e.key];
-    if (!step || e.altKey || e.metaKey || e.ctrlKey) return;
+    if (!step || e.altKey || e.metaKey || e.ctrlKey || root.dataset.view === 'single') return;
     e.preventDefault();
     target.x += step[0];
     target.y += step[1];
