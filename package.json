@@ -13,7 +13,8 @@
     "test": "vitest run tests/unit",
     "test:build": "vitest run tests/build",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "perf": "node scripts/perf.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.3",

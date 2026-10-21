@@ -1,0 +1,70 @@
+---
+import { Image } from 'astro:assets';
+import { type Lang, t } from '../i18n/translations';
+import { getDiscipline } from '../lib/disciplines';
+import { richText } from '../lib/rich';
+import { localizedPath } from '../lib/seo';
+import portrait from '../assets/portrait.jpg';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const link = (slug: 'portrait' | 'analog') => ({
+  href: localizedPath(`/work/${slug}/`, lang),
+  label: t(lang, `about.link.${slug}`),
+  accent: getDiscipline(slug)!.accent,
+});
+const story = richText(t(lang, 'about.story'), { portrait: link('portrait'), analog: link('analog') });
+---
+
+<div class="intro">
+  <div class="intro__text" data-animation="moveUp" data-stagger>
+    <h1 class="display" translate="no">Vyacheslav Plotnikov</h1>
+    <p>{t(lang, 'about.lede')}</p>
+    <p>
+      {story.map((s) =>
+        'text' in s ? s.text : <a class="intro__link" href={s.link.href} style={`--link: ${s.link.accent}`}>{s.link.label}</a>
+      )}
+    </p>
+    <p>{t(lang, 'about.p2')}</p>
+  </div>
+  <div class="frame" data-animation="brackets">
+    <span class="frame__corner frame__corner--tl" aria-hidden="true"></span>
+    <span class="frame__corner frame__corner--tr" aria-hidden="true"></span>
+    <span class="frame__corner frame__corner--bl" aria-hidden="true"></span>
+    <span class="frame__corner frame__corner--br" aria-hidden="true"></span>
+    <Image
+      src={portrait}
+      alt={t(lang, 'about.portrait-alt')}
+      width={1200}
+      widths={[480, 800, 1200]}
+      sizes="(max-width: 760px) 90vw, 32vw"
+      format="webp"
+      quality={76}
+      loading="eager"
+    />
+  </div>
+</div>
+
+<style>
+  .intro { display: grid; grid-template-columns: 1.15fr 1fr; gap: 7%; align-items: center; min-height: calc(100svh - 120px); }
+  .intro__text h1 { margin: 0 0 20px; font-size: var(--step-name); }
+  .intro__text p { max-width: 58ch; margin: 0 0 14px; color: var(--ink); }
+  .intro__link { color: var(--link); text-underline-offset: 4px; text-decoration-thickness: 1px; }
+  .intro__link:hover { text-decoration-thickness: 2px; }
+
+  .frame { position: relative; padding: 14px; }
+  .frame img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; }
+  .frame__corner { position: absolute; width: 26px; height: 26px; border: 0 solid var(--ink); }
+  .frame__corner--tl { left: 0; top: 0; border-width: 1px 0 0 1px; }
+  .frame__corner--tr { right: 0; top: 0; border-width: 1px 1px 0 0; }
+  .frame__corner--bl { left: 0; bottom: 0; border-width: 0 0 1px 1px; }
+  .frame__corner--br { right: 0; bottom: 0; border-width: 0 1px 1px 0; }
+
+  @media (max-width: 760px) {
+    .intro { grid-template-columns: 1fr; min-height: 0; gap: 40px; }
+    .frame { order: -1; width: min(100%, 360px); }
+  }
+</style>

@@ -1,0 +1,39 @@
+# Credits for src/content/galleries/portrait/. Every field is optional.
+# file: image filename · title · client · roles: [camera, lighting, edit, colour, direction, interview, photography]
+# film: link shown as "Play film ↗" · alt: describes the image · cover: true picks the home-page strip image
+frames:
+  - file: DSC00173.jpg
+    alt: Woman in a cream slip dress leaning on a balcony rail in front of trees
+  - file: DSC00222.jpg
+    alt: Woman in an orange bandana and white top with a gold pendant, in front of greenery
+  - file: DSC00778.jpg
+    alt: Woman in a navy dress standing in front of a lit carousel
+  - file: DSC04857.jpg
+    alt: Woman with long hair and lowered eyes behind a spray of baby's breath
+  - file: DSC05898.jpg
+    alt: Woman in a white shirt and jeans curled up on a windowsill beside sheer curtains
+  - file: DSC07265.jpg
+    alt: Close portrait of a woman with curly hair and freckles behind red flowers
+    cover: true
+  - file: DSC07291.jpg
+    alt: Woman with curly hair, backlit by the sun, holding red flowers on a balcony
+  - file: DSC03345-3.jpg
+    alt: Woman with her hair up in an off-shoulder white top, looking down beside a window
+  - file: DSC04137.jpg
+    alt: Woman with curly hair in a black suit, chin on her hand, against a pale blue wall
+  - file: DSC04158.jpg
+    alt: Woman in black sitting barefoot on the floor against a pale wall patterned with window light
+  - file: DSC04542-2.jpg
+    alt: Woman with long hair in a white top, lit by low sun above the city
+  - file: DSC08219.jpg
+    alt: Woman in a long black skirt sitting on stone steps beside a river
+  - file: DSC09329.jpg
+    alt: Woman with slicked-back hair in a white top, in warm light
+  - file: DSC09432.jpg
+    alt: Smiling woman in a cream cap, hands at her chin, in front of purple rhododendrons
+  - file: DSCF7545.jpg
+    alt: Woman half-hidden behind a bouquet of white and red amaryllis
+  - file: P1014795-3.jpg
+    alt: Man in a varsity jacket and cap seated on a stool against an orange backdrop
+  - file: P1014856.jpg
+    alt: Man in a beret and green shirt playing records on a portable turntable against an orange backdrop

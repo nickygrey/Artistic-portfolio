@@ -3,24 +3,26 @@
 ## Active Systems & Frameworks
 
 - **Framework:** Astro 5 (static output) with zero-JS default hydration
-- **Routing:** i18n — `en` (default, unprefixed), `fr`, `de`. Six built pages: index and privacy in each locale.
+- **Routing:** i18n — `en` (default, unprefixed), `fr`, `de`. Pages per locale: home (`/`), one gallery per discipline with images (`/work/<slug>/`), `/about/` (with the contact form at `#contact`) and `/privacy/`. Page markup lives in `src/views/`; `src/pages/` holds three-line locale wrappers.
+- **Galleries (content):** each discipline is a folder in `src/content/galleries/<slug>/` plus an optional `<slug>.yaml` of credits (alt text, cover). Disciplines, colours and years are in `src/lib/disciplines.ts`. A discipline with no images builds no page and shows no home strip. Owner originals live in `FOR PORTFOLIO/` (git-ignored); copy them in with EXIF rotation baked in, metadata stripped and the long edge capped at 3200px (see the commit adding the portraits), then add alt text to the YAML.
+- **Design spec:** `docs/superpowers/specs/2026-10-21-aperture-redesign-design.md` (read its Revision section first); one plan per milestone in `docs/superpowers/plans/`.
 - **Styling:** Plain CSS. Design tokens and shared rules in `src/styles/global.css`; component-specific rules in scoped `<style>` blocks inside each `.astro` file.
   - **No Tailwind. No CSS Modules.** Neither is installed. Do not reach for utility classes or `.module.css` imports — they will not resolve.
 - **Motion & Scroll:** Lenis + GSAP with ScrollTrigger and SplitText
-- **Testing:** Vitest (`npm test`, unit) and Playwright (`npm run test:e2e`, integration)
-- **Harnesses:** Superpowers (execution & TDD), Impeccable (design rules)
+- **Testing:** Vitest (`npm test`, unit; `npm run test:build`, checks `dist/` after `npm run build`) and Playwright (`npm run test:e2e`, integration, incl. axe WCAG 2.2 AA). `npm run perf` measures Core Web Vitals against `astro preview --port 4340`.
+- **Harnesses:** Superpowers (execution & TDD), Impeccable (design rules). Full tool roster under *Claude Code Tooling* below.
 
-Full dependency set is deliberately small: `astro`, `gsap`, `lenis`, `vitest`, `@playwright/test`. Adding a dependency is a decision, not a convenience — the site shipped 5.06 kB gzip of JS before the motion system.
+Full dependency set is deliberately small: `astro`, `@astrojs/sitemap`, `gsap`, `lenis`, `ogl`, `vitest`, `@playwright/test`, `sharp`. Adding a dependency is a decision, not a convenience — the site shipped 5.06 kB gzip of JS before the motion system.
 
 ## Development
 
-When starting the dev server, use background mode:
+Astro 5.7 has no `--background` mode (the flag is ignored and the server runs in the foreground). Start the dev server as a background task on an explicit port, and stop it when done:
 
 ```
-astro dev --background
+npx astro dev --port 4331
 ```
 
-Manage the background server with `astro dev stop`, `astro dev status`, and `astro dev logs`.
+For anything visual or performance-related, prefer the production build: `npm run build && npx astro preview --port 4340`.
 
 Ports 4321–4324 are frequently occupied by stale dev servers from unrelated projects on this machine. Always confirm which port your server actually bound to before trusting what you see in a browser.
 
@@ -109,6 +111,23 @@ Astro's `ClientRouter` swaps the DOM underneath the engine. Leaked ScrollTrigger
 1. **Isolated UI Development:** keep UI primitives modular; test isolated components before placing them in pages.
 2. **Pure logic separates from effects:** the pattern in `src/motion/` — pure config builders unit-tested in isolation, integration verified in a real browser — generalises. Prefer it over mocking a runtime.
 3. **Verify in the real app.** Motion, layout, and contrast claims need a browser and a screenshot, not a passing unit test. Read computed styles when asserting an effect actually applies.
+
+## Claude Code Tooling
+
+Plugins install per machine with `bash scripts/setup-claude-tools.sh`. Project skills live in `.claude/skills/`; the Astro docs MCP server is in `.mcp.json`. Treat them as roles on one team. Each has a lane:
+
+| Role | Tool | When |
+| --- | --- | --- |
+| Lead / process | Superpowers | Any non-trivial change: brainstorm → written plan → TDD → review |
+| Art direction | Impeccable (`/impeccable critique`, `polish`, `audit`, `typeset`, `layout`) | Design decisions and the pre-merge visual pass. Impeccable is the design authority; `frontend-design` is background taste only and never overrides it or this file |
+| Motion | `animate`, `review-animations`, `improve-animations`, `animation-performance` | New motion, motion critique, jank. Values still come from `src/motion/tokens.ts` |
+| Platform | `modern-web-guidance`, Context7, `astro-docs` MCP | Before writing HTML/CSS/client JS, and for current GSAP, Lenis and Astro APIs |
+| QA | Playwright MCP, `break-ui` | Screenshot every visual change at 375, 768 and 1440 px; stress-test with worst-case content |
+| Accessibility | AccessLint | WCAG 2.2 scan before shipping any page change |
+| Performance | Chrome DevTools MCP | LCP/INP/CLS traces after changes to images, fonts, motion or the WebGL hero |
+| Pre-ship check | `web-design-guidelines` | Final pass on changed files |
+
+Rules: don't add competing style engines (UI UX Pro Max, Taste Skill and similar) — they fight Impeccable. Don't add Tailwind- or React-specific skills; this site uses neither.
 
 ## Documentation
 

@@ -1,0 +1,72 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { type Lang, t } from '../i18n/translations';
+import { localizedPath } from '../lib/seo';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+---
+
+<Layout lang={lang} title={t(lang, 'meta.privacy.title')}>
+  <Header lang={lang} />
+  <main id="main-content" class="privacy">
+    <article>
+      <h1 class="display">{t(lang, 'privacy.title')}</h1>
+      <p>{t(lang, 'privacy.intro')}</p>
+      <p class="privacy__note">{t(lang, 'privacy.legal')}</p>
+
+      <section>
+        <h2 class="display">{t(lang, 'privacy.data.title')}</h2>
+        <p class="privacy__basis">{t(lang, 'privacy.data.legal')}</p>
+        <p>{t(lang, 'privacy.data.intro')}</p>
+        <ul><li>{t(lang, 'privacy.data.list')}</li></ul>
+        <p>{t(lang, 'privacy.data.purpose')}</p>
+        <p>{t(lang, 'privacy.data.retention')}</p>
+      </section>
+
+      <section>
+        <h2 class="display">{t(lang, 'privacy.thirdparty.title')}</h2>
+        <p class="privacy__basis">{t(lang, 'privacy.thirdparty.legal')}</p>
+        <ul>
+          <li><strong>Formspree:</strong> {t(lang, 'privacy.thirdparty.formspree')}</li>
+          <li><strong>GitHub Pages:</strong> {t(lang, 'privacy.thirdparty.hosting')}</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="display">{t(lang, 'privacy.storage.title')}</h2>
+        <p>{t(lang, 'privacy.storage.desc')}</p>
+      </section>
+
+      <section>
+        <h2 class="display">{t(lang, 'privacy.rights.title')}</h2>
+        <p>{t(lang, 'privacy.rights.intro')}</p>
+        <ul><li>{t(lang, 'privacy.rights.list')}</li></ul>
+        <p>{t(lang, 'privacy.rights.desc')}</p>
+        <p><a href="mailto:pv@nickygrey.com">pv@nickygrey.com</a></p>
+        <p>{t(lang, 'privacy.rights.complaint')}</p>
+      </section>
+
+      <p class="privacy__updated eyebrow">{t(lang, 'privacy.updated')}</p>
+      <a href={localizedPath('/', lang)}>{t(lang, 'privacy.back')}</a>
+    </article>
+  </main>
+  <Footer lang={lang} />
+</Layout>
+
+<style>
+  .privacy { width: min(100% - 2 * (var(--gutter) + var(--rail)), 680px); margin: 0 auto; padding-top: clamp(100px, 12vw, 140px); }
+  .privacy h1 { margin: 0 0 32px; font-size: var(--step-name); }
+  .privacy h2 { margin: 40px 0 16px; font-size: clamp(1.375rem, 1.2rem + 0.8vw, 1.75rem); }
+  .privacy ul { padding-left: 24px; }
+  .privacy li { margin-bottom: 12px; }
+  .privacy__note { padding-left: 16px; border-left: 1px solid var(--control-line); opacity: 0.8; }
+  .privacy__basis { font-size: 0.8125rem; font-style: italic; opacity: 0.7; }
+  .privacy__updated { margin-top: 48px; opacity: 0.7; }
+  .privacy a { text-underline-offset: 4px; }
+</style>

@@ -1,0 +1,219 @@
+---
+import { Image, Picture, getImage } from 'astro:assets';
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import { type Lang, type TranslationKey, t } from '../i18n/translations';
+import { getDiscipline, type DisciplineSlug } from '../lib/disciplines';
+import { coverOf } from '../lib/gallery';
+import { getGallery } from '../lib/gallery-data';
+import { localizedPath } from '../lib/seo';
+
+interface Props {
+  lang: Lang;
+  slug: DisciplineSlug;
+}
+
+const { lang, slug } = Astro.props;
+const discipline = getDiscipline(slug)!;
+const frames = await getGallery(slug);
+const name = t(lang, discipline.nameKey);
+const og = await getImage({ src: coverOf(frames)!.image, width: 1200, format: 'jpg', quality: 80 });
+const siteUrl = Astro.site!.toString().replace(/\/$/, '');
+const altOf = (f: (typeof frames)[number]) => f.credit?.alt ?? `${name}, ${f.index} / ${frames.length}`;
+// No film links (owner decision): a credit line shows only what was made and for whom.
+const creditOf = (f: (typeof frames)[number]) =>
+  f.credit
+    ? [f.credit.title, f.credit.client, f.credit.roles.map((r) => t(lang, `role.${r}` as TranslationKey)).join(', ')]
+        .filter(Boolean)
+        .join(' — ')
+    : '';
+const seed = [...slug].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+// Aspect ratios come from a processed thumbnail: reading width/height off the source
+// ImageMetadata makes Astro ship the full-resolution original to dist/.
+const aspects = await Promise.all(
+  frames.map(async (f) => {
+    const { attributes } = await getImage({ src: f.image, width: 480, format: 'webp', quality: 72 });
+    return (Number(attributes.width) / Number(attributes.height)).toFixed(4);
+  })
+);
+---
+
+<Layout
+  lang={lang}
+  world={slug}
+  title={`${name} — Vyacheslav Plotnikov`}
+  description={`${name}. ${t(lang, 'meta.gallery.description')}`}
+  ogImage={`${siteUrl}${og.src}`}
+>
+  <Header lang={lang} />
+  <main id="main-content" class="gallery" data-gallery data-seed={seed} data-lenis-prevent>
+    <div class="gallery__title">
+      <h1 class="display">{name}</h1>
+      <p>{discipline.years}</p>
+    </div>
+    <ol class="gallery__frames">
+      {frames.map((f) => (
+        <li data-frame={f.index} data-aspect={aspects[f.index - 1]} data-cover={f.cover || undefined}>
+          <a class="gallery__frame" href={`?frame=${f.index}`} transition:name={f.cover ? `frame-${slug}` : undefined}>
+            {/* AVIF (WebP fallback): film grain and textured backdrops cost WebP twice the bytes at equal quality. */}
+            <Picture
+              src={f.image}
+              alt={altOf(f)}
+              width={1600}
+              widths={[480, 960, 1600]}
+              sizes="(max-width: 760px) 50vw, 340px"
+              formats={['avif']}
+              fallbackFormat="webp"
+              quality={50}
+              loading={f.index <= 6 ? 'eager' : 'lazy'}
+              draggable="false"
+            />
+          </a>
+        </li>
+      ))}
+    </ol>
+    <p class="gallery__hint eyebrow" aria-hidden="true">‹&nbsp;&nbsp;{t(lang, 'gallery.drag')}&nbsp;&nbsp;›</p>
+    <div class="gallery__controls">
+      <a class="gallery__back" href={localizedPath('/', lang)} aria-label={t(lang, 'gallery.back')}>←</a>
+      <div class="pill">
+        <span class="pill__on">{t(lang, 'single.grid')}</span>
+        <button type="button" class="pill__off" data-open>{t(lang, 'single.single')}</button>
+      </div>
+    </div>
+
+    <div class="single" role="dialog" aria-modal="true" aria-label={name} data-single hidden data-position={t(lang, 'single.position')}>
+      <div class="single__stage" data-stage>
+        {frames.map((f) => (
+          <figure class="single__frame" data-single-frame={f.index} hidden>
+            <Picture
+              src={f.image}
+              alt={altOf(f)}
+              width={1600}
+              widths={[960, 1600]}
+              sizes="(max-width: 760px) 92vw, 66vw"
+              formats={['avif']}
+              fallbackFormat="webp"
+              quality={55}
+              loading="lazy"
+              draggable="false"
+            />
+            {creditOf(f) && <figcaption class="single__credit eyebrow">{creditOf(f)}</figcaption>}
+          </figure>
+        ))}
+      </div>
+      <p class="single__hint eyebrow" aria-hidden="true">{t(lang, 'single.hint')}</p>
+      <ol class="single__rail">
+        {frames.map((f) => (
+          <li>
+            <button type="button" class="single__thumb" data-goto={f.index} aria-label={`${t(lang, 'single.frame')} ${f.index}`}>
+              <Image src={f.image} alt="" width={160} widths={[160]} sizes="64px" format="webp" quality={60} loading="lazy" draggable="false" />
+            </button>
+          </li>
+        ))}
+      </ol>
+      <div class="single__controls">
+        <button type="button" class="single__close" data-close aria-label={t(lang, 'single.close')}>×</button>
+        <div class="pill">
+          <button type="button" class="pill__off" data-close>{t(lang, 'single.grid')}</button>
+          <span class="pill__on">{t(lang, 'single.single')} · <span data-count>1 / {frames.length}</span></span>
+        </div>
+      </div>
+      <p class="visually-hidden" aria-live="polite" data-live></p>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  /* Resting layout: touch, no JS, and search engines. A staggered two-column grid with native scrolling. */
+  .gallery { padding: 96px var(--gutter) 200px calc(var(--gutter) + var(--rail)); }
+  .gallery__frames {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100% / 2 - var(--gutter), 260px), 1fr));
+    gap: var(--gutter); align-items: start; margin: 0; padding: 0; list-style: none;
+  }
+  .gallery:not(.is-canvas) .gallery__frames > li:nth-child(even) { translate: 0 12vh; }
+  .gallery__frame { display: block; }
+  .gallery__frame img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* Resting: the title leads the page and scrolls with it. Canvas mode pins it bottom-left, over the frames. */
+  .gallery__title { margin-bottom: 40px; }
+  /* max-width keeps a long (translated) title clear of the controls, ~230px wide, at the bottom right. */
+  .gallery.is-canvas .gallery__title { position: fixed; z-index: 2; left: calc(var(--gutter) + var(--rail)); bottom: calc(24px + env(safe-area-inset-bottom)); max-width: calc(100vw - 2 * var(--gutter) - var(--rail) - 260px); margin: 0; pointer-events: none; }
+  .gallery__title h1 { margin: 0; font-size: var(--step-title); text-wrap: balance; }
+  .gallery__title p { margin: 4px 0 0; }
+
+  .gallery__controls, .single__controls {
+    position: fixed; z-index: 3; right: var(--gutter); bottom: calc(24px + env(safe-area-inset-bottom));
+    display: flex; align-items: center; gap: 10px;
+  }
+  .gallery__back, .single__close {
+    width: 40px; height: 40px; display: grid; place-items: center; padding: 0;
+    border: 1px solid var(--control-line); border-radius: 50%; text-decoration: none;
+    background: color-mix(in srgb, var(--world-bg) 70%, transparent); color: inherit; font: inherit; cursor: pointer;
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+  .gallery__back:hover, .single__close:hover { border-color: var(--world-accent); }
+
+  .pill {
+    display: flex; padding: 3px; border: 1px solid var(--control-line); border-radius: 99px;
+    background: color-mix(in srgb, var(--world-bg) 70%, transparent);
+    font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .pill__on, .pill__off { padding: 8px 14px; border-radius: 99px; white-space: nowrap; }
+  .pill__on { background: var(--world-accent); color: var(--world-bg); }
+  .pill__off { border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+  .pill__off:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+  /* Single view: the frames fade out beneath it; the title stays, as in the reference. */
+  .single { position: fixed; inset: 0; z-index: 1; overscroll-behavior: contain; }
+  .single[hidden] { display: none; }
+  /* display: none, not visibility: the WebGL meshes follow the frames' boxes, and only an empty box hides them. */
+  main.gallery[data-view='single'] .gallery__frames { display: none; }
+  .gallery[data-view='single'] .gallery__hint,
+  .gallery[data-view='single'] .gallery__controls { opacity: 0; visibility: hidden; }
+  .gallery__frames { transition: opacity var(--dur-fast) var(--ease-out); }
+  :global(html.single-open) { overflow: hidden; }
+
+  .single__stage { position: absolute; inset: 88px 150px 128px; display: grid; place-items: center; }
+  .single__frame { margin: 0; display: grid; justify-items: center; gap: 12px; max-height: 100%; }
+  .single__frame[hidden] { display: none; }
+  /* Sized by src/gallery/single.ts from the frame's aspect ratio, so it has its final size before it loads. */
+  .single__frame img { object-fit: cover; }
+  /* width 0 / min-width 100%: the credit wraps to the photograph's width instead of widening the figure. */
+  .single__credit { width: 0; min-width: 100%; margin: 0; text-align: center; }
+  .single__hint { position: absolute; left: 50%; bottom: 96px; translate: -50% 0; margin: 0; white-space: nowrap; }
+
+  .single__rail {
+    position: absolute; right: var(--gutter); top: 88px; bottom: 96px;
+    display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 6px; list-style: none; overflow-y: auto; scrollbar-width: none;
+  }
+  .single__rail li { flex: none; }
+  .single__thumb { display: block; width: 60px; height: 60px; padding: 0; border: 0; background: none; cursor: pointer; opacity: 0.45; transition: opacity var(--dur-fast) var(--ease-out); }
+  .single__thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .single__thumb:hover { opacity: 0.8; }
+  .single__thumb[aria-current] { opacity: 1; outline: 1px solid var(--world-accent); outline-offset: 4px; }
+
+  @media (max-width: 760px) {
+    .gallery[data-view='single'] .gallery__title { visibility: hidden; }
+    .single { background: var(--world-bg); }
+    .single__stage { inset: 72px var(--gutter) 196px calc(var(--gutter) + var(--rail)); }
+    .single__hint { display: none; }
+    .single__rail { flex-direction: row; top: auto; left: calc(var(--gutter) + var(--rail)); bottom: 76px; overflow-x: auto; overflow-y: hidden; }
+    .single__thumb { flex: none; width: 52px; height: 52px; }
+  }
+
+  .gallery__hint { display: none; }
+
+  /* Canvas mode, added by src/gallery/canvas.ts on fine-pointer devices. */
+  /* Not position: fixed — that would make a stacking context and put the title and controls under the WebGL canvas. */
+  .gallery.is-canvas { position: relative; height: 100svh; padding: 0; overflow: hidden; cursor: grab; user-select: none; touch-action: none; }
+  :global(html.canvas-open) { overflow: hidden; }
+  .gallery.is-canvas.is-dragging { cursor: grabbing; }
+  .gallery.is-canvas .gallery__frames { display: block; }
+  .gallery.is-canvas .gallery__frames > li { position: absolute; left: 0; top: 0; will-change: transform; }
+  .gallery.is-canvas .gallery__frame { height: 100%; }
+  .gallery.is-canvas .gallery__hint {
+    display: block; position: fixed; z-index: 2; left: 50%; bottom: 88px; translate: -50% 0;
+    margin: 0; color: var(--ink); pointer-events: none; white-space: nowrap;
+  }
+</style>
+

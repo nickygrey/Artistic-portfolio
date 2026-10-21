@@ -1,15 +1,31 @@
 // tests/build/build-output.test.ts
 import { describe, it, expect, beforeAll } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 
-const PAGES = [
-  { file: 'dist/index.html',            locale: 'en', canonical: 'https://nickygrey.com/',              home: true },
-  { file: 'dist/fr/index.html',         locale: 'fr', canonical: 'https://nickygrey.com/fr/',           home: true },
-  { file: 'dist/de/index.html',         locale: 'de', canonical: 'https://nickygrey.com/de/',           home: true },
-  { file: 'dist/privacy/index.html',    locale: 'en', canonical: 'https://nickygrey.com/privacy/',      home: false },
-  { file: 'dist/fr/privacy/index.html', locale: 'fr', canonical: 'https://nickygrey.com/fr/privacy/',   home: false },
-  { file: 'dist/de/privacy/index.html', locale: 'de', canonical: 'https://nickygrey.com/de/privacy/',   home: false },
+const LOCALES = [
+  { locale: 'en', prefix: '' },
+  { locale: 'fr', prefix: '/fr' },
+  { locale: 'de', prefix: '/de' },
+] as const;
+// Derived from the gallery folders, so a discipline that gains its first image is covered automatically.
+const ACTIVE = ['portrait', 'analog'].filter((s) =>
+  readdirSync(`src/content/galleries/${s}`).some((f) => /\.(jpe?g|png|webp)$/i.test(f))
+);
+const PATHS = [
+  { path: '/', home: true, gallery: false },
+  { path: '/about/', home: false, gallery: false },
+  { path: '/privacy/', home: false, gallery: false },
+  ...ACTIVE.map((s) => ({ path: `/work/${s}/`, home: false, gallery: true })),
 ];
+const PAGES = LOCALES.flatMap(({ locale, prefix }) =>
+  PATHS.map(({ path, home, gallery }) => ({
+    file: `dist${prefix}${path}index.html`,
+    locale,
+    canonical: `https://nickygrey.com${prefix}${path}`,
+    home,
+    gallery,
+  }))
+);
 
 const OG_IMAGE = 'https://nickygrey.com/images/og.jpg';
 
@@ -84,10 +100,16 @@ describe('built pages', () => {
     expect(read(file)).toContain(`content="${expected}"`);
   });
 
-  it.each(PAGES)('$file og:image and twitter:image point at the 1200x630 og.jpg', ({ file }) => {
+  it.each(PAGES)('$file og:image and twitter:image are absolute and exist in dist', ({ file, gallery }) => {
     const html = read(file);
-    expect(html).toContain(`<meta property="og:image" content="${OG_IMAGE}">`);
-    expect(html).toContain(`<meta name="twitter:image" content="${OG_IMAGE}">`);
+    const og = html.match(/<meta property="og:image" content="([^"]+)">/)?.[1] ?? '';
+    expect(html).toContain(`<meta name="twitter:image" content="${og}">`);
+    if (!gallery) {
+      expect(og).toBe(OG_IMAGE);
+    } else {
+      expect(og.startsWith('https://nickygrey.com/')).toBe(true);
+      expect(existsSync(`dist${og.replace('https://nickygrey.com', '')}`)).toBe(true);
+    }
   });
 
   it.each(PAGES)('$file emits JSON-LD only when it is a homepage', ({ file, home }) => {
@@ -117,7 +139,7 @@ describe('crawl files', () => {
     expect(read('dist/robots.txt')).toContain('Sitemap: https://nickygrey.com/sitemap-index.xml');
   });
 
-  it('sitemap lists exactly the six pages\' canonical URLs', () => {
+  it('sitemap lists exactly the built pages\' canonical URLs', () => {
     expect(sitemapLocs().sort()).toEqual(PAGES.map((p) => p.canonical).sort());
   });
 });

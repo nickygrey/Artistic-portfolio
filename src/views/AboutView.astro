@@ -1,0 +1,52 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import AboutIntro from '../components/AboutIntro.astro';
+import AboutDetails from '../components/AboutDetails.astro';
+import ContactForm from '../components/ContactForm.astro';
+import { type Lang, t } from '../i18n/translations';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+---
+
+<Layout lang={lang} title={t(lang, 'meta.about.title')}>
+  <Header lang={lang} />
+  <main id="main-content" class="about">
+    <AboutIntro lang={lang} />
+    <AboutDetails lang={lang} />
+    <ContactForm lang={lang} />
+  </main>
+  <Footer lang={lang} />
+</Layout>
+
+<style>
+  .about { width: min(100% - 2 * (var(--gutter) + var(--rail)), 1040px); margin: 0 auto; padding-top: 96px; }
+</style>
+
+<script>
+  import { mountContactForm } from '../contact/form';
+  import { registerBrackets } from '../about/register-brackets';
+
+  registerBrackets();
+
+  let destroy: (() => void) | null = null;
+
+  function teardown() {
+    destroy?.();
+    destroy = null;
+  }
+
+  function mount() {
+    teardown();
+    const form = document.querySelector<HTMLFormElement>('#contact-form');
+    if (form) destroy = mountContactForm(form);
+  }
+
+  document.addEventListener('astro:page-load', mount);
+  document.addEventListener('astro:before-swap', teardown);
+</script>

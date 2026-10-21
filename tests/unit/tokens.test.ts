@@ -55,3 +55,21 @@ describe('flag', () => {
     expect(flag(el, 'data-scrub')).toBe(false);
   });
 });
+
+import { CSS_EASE, cssMotionVars } from '../../src/motion/tokens';
+
+describe('cssMotionVars', () => {
+  it('mirrors the duration scale in seconds', () => {
+    const css = cssMotionVars();
+    expect(css).toContain(`--dur-fast: ${DURATION.fast}s;`);
+    expect(css).toContain(`--dur-base: ${DURATION.base}s;`);
+    expect(css).toContain(`--dur-slow: ${DURATION.slow}s;`);
+  });
+
+  it('mirrors the easing scale as the cubic-beziers GSAP documents for power3.out and power2.inOut', () => {
+    expect(CSS_EASE.out).toBe('cubic-bezier(0.215, 0.61, 0.355, 1)');
+    expect(CSS_EASE.inOut).toBe('cubic-bezier(0.455, 0.03, 0.515, 0.955)');
+    expect(cssMotionVars()).toContain(`--ease-out: ${CSS_EASE.out};`);
+    expect(cssMotionVars()).toContain(`--ease-in-out: ${CSS_EASE.inOut};`);
+  });
+});

@@ -1,0 +1,12 @@
+---
+import GalleryView from '../../../views/GalleryView.astro';
+import { galleryPaths } from '../../../lib/gallery-data';
+import type { DisciplineSlug } from '../../../lib/disciplines';
+
+export async function getStaticPaths() {
+  return galleryPaths();
+}
+
+const { discipline } = Astro.params as { discipline: DisciplineSlug };
+---
+<GalleryView lang="de" slug={discipline} />

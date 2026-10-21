@@ -1,0 +1,108 @@
+---
+import { Image } from 'astro:assets';
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import { type Lang, t } from '../i18n/translations';
+import { localizedPath } from '../lib/seo';
+import { coverOf } from '../lib/gallery';
+import { getActiveDisciplines } from '../lib/gallery-data';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const active = await getActiveDisciplines();
+---
+
+<Layout lang={lang} title={t(lang, 'meta.home.title')}>
+  <Header lang={lang} />
+  <main id="main-content" class="home">
+    <h1 class="visually-hidden">{t(lang, 'home.heading')}</h1>
+    <ul class="strips" data-animation="strips" style={`--count: ${active.length}`}>
+      {active.map(({ discipline, frames }) => (
+        <li>
+          <a
+            class="strip"
+            href={localizedPath(`/work/${discipline.slug}/`, lang)}
+            data-discipline={discipline.slug}
+            style={`--tint: ${discipline.accent}`}
+          >
+            <span class="strip__media" data-strip-media transition:name={`frame-${discipline.slug}`}>
+              <Image
+                src={coverOf(frames)!.image}
+                alt=""
+                width={960}
+                widths={[480, 960]}
+                sizes="(max-width: 760px) 100vw, 122px"
+                format="webp"
+                quality={72}
+                loading="eager"
+                fetchpriority="high"
+              />
+            </span>
+            <span class="strip__label display">{t(lang, discipline.nameKey)}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </main>
+</Layout>
+
+<style>
+  .home { min-height: 100svh; display: grid; place-items: center; padding: 96px var(--gutter); }
+
+  .strips { display: flex; gap: 22px; margin: 0; padding: 0; list-style: none; }
+
+  /* Few strips grow, many shrink: the row stays a band of about 42vw. Capped so a strip's 122:342 height fits the first screen. */
+  .strip {
+    position: relative; display: block; text-decoration: none;
+    width: min(clamp(96px, 42vw / var(--count), 200px), (100svh - 260px) * 122 / 342);
+  }
+  .strip:focus-visible { outline-offset: 6px; }
+
+  .strip__media { position: relative; display: block; aspect-ratio: 122 / 342; overflow: hidden; }
+  .strip__media img {
+    width: 100%; height: 100%; object-fit: cover;
+    filter: grayscale(1) contrast(1.05);
+    transition: transform var(--dur-base) var(--ease-out);
+  }
+  /* The tint: the discipline's accent multiplied over the grayscale frame, so shadows stay dark and highlights take the color. */
+  .strip__media::after {
+    content: ''; position: absolute; inset: 0;
+    background: var(--tint); mix-blend-mode: multiply;
+    opacity: 0; transition: opacity var(--dur-fast) var(--ease-out);
+  }
+
+  /* z-index: above the WebGL canvas, which paints over the strip photographs. */
+  .strip__label {
+    position: absolute; z-index: 1; left: 50%; top: calc(100% + 14px);
+    translate: -50% 6px; white-space: nowrap;
+    font-size: var(--step-label);
+    opacity: 0; transition: opacity var(--dur-fast) var(--ease-out), translate var(--dur-fast) var(--ease-out);
+  }
+
+  .strip:hover .strip__media::after,
+  .strip:focus-visible .strip__media::after,
+  .strip:active .strip__media::after { opacity: 1; }
+  .strip:hover img, .strip:focus-visible img { transform: scale(1.04); }
+  .strip:hover .strip__label, .strip:focus-visible .strip__label { opacity: 1; translate: -50% 0; }
+
+  @media (hover: none) {
+    .strip__label { opacity: 1; translate: -50% 0; }
+  }
+
+  /* Same breakpoint as STRIPS_STACKED_QUERY in src/home/strips.ts. */
+  @media (max-width: 760px) {
+    /* Narrower than the screen, so the header's vertical eyebrow keeps the left margin to itself. */
+    .strips { flex-direction: column; gap: 28px; width: min(100% - 2 * var(--rail), 420px); }
+    .strip { width: 100%; }
+    .strip__media { aspect-ratio: 2.8; }
+    .strip__label { position: relative; left: auto; top: auto; display: block; margin-top: 8px; translate: none; opacity: 1; }
+  }
+</style>
+
+<script>
+  import { registerStrips } from '../home/register-strips';
+  registerStrips();
+</script>

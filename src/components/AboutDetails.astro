@@ -1,0 +1,33 @@
+---
+import { type Lang, t } from '../i18n/translations';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const services = (['about.do.1', 'about.do.2', 'about.do.3', 'about.do.4'] as const).map((k) => t(lang, k));
+---
+
+<div class="details" data-animation="moveUp" data-stagger>
+  <div>
+    <h2 class="eyebrow">{t(lang, 'about.do')}</h2>
+    <ul>
+      {services.map((s) => <li class="details__item">{s}</li>)}
+    </ul>
+  </div>
+  <div>
+    <h2 class="eyebrow">{t(lang, 'about.based')}</h2>
+    <p>{t(lang, 'about.location')}</p>
+    <p><a href="mailto:pv@nickygrey.com" translate="no">pv@nickygrey.com</a></p>
+  </div>
+</div>
+
+<style>
+  .details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6%; padding-top: 28px; border-top: 1px solid var(--line); }
+  .details h2 { margin: 0 0 12px; font-weight: 500; opacity: 0.7; }
+  .details ul { margin: 0; padding: 0; list-style: none; }
+  .details li, .details p { margin: 0 0 4px; color: var(--ink); }
+  .details a { text-underline-offset: 4px; }
+  @media (max-width: 560px) { .details { grid-template-columns: 1fr; gap: 28px; } }
+</style>
