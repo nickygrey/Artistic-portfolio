@@ -20,8 +20,8 @@ const active = await getActiveDisciplines();
   <main id="main-content" class="home">
     <h1 class="visually-hidden">{t(lang, 'home.heading')}</h1>
     <ul class="strips" data-animation="strips" style={`--count: ${active.length}`}>
-      {active.map(({ discipline, frames }) => (
-        <li>
+      {active.map(({ discipline, frames }, i) => (
+        <li style={`--i: ${i}`}>
           <a
             class="strip"
             href={localizedPath(`/work/${discipline.slug}/`, lang)}
@@ -62,6 +62,23 @@ const active = await getActiveDisciplines();
   .strip:focus-visible { outline-offset: 6px; }
 
   .strip__media { position: relative; display: block; aspect-ratio: 122 / 342; overflow: hidden; }
+
+  /*
+   * The opening reveal is CSS, not JS, so it holds its first frame from the very
+   * first paint: a script-driven reveal lets the strips paint fully open for a
+   * frame or two before it runs. Ends fully open (no fill-mode forwards), so the
+   * resting state is still the revealed one; nothing animates under reduced motion.
+   */
+  @keyframes strip-open-tall { from { clip-path: inset(50% 0% 50% 0%); } }
+  @keyframes strip-open-wide { from { clip-path: inset(0% 50% 0% 50%); } }
+  @media (prefers-reduced-motion: no-preference) {
+    .strip__media {
+      animation: strip-open-tall var(--dur-slow) var(--ease-in-out) backwards;
+      animation-delay: calc(var(--i, 0) * var(--stagger-base));
+    }
+    /* Stacked bands open from their vertical centre line instead. */
+    @media (max-width: 760px) { .strip__media { animation-name: strip-open-wide; } }
+  }
   .strip__media img {
     width: 100%; height: 100%; object-fit: cover;
     filter: grayscale(1) contrast(1.05);
@@ -92,7 +109,7 @@ const active = await getActiveDisciplines();
     .strip__label { opacity: 1; translate: -50% 0; }
   }
 
-  /* Same breakpoint as STRIPS_STACKED_QUERY in src/home/strips.ts. */
+  /* Phones: the strips stack as horizontal bands. */
   @media (max-width: 760px) {
     /* Narrower than the screen, so the header's vertical eyebrow keeps the left margin to itself. */
     .strips { flex-direction: column; gap: 28px; width: min(100% - 2 * var(--rail), 420px); }

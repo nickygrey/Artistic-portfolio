@@ -5,7 +5,6 @@ import { registerSurface, WEBGL_READY_EVENT } from '../webgl';
 import { computeCoverUv } from '../webgl/geometry';
 import { getScene } from '../webgl/renderer';
 import { createTintShader } from '../webgl/shaders/tint';
-import { buildStripReveal, STRIPS_STACKED_QUERY } from './strips';
 
 const STRIPS = '[data-animation="strips"]';
 
@@ -58,15 +57,16 @@ function registerTints(root: HTMLElement) {
 }
 
 export function registerStrips(): void {
-  registerMotion('strips', (el, { gsap }) => {
-    const media = el.querySelectorAll<HTMLElement>('[data-strip-media]');
-    gsap.from(media, {
-      ...buildStripReveal(window.matchMedia(STRIPS_STACKED_QUERY).matches),
-      onComplete: () => {
-        el.dataset.revealed = '';
-        registerTints(el);
-      },
-    });
+  // The reveal itself is a CSS animation (HomeView.astro). This only waits for it
+  // to finish before the WebGL tints arrive.
+  registerMotion('strips', (el) => {
+    const opening = [...el.querySelectorAll<HTMLElement>('[data-strip-media]')].flatMap((m) => m.getAnimations());
+    const revealed = () => {
+      el.dataset.revealed = '';
+      registerTints(el);
+    };
+    if (!opening.length) revealed();
+    else Promise.all(opening.map((a) => a.finished)).then(revealed, () => {});
   });
 
   document.addEventListener(WEBGL_READY_EVENT, () => {

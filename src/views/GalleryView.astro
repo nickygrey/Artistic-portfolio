@@ -131,6 +131,18 @@ const aspects = await Promise.all(
     gap: var(--gutter); align-items: start; margin: 0; padding: 0; list-style: none;
   }
   .gallery:not(.is-canvas) .gallery__frames > li:nth-child(even) { translate: 0 12vh; }
+
+  /*
+   * On pointer devices (html.canvas-pending, set by an inline script before first
+   * paint) the grid would paint for a few frames before the canvas replaces it.
+   * Hold it back; if the canvas never mounts, show it anyway after 2.5s. With
+   * JavaScript off the class is never set, so nothing is ever hidden.
+   */
+  @keyframes gallery-failsafe { to { visibility: visible; } }
+  :global(html.canvas-pending) .gallery:not(.is-canvas) .gallery__frames {
+    visibility: hidden;
+    animation: gallery-failsafe 0s linear 2.5s forwards;
+  }
   .gallery__frame { display: block; }
   .gallery__frame img { width: 100%; height: 100%; object-fit: cover; }
 

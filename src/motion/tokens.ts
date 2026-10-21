@@ -60,6 +60,7 @@ export function cssMotionVars(): string {
     `--dur-fast: ${DURATION.fast}s;`,
     `--dur-base: ${DURATION.base}s;`,
     `--dur-slow: ${DURATION.slow}s;`,
+    `--stagger-base: ${STAGGER.base}s;`,
     `--ease-out: ${CSS_EASE.out};`,
     `--ease-in-out: ${CSS_EASE.inOut};`,
   ].join(' ');
