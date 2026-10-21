@@ -180,10 +180,10 @@ test('on a phone the title leads the page and never sits on a photo', async ({ b
   await ctx.close();
 });
 
-test('a gallery opens with its first photograph centred', async ({ page }) => {
+test('a gallery opens with its cover photograph centred', async ({ page }) => {
   await page.goto('/work/portrait/');
   await page.waitForTimeout(300);
-  const r = (await page.locator('[data-frame="1"]:not([data-clone])').boundingBox())!;
+  const r = (await page.locator('[data-frame][data-cover]:not([data-clone])').boundingBox())!;
   expect(Math.abs(r.x + r.width / 2 - 720)).toBeLessThan(2);
   expect(Math.abs(r.y + r.height / 2 - 450)).toBeLessThan(2);
 });

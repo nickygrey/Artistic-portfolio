@@ -53,7 +53,7 @@ const aspects = await Promise.all(
     </div>
     <ol class="gallery__frames">
       {frames.map((f) => (
-        <li data-frame={f.index} data-aspect={aspects[f.index - 1]}>
+        <li data-frame={f.index} data-aspect={aspects[f.index - 1]} data-cover={f.cover || undefined}>
           <a class="gallery__frame" href={`?frame=${f.index}`}>
             <Image
               src={f.image}
@@ -162,7 +162,8 @@ const aspects = await Promise.all(
   /* Single view: the frames fade out beneath it; the title stays, as in the reference. */
   .single { position: fixed; inset: 0; z-index: 1; }
   .single[hidden] { display: none; }
-  .gallery[data-view='single'] .gallery__frames,
+  /* display: none, not visibility: the WebGL meshes follow the frames' boxes, and only an empty box hides them. */
+  main.gallery[data-view='single'] .gallery__frames { display: none; }
   .gallery[data-view='single'] .gallery__hint,
   .gallery[data-view='single'] .gallery__controls { opacity: 0; visibility: hidden; }
   .gallery__frames { transition: opacity var(--dur-fast) var(--ease-out); }
@@ -198,7 +199,9 @@ const aspects = await Promise.all(
   .gallery__hint { display: none; }
 
   /* Canvas mode, added by src/gallery/canvas.ts on fine-pointer devices. */
-  .gallery.is-canvas { position: fixed; inset: 0; padding: 0; overflow: hidden; cursor: grab; user-select: none; touch-action: none; }
+  /* Not position: fixed — that would make a stacking context and put the title and controls under the WebGL canvas. */
+  .gallery.is-canvas { position: relative; height: 100svh; padding: 0; overflow: hidden; cursor: grab; user-select: none; touch-action: none; }
+  :global(html.canvas-open) { overflow: hidden; }
   .gallery.is-canvas.is-dragging { cursor: grabbing; }
   .gallery.is-canvas .gallery__frames { display: block; }
   .gallery.is-canvas .gallery__frames > li { position: absolute; left: 0; top: 0; will-change: transform; }

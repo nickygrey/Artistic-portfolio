@@ -57,10 +57,9 @@ export function mountSingle(root: HTMLElement): () => void {
   }
 
   /** FLIP: start the stage image over the grid frame it came from, then let it settle into place. */
-  function flyFrom(source: HTMLElement) {
+  function flyFrom(from: DOMRect) {
     const img = figures[current - 1]?.querySelector('img');
     if (!img) return;
-    const from = source.getBoundingClientRect();
     const to = img.getBoundingClientRect();
     if (!to.width || !to.height || !from.width) return;
     gsap.fromTo(
@@ -78,12 +77,14 @@ export function mountSingle(root: HTMLElement): () => void {
 
   function open(n: number, source?: HTMLElement) {
     opener = source?.querySelector('a') ?? null;
+    // Measured before opening: single view hides the grid, and a hidden frame has no box to fly from.
+    const from = source?.getBoundingClientRect();
     dialog!.hidden = false;
     root.dataset.view = 'single';
     document.documentElement.classList.add('single-open');
     show(n);
     closeButton.focus({ preventScroll: true });
-    if (source && !reduced) flyFrom(source);
+    if (from && !reduced) flyFrom(from);
   }
 
   function close() {
