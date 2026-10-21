@@ -8,7 +8,7 @@
   - **No Tailwind. No CSS Modules.** Neither is installed. Do not reach for utility classes or `.module.css` imports — they will not resolve.
 - **Motion & Scroll:** Lenis + GSAP with ScrollTrigger and SplitText
 - **Testing:** Vitest (`npm test`, unit) and Playwright (`npm run test:e2e`, integration)
-- **Harnesses:** Superpowers (execution & TDD), Impeccable (design rules)
+- **Harnesses:** Superpowers (execution & TDD), Impeccable (design rules). Full tool roster under *Claude Code Tooling* below.
 
 Full dependency set is deliberately small: `astro`, `gsap`, `lenis`, `vitest`, `@playwright/test`. Adding a dependency is a decision, not a convenience — the site shipped 5.06 kB gzip of JS before the motion system.
 
@@ -109,6 +109,23 @@ Astro's `ClientRouter` swaps the DOM underneath the engine. Leaked ScrollTrigger
 1. **Isolated UI Development:** keep UI primitives modular; test isolated components before placing them in pages.
 2. **Pure logic separates from effects:** the pattern in `src/motion/` — pure config builders unit-tested in isolation, integration verified in a real browser — generalises. Prefer it over mocking a runtime.
 3. **Verify in the real app.** Motion, layout, and contrast claims need a browser and a screenshot, not a passing unit test. Read computed styles when asserting an effect actually applies.
+
+## Claude Code Tooling
+
+Plugins install per machine with `bash scripts/setup-claude-tools.sh`. Project skills live in `.claude/skills/`; the Astro docs MCP server is in `.mcp.json`. Treat them as roles on one team. Each has a lane:
+
+| Role | Tool | When |
+| --- | --- | --- |
+| Lead / process | Superpowers | Any non-trivial change: brainstorm → written plan → TDD → review |
+| Art direction | Impeccable (`/impeccable critique`, `polish`, `audit`, `typeset`, `layout`) | Design decisions and the pre-merge visual pass. Impeccable is the design authority; `frontend-design` is background taste only and never overrides it or this file |
+| Motion | `animate`, `review-animations`, `improve-animations`, `animation-performance` | New motion, motion critique, jank. Values still come from `src/motion/tokens.ts` |
+| Platform | `modern-web-guidance`, Context7, `astro-docs` MCP | Before writing HTML/CSS/client JS, and for current GSAP, Lenis and Astro APIs |
+| QA | Playwright MCP, `break-ui` | Screenshot every visual change at 375, 768 and 1440 px; stress-test with worst-case content |
+| Accessibility | AccessLint | WCAG 2.2 scan before shipping any page change |
+| Performance | Chrome DevTools MCP | LCP/INP/CLS traces after changes to images, fonts, motion or the WebGL hero |
+| Pre-ship check | `web-design-guidelines` | Final pass on changed files |
+
+Rules: don't add competing style engines (UI UX Pro Max, Taste Skill and similar) — they fight Impeccable. Don't add Tailwind- or React-specific skills; this site uses neither.
 
 ## Documentation
 
