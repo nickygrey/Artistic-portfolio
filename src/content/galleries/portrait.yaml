@@ -1,0 +1,18 @@
+# Credits for src/content/galleries/portrait/. Every field is optional.
+# file: image filename · title · client · roles: [camera, lighting, edit, colour, direction, interview, photography]
+# film: link that becomes "Play film ↗" · alt: describes the image · cover: true picks the home-page strip image
+frames:
+  - file: 01.jpg
+    alt: Woman in a black dress and sunglasses reclining on a curved concrete sculpture
+  - file: 02.jpg
+    alt: Woman in a blue dress standing at the water's edge on a beach
+  - file: 03.jpg
+    alt: Woman in a white halter dress leaning on a railing in front of green foliage
+  - file: 04.jpg
+    alt: Couple smiling together under hanging wisteria
+  - file: 05.jpg
+    alt: Woman with her eyes closed, face in soft sunlight
+  - file: 06.jpg
+    alt: Woman with curly hair holding white and pink tulips, seated on a wooden chair
+  - file: 07.jpg
+    alt: Woman in a white corset dress smiling in front of tall dark wooden doors
