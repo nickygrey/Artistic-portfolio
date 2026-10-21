@@ -26,6 +26,12 @@ For anything visual or performance-related, prefer the production build: `npm ru
 
 Ports 4321–4324 are frequently occupied by stale dev servers from unrelated projects on this machine. Always confirm which port your server actually bound to before trusting what you see in a browser.
 
+## Security
+
+- **Content Security Policy** (`src/lib/csp.ts`, emitted by `Layout.astro` in production builds only). Scripts must come from the site itself; the one inline script is allowed by its SHA-256, computed from the same constant that renders it. Adding another inline script means rendering it from a constant and passing it to `contentSecurityPolicy()`; adding any third-party origin (analytics, embeds, a new form service) means adding it to the right directive. `npm run test:prod` fails on any violation in the production build — run it after either.
+- **`main` is protected**: changes arrive by pull request, the `Verify` workflow (unit tests, build, build checks) must pass, and the rules apply to admins. GitHub Actions are pinned to commit SHAs; Dependabot updates them and npm weekly.
+- **Photographs are imported with metadata stripped** (no GPS, no camera serials) — keep it that way for anything added to the public repo.
+
 ## UI & Design Principles (Impeccable Alignment)
 
 - Avoid generic "AI-generated" aesthetics — no raw default grays, generic cards, or abrupt transitions.
