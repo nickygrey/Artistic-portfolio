@@ -1,0 +1,15 @@
+# Credits for src/content/galleries/film/. See portrait.yaml for the fields.
+frames:
+  - file: 240206000078720003.jpg
+    alt: A figure in a dark coat climbing a curved white staircase
+  - file: 240516000033490018.jpg
+    alt: Dusk sky with a pink cloud over a dark field and a lone tree
+  - file: 240516000033500022.jpg
+    alt: The Panthéon in Paris seen from below, its dome and columns against a pale sky
+    cover: true
+  - file: 240516000033500024.jpg
+    alt: A woman with a tote bag walking past a red car in front of the Panthéon
+  - file: 240516000033500025.jpg
+    alt: A bookshop window stacked with books, framed by green shutters
+  - file: 240523000093670025.jpg
+    alt: Black-and-white silhouettes of statues against a pale sky

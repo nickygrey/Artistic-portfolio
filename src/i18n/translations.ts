@@ -37,10 +37,8 @@ export const translations = {
     'header.eyebrow': 'Cinematographer · Photographer — Luxembourg',
     'meta.home.description': 'Professional cinematographer, photographer and editor based in Luxembourg. Specializing in short films, documentaries, commercial work, and photography with a film-trained eye.',
     // Disciplines
-    'discipline.cinematography': 'Cinematography',
-    'discipline.documentary': 'Documentary',
-    'discipline.portrait': 'Portrait',
-    'discipline.photography': 'Photography',
+    'discipline.portrait': 'Portraits',
+    'discipline.film': 'Film',
 
     // About
     'about.p2': 'I shoot, grade and cut, so a project stays whole from the first setup to the final frame. Available for commissions, staff roles and brand collaborations.',
@@ -122,10 +120,8 @@ export const translations = {
     'header.eyebrow': 'Cinéaste · Photographe — Luxembourg',
     'meta.home.description': 'Cinéaste, photographe et monteur professionnel basé au Luxembourg. Courts métrages, documentaires, projets commerciaux et photographie, avec un œil formé à l\'argentique.',
     // Disciplines
-    'discipline.cinematography': 'Cinématographie',
-    'discipline.documentary': 'Documentaire',
-    'discipline.portrait': 'Portrait',
-    'discipline.photography': 'Photographie',
+    'discipline.portrait': 'Portraits',
+    'discipline.film': 'Argentique',
 
     // About
     'about.p2': "Je filme, étalonne et monte, pour qu'un projet reste cohérent du premier plan au dernier. Disponible pour commandes, postes et collaborations.",
@@ -207,10 +203,8 @@ export const translations = {
     'header.eyebrow': 'Kameramann · Fotograf — Luxemburg',
     'meta.home.description': 'Professioneller Kameramann, Fotograf und Editor in Luxemburg. Kurzfilme, Dokumentarfilme, kommerzielle Projekte und Fotografie mit einem analog geschulten Auge.',
     // Disciplines
-    'discipline.cinematography': 'Bildgestaltung',
-    'discipline.documentary': 'Dokumentarfilm',
-    'discipline.portrait': 'Porträt',
-    'discipline.photography': 'Fotografie',
+    'discipline.portrait': 'Porträts',
+    'discipline.film': 'Analog',
 
     // About
     'about.p2': 'Ich filme, grade und schneide, damit ein Projekt vom ersten Setup bis zum letzten Bild ganz bleibt. Verfügbar für Aufträge, Stellen und Markenkooperationen.',

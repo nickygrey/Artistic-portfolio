@@ -1847,7 +1847,11 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 8: Frame-grab tool, and a Documentary gallery from the four films
+### Task 8 (superseded during execution): photography-only galleries
+
+The owner stopped this task midway: photography only, with no film frames or links. What was done instead is described in the spec's "Revision" section. The two galleries are Portraits and Film, built from `FOR PORTFOLIO/`. The frame-grab script and the Documentary content were not committed. The original task text is kept below for the record.
+
+### Task 8 (original): Frame-grab tool, and a Documentary gallery from the four films
 
 **Files:**
 - Create: `scripts/grab-frames.sh` (executable)

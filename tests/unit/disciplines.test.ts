@@ -15,13 +15,8 @@ function contrast(a: string, b: string): number {
 }
 
 describe('disciplines', () => {
-  it('lists the four disciplines in home-page order', () => {
-    expect(DISCIPLINES.map((d) => d.slug)).toEqual([
-      'cinematography',
-      'documentary',
-      'portrait',
-      'photography',
-    ]);
+  it('lists the disciplines in home-page order', () => {
+    expect(DISCIPLINES.map((d) => d.slug)).toEqual(['portrait', 'film']);
   });
 
   it.each([...DISCIPLINES, { slug: 'neutral', ...NEUTRAL }])(

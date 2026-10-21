@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
-const SLUGS = ['cinematography', 'documentary', 'portrait', 'photography'];
+const SLUGS = ['portrait', 'film'];
 const IMAGE = /\.(jpe?g|png|webp)$/i;
 const hasImages = (slug: string) =>
   readdirSync(`src/content/galleries/${slug}`).some((f) => IMAGE.test(f));
@@ -20,7 +20,7 @@ describe('gallery content', () => {
 
   it('starting content is in place', () => {
     expect(readdirSync('src/content/galleries/portrait').filter((f) => IMAGE.test(f))).toHaveLength(7);
-    expect(hasImages('photography')).toBe(true);
+    expect(readdirSync('src/content/galleries/film').filter((f) => IMAGE.test(f))).toHaveLength(6);
   });
 });
 
