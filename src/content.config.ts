@@ -15,6 +15,7 @@ const credits = defineCollection({
           film: z.string().url().optional(),
           alt: z.string().optional(),
           cover: z.boolean().optional(),
+          maxWidth: z.number().int().min(480).optional(),
         })
       )
       .default([]),

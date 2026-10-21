@@ -1,6 +1,6 @@
 import type { TranslationKey } from '../i18n/translations';
 
-export type DisciplineSlug = 'portrait' | 'analog';
+export type DisciplineSlug = 'portrait' | 'analog' | 'wedding';
 export type World = 'neutral' | DisciplineSlug;
 
 export interface WorldColors {
@@ -11,15 +11,16 @@ export interface WorldColors {
 export interface Discipline extends WorldColors {
   slug: DisciplineSlug;
   nameKey: TranslationKey;
-  /** Placeholder until the owner confirms (spec §10, item 3). */
+  /** From the photographs' capture dates. */
   years: string;
 }
 
 export const NEUTRAL: WorldColors = { bg: '#1c191b', accent: '#efeae2' };
 
 export const DISCIPLINES: readonly Discipline[] = [
-  { slug: 'portrait', nameKey: 'discipline.portrait', bg: '#2b1512', accent: '#9fc3d6', years: '2021 — 2026' },
+  { slug: 'portrait', nameKey: 'discipline.portrait', bg: '#2b1512', accent: '#9fc3d6', years: '2024 — 2026' },
   { slug: 'analog',   nameKey: 'discipline.analog',   bg: '#0f2a2e', accent: '#e8a57a', years: '2024' },
+  { slug: 'wedding',  nameKey: 'discipline.wedding',  bg: '#14251a', accent: '#c7b2e0', years: '2026' },
 ];
 
 export function getDiscipline(slug: string): Discipline | undefined {

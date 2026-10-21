@@ -27,6 +27,12 @@ const creditOf = (f: (typeof frames)[number]) =>
         .filter(Boolean)
         .join(' — ')
     : '';
+/** Derivative widths for a frame, capped by its credit's maxWidth. */
+const fit = (f: (typeof frames)[number], widths: number[]) => {
+  const cap = f.credit?.maxWidth ?? Infinity;
+  const kept = widths.filter((w) => w <= cap);
+  return kept.length ? kept : [Math.min(...widths)];
+};
 const seed = [...slug].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 // Aspect ratios come from a processed thumbnail: reading width/height off the source
 // ImageMetadata makes Astro ship the full-resolution original to dist/.
@@ -59,8 +65,8 @@ const aspects = await Promise.all(
             <Picture
               src={f.image}
               alt={altOf(f)}
-              width={1600}
-              widths={[480, 960, 1600]}
+              width={Math.max(...fit(f, [480, 960, 1600]))}
+              widths={fit(f, [480, 960, 1600])}
               sizes="(max-width: 760px) 50vw, 340px"
               formats={['avif']}
               fallbackFormat="webp"
@@ -88,12 +94,12 @@ const aspects = await Promise.all(
             <Picture
               src={f.image}
               alt={altOf(f)}
-              width={1600}
-              widths={[960, 1600]}
+              width={Math.max(...fit(f, [960, 1600]))}
+              widths={fit(f, [960, 1600])}
               sizes="(max-width: 760px) 92vw, 66vw"
               formats={['avif']}
               fallbackFormat="webp"
-              quality={55}
+              quality={50}
               loading="lazy"
               draggable="false"
             />

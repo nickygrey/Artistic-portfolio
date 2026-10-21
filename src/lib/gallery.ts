@@ -11,6 +11,8 @@ export interface CreditEntry {
   film?: string;
   alt?: string;
   cover?: boolean;
+  /** Widest derivative to generate, for photographs whose texture makes large versions too heavy. */
+  maxWidth?: number;
 }
 
 export interface ImageEntry<I> {
@@ -24,6 +26,7 @@ export interface Credit {
   roles: RoleKey[];
   film?: string;
   alt?: string;
+  maxWidth?: number;
 }
 
 export interface Frame<I> {
@@ -80,13 +83,14 @@ export function buildFrames<I>(slug: string, images: ImageEntry<I>[], credits: C
   });
 }
 
-function toCredit({ title, client, roles, film, alt }: CreditEntry): Credit | undefined {
-  if (!title && !client && !roles?.length && !film && !alt) return undefined;
+function toCredit({ title, client, roles, film, alt, maxWidth }: CreditEntry): Credit | undefined {
+  if (!title && !client && !roles?.length && !film && !alt && !maxWidth) return undefined;
   const credit: Credit = { roles: roles ?? [] };
   if (title) credit.title = title;
   if (client) credit.client = client;
   if (film) credit.film = film;
   if (alt) credit.alt = alt;
+  if (maxWidth) credit.maxWidth = maxWidth;
   return credit;
 }
 

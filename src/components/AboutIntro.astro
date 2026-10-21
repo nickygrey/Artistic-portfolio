@@ -11,12 +11,12 @@ interface Props {
 }
 
 const { lang } = Astro.props;
-const link = (slug: 'portrait' | 'analog') => ({
+const link = (slug: 'portrait' | 'analog' | 'wedding') => ({
   href: localizedPath(`/work/${slug}/`, lang),
   label: t(lang, `about.link.${slug}`),
   accent: getDiscipline(slug)!.accent,
 });
-const story = richText(t(lang, 'about.story'), { portrait: link('portrait'), analog: link('analog') });
+const story = richText(t(lang, 'about.story'), { portrait: link('portrait'), wedding: link('wedding'), analog: link('analog') });
 ---
 
 <div class="intro">

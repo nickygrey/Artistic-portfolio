@@ -1,0 +1,23 @@
+# Credits for src/content/galleries/wedding/. See portrait.yaml for the fields.
+frames:
+  - file: MAIN.jpg
+    alt: Bride and groom kissing beneath her veil on a boat deck at sunset
+    cover: true
+  - file: DSC04891.jpg
+    alt: Close detail of a lace wedding dress and a bouquet of white calla lilies
+  - file: DSC04909.jpg
+    alt: Bride and groom laughing under a green garden arch
+  - file: DSC04998.jpg
+    alt: Bride and groom seen from above, walking a gravel path through a formal garden
+    # Dense grass and gravel: a 1600px version would be ~900 kB. 960px covers its largest display (portrait, ~440px wide at 2x).
+    maxWidth: 960
+  - file: DSC05219.jpg
+    alt: Groom's arm around the bride, a pearl-strung calla bouquet at her side
+  - file: DSC05274.jpg
+    alt: Bride and groom kissing on a metro platform as a train streaks past
+  - file: DSC05323.jpg
+    alt: Reception table with white flowers, pearls and heart-shaped sunglasses
+  - file: DSC05508.jpg
+    alt: Bride hugging a guest in a pale blue dress, both laughing
+  - file: DSC05985.jpg
+    alt: Bride and groom kissing on a riverboat lounge, a stone bridge behind them

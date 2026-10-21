@@ -72,7 +72,7 @@ test.describe('home strips', () => {
     await page.waitForTimeout(300);
     expect((await gl(page)).surfaces, 'none mid-reveal: the mesh would ignore the clip').toBe(0);
     await page.waitForTimeout(2500);
-    expect(await gl(page)).toEqual({ active: true, surfaces: 2 });
+    expect(await gl(page)).toEqual({ active: true, surfaces: await page.locator('a.strip').count() });
   });
 
   test('hovering a strip drives its tint to full, and no other', async ({ page }) => {

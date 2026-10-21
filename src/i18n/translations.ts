@@ -39,14 +39,16 @@ export const translations = {
     'about.contact': 'Commissions and collaborations:',
     'about.location': 'Luxembourg · Available across Europe',
     'about.portrait-alt': 'Portrait of Vyacheslav Plotnikov',
-    'about.story': 'The work began with film photography: light, patience and a limited frame. Today it spans {portrait} and {analog}, alongside cinematography and editing for brands, agencies and productions.',
+    'about.story': 'The work began with film photography: light, patience and a limited frame. Today it spans {portrait}, {wedding} and {analog}, alongside cinematography and editing for brands, agencies and productions.',
     'about.link.portrait': 'portraits',
     'about.link.analog': 'analog photography',
+    'about.link.wedding': 'weddings',
     'about.do': 'What I do',
     'about.do.1': 'Portraits',
     'about.do.2': 'Analog photography',
     'about.do.3': 'Cinematography',
     'about.do.4': 'Editing & colour',
+    'about.do.5': 'Weddings',
     'about.based': 'Based in',
     'contact.privacy': 'Your details are used only to reply. {privacy}',
     'contact.privacy.link': 'Privacy',
@@ -59,6 +61,7 @@ export const translations = {
     // Disciplines
     'discipline.portrait': 'Portraits',
     'discipline.analog': 'Analog',
+    'discipline.wedding': 'Wedding',
 
     // About
     'about.p2': 'I shoot, grade and cut, so a project stays whole from the first setup to the final frame. Available for commissions, staff roles and brand collaborations.',
@@ -135,14 +138,16 @@ export const translations = {
     'about.contact': 'Commandes et collaborations :',
     'about.location': "Luxembourg · Disponible dans toute l'Europe",
     'about.portrait-alt': 'Portrait de Vyacheslav Plotnikov',
-    'about.story': "Le travail a commencé avec la photographie argentique : la lumière, la patience et un cadre limité. Il couvre aujourd'hui le {portrait} et l'{analog}, ainsi que la cinématographie et le montage pour des marques, des agences et des productions.",
+    'about.story': "Le travail a commencé avec la photographie argentique : la lumière, la patience et un cadre limité. Il couvre aujourd'hui le {portrait}, le {wedding} et l'{analog}, ainsi que la cinématographie et le montage pour des marques, des agences et des productions.",
     'about.link.portrait': 'portrait',
     'about.link.analog': 'argentique',
+    'about.link.wedding': 'mariage',
     'about.do': 'Ce que je fais',
     'about.do.1': 'Portraits',
     'about.do.2': 'Photographie argentique',
     'about.do.3': 'Cinématographie',
     'about.do.4': 'Montage & étalonnage',
+    'about.do.5': 'Mariages',
     'about.based': 'Basé à',
     'contact.privacy': 'Vos données servent uniquement à vous répondre. {privacy}',
     'contact.privacy.link': 'Confidentialité',
@@ -155,6 +160,7 @@ export const translations = {
     // Disciplines
     'discipline.portrait': 'Portraits',
     'discipline.analog': 'Argentique',
+    'discipline.wedding': 'Mariage',
 
     // About
     'about.p2': "Je filme, étalonne et monte, pour qu'un projet reste cohérent du premier plan au dernier. Disponible pour commandes, postes et collaborations.",
@@ -231,14 +237,16 @@ export const translations = {
     'about.contact': 'Aufträge und Kooperationen:',
     'about.location': 'Luxemburg · In ganz Europa verfügbar',
     'about.portrait-alt': 'Porträt von Vyacheslav Plotnikov',
-    'about.story': 'Die Arbeit begann mit analoger Fotografie: Licht, Geduld und ein begrenzter Bildausschnitt. Heute umfasst sie {portrait} und {analog}, dazu Kameraarbeit und Schnitt für Marken, Agenturen und Produktionen.',
+    'about.story': 'Die Arbeit begann mit analoger Fotografie: Licht, Geduld und ein begrenzter Bildausschnitt. Heute umfasst sie {portrait}, {wedding} und {analog}, dazu Kameraarbeit und Schnitt für Marken, Agenturen und Produktionen.',
     'about.link.portrait': 'Porträts',
     'about.link.analog': 'analoge Fotografie',
+    'about.link.wedding': 'Hochzeiten',
     'about.do': 'Was ich mache',
     'about.do.1': 'Porträts',
     'about.do.2': 'Analoge Fotografie',
     'about.do.3': 'Kameraarbeit',
     'about.do.4': 'Schnitt & Farbkorrektur',
+    'about.do.5': 'Hochzeiten',
     'about.based': 'Ansässig in',
     'contact.privacy': 'Ihre Angaben werden nur für die Antwort verwendet. {privacy}',
     'contact.privacy.link': 'Datenschutz',
@@ -251,6 +259,7 @@ export const translations = {
     // Disciplines
     'discipline.portrait': 'Porträts',
     'discipline.analog': 'Analog',
+    'discipline.wedding': 'Hochzeit',
 
     // About
     'about.p2': 'Ich filme, grade und schneide, damit ein Projekt vom ersten Setup bis zum letzten Bild ganz bleibt. Verfügbar für Aufträge, Stellen und Markenkooperationen.',
