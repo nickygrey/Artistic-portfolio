@@ -79,6 +79,14 @@ export const DRAG = {
   clickSlop: 6,
 } as const;
 
+/** The gallery frames' velocity bend (src/webgl/shaders/bend.ts). */
+export const BEND = {
+  /** Canvas travel per frame, in px, that bends a frame fully. */
+  pixels: 40,
+  /** Largest bend, as a share of the frame. */
+  max: 0.06,
+} as const;
+
 /** Pixels of travel for enter animations. */
 export const DISTANCE = {
   sm: 20,
