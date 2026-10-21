@@ -20,7 +20,7 @@ test('hovering a strip floods it with its accent and names it', async ({ page })
   await page.waitForTimeout(800);
   expect(await tint(page, 'portrait')).toBe(1);
   expect(await labelOpacity(page, 'portrait')).toBe(1);
-  expect(await tint(page, 'film'), 'only the hovered strip tints').toBe(0);
+  expect(await tint(page, 'analog'), 'only the hovered strip tints').toBe(0);
 });
 
 test('keyboard focus tints and names a strip too', async ({ page }) => {

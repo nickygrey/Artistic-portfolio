@@ -38,7 +38,7 @@ export const translations = {
     'meta.home.description': 'Professional cinematographer, photographer and editor based in Luxembourg. Specializing in short films, documentaries, commercial work, and photography with a film-trained eye.',
     // Disciplines
     'discipline.portrait': 'Portraits',
-    'discipline.film': 'Film',
+    'discipline.analog': 'Analog',
 
     // About
     'about.p2': 'I shoot, grade and cut, so a project stays whole from the first setup to the final frame. Available for commissions, staff roles and brand collaborations.',
@@ -121,7 +121,7 @@ export const translations = {
     'meta.home.description': 'Cinéaste, photographe et monteur professionnel basé au Luxembourg. Courts métrages, documentaires, projets commerciaux et photographie, avec un œil formé à l\'argentique.',
     // Disciplines
     'discipline.portrait': 'Portraits',
-    'discipline.film': 'Argentique',
+    'discipline.analog': 'Argentique',
 
     // About
     'about.p2': "Je filme, étalonne et monte, pour qu'un projet reste cohérent du premier plan au dernier. Disponible pour commandes, postes et collaborations.",
@@ -204,7 +204,7 @@ export const translations = {
     'meta.home.description': 'Professioneller Kameramann, Fotograf und Editor in Luxemburg. Kurzfilme, Dokumentarfilme, kommerzielle Projekte und Fotografie mit einem analog geschulten Auge.',
     // Disciplines
     'discipline.portrait': 'Porträts',
-    'discipline.film': 'Analog',
+    'discipline.analog': 'Analog',
 
     // About
     'about.p2': 'Ich filme, grade und schneide, damit ein Projekt vom ersten Setup bis zum letzten Bild ganz bleibt. Verfügbar für Aufträge, Stellen und Markenkooperationen.',
