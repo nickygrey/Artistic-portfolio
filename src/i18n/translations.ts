@@ -14,6 +14,11 @@ export const translations = {
     'nav.work': 'Work',
     'nav.about': 'About',
     'nav.services': 'Services',
+    // Disciplines
+    'discipline.cinematography': 'Cinematography',
+    'discipline.documentary': 'Documentary',
+    'discipline.portrait': 'Portrait',
+    'discipline.photography': 'Photography',
 
     // Hero
     'hero.tagline': 'Cinematographer · Photographer · Editor — Luxembourg',
@@ -107,6 +112,11 @@ export const translations = {
     'nav.work': 'Travaux',
     'nav.about': 'À propos',
     'nav.services': 'Services',
+    // Disciplines
+    'discipline.cinematography': 'Cinématographie',
+    'discipline.documentary': 'Documentaire',
+    'discipline.portrait': 'Portrait',
+    'discipline.photography': 'Photographie',
 
     // Hero
     'hero.tagline': 'Cinéaste · Photographe · Monteur — Luxembourg',
@@ -200,6 +210,11 @@ export const translations = {
     'nav.work': 'Arbeiten',
     'nav.about': 'Über mich',
     'nav.services': 'Leistungen',
+    // Disciplines
+    'discipline.cinematography': 'Bildgestaltung',
+    'discipline.documentary': 'Dokumentarfilm',
+    'discipline.portrait': 'Porträt',
+    'discipline.photography': 'Fotografie',
 
     // Hero
     'hero.tagline': 'Kameramann · Fotograf · Editor — Luxemburg',
