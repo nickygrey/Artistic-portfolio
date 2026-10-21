@@ -1,9 +1,11 @@
 # Credits for src/content/galleries/portrait/. Every field is optional.
 # file: image filename · title · client · roles: [camera, lighting, edit, colour, direction, interview, photography]
 # film: link shown as "Play film ↗" · alt: describes the image · cover: true picks the home-page strip image
+# maxWidth: widest version to generate (e.g. 960), for very detailed photos that would otherwise be too heavy
 frames:
-  - file: DSC00173.jpg
+  - file: MAIN.jpg
     alt: Woman in a cream slip dress leaning on a balcony rail in front of trees
+    cover: true
   - file: DSC00222.jpg
     alt: Woman in an orange bandana and white top with a gold pendant, in front of greenery
   - file: DSC00778.jpg
@@ -14,7 +16,6 @@ frames:
     alt: Woman in a white shirt and jeans curled up on a windowsill beside sheer curtains
   - file: DSC07265.jpg
     alt: Close portrait of a woman with curly hair and freckles behind red flowers
-    cover: true
   - file: DSC07291.jpg
     alt: Woman with curly hair, backlit by the sun, holding red flowers on a balcony
   - file: DSC03345-3.jpg

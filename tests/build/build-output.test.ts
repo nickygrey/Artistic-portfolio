@@ -8,7 +8,7 @@ const LOCALES = [
   { locale: 'de', prefix: '/de' },
 ] as const;
 // Derived from the gallery folders, so a discipline that gains its first image is covered automatically.
-const ACTIVE = ['portrait', 'analog'].filter((s) =>
+const ACTIVE = readdirSync('src/content/galleries', { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).filter((s) =>
   readdirSync(`src/content/galleries/${s}`).some((f) => /\.(jpe?g|png|webp)$/i.test(f))
 );
 const PATHS = [

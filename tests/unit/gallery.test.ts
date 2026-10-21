@@ -66,3 +66,15 @@ describe('buildFrames', () => {
     ).toThrow(/at most one/);
   });
 });
+
+describe('buildFrames: maxWidth', () => {
+  it('carries a per-photograph width cap through to the frame', () => {
+    const [frame] = buildFrames('wedding', [img('a.jpg')], [{ file: 'a.jpg', alt: 'x', maxWidth: 960 }]);
+    expect(frame.credit?.maxWidth).toBe(960);
+  });
+
+  it('a cap alone still makes a credit, so the cap is not lost', () => {
+    const [frame] = buildFrames('wedding', [img('a.jpg')], [{ file: 'a.jpg', maxWidth: 960 }]);
+    expect(frame.credit).toEqual({ roles: [], maxWidth: 960 });
+  });
+});

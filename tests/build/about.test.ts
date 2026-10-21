@@ -13,6 +13,7 @@ describe('about page', () => {
     expect(en()).toMatch(/<h1[^>]*>Vyacheslav Plotnikov<\/h1>/);
     expect(en()).toMatch(/<a[^>]*href="\/work\/portrait\/"[^>]*style="--link: #9fc3d6"/);
     expect(en()).toMatch(/<a[^>]*href="\/work\/analog\/"[^>]*style="--link: #e8a57a"/);
+    expect(en()).toMatch(/<a[^>]*href="\/work\/wedding\/"[^>]*style="--link: #c7b2e0"/);
     expect(fr()).toMatch(/<a[^>]*href="\/fr\/work\/analog\/"/);
   });
 
@@ -23,7 +24,7 @@ describe('about page', () => {
 
   it('says what the work is and where, with no testimonial or client list', () => {
     expect(en()).toContain('What I do');
-    expect(en().match(/class="details__item"/g)).toHaveLength(4);
+    expect(en().match(/class="details__item"/g)).toHaveLength(5);
     expect(en()).toContain('Available across Europe');
     expect(en()).not.toMatch(/Worked with|Kind words|essence of a moment/);
   });

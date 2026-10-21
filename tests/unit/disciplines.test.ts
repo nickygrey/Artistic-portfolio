@@ -16,7 +16,7 @@ function contrast(a: string, b: string): number {
 
 describe('disciplines', () => {
   it('lists the disciplines in home-page order', () => {
-    expect(DISCIPLINES.map((d) => d.slug)).toEqual(['portrait', 'analog']);
+    expect(DISCIPLINES.map((d) => d.slug)).toEqual(['portrait', 'analog', 'wedding']);
   });
 
   it.each([...DISCIPLINES, { slug: 'neutral', ...NEUTRAL }])(

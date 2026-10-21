@@ -41,6 +41,11 @@ const image = ogImage ?? `${siteUrl}/images/og.jpg`;
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script is:inline>
+    // Before first paint: on pointer devices a gallery's fallback grid stays unpainted until the
+    // canvas lays it out (see GalleryView.astro). Same query as CANVAS_QUERY in src/gallery/canvas.ts.
+    if (matchMedia('(hover: hover) and (pointer: fine)').matches) document.documentElement.classList.add('canvas-pending');
+  </script>
   <title>{title}</title>
   <meta name="description" content={description}>
   <meta name="author" content="Vyacheslav Plotnikov">

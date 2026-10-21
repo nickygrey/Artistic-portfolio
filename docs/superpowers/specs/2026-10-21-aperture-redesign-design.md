@@ -14,6 +14,7 @@ The owner narrowed the site to photography only. This overrides anything below t
 - **Removed:** Cinematography, Documentary and Photography; all film frame grabs and YouTube "Play film" links; the frame-grab script. The credits schema keeps its optional `film` field, but nothing uses it.
 - **Image handling:** originals are copied in with EXIF rotation baked in, metadata stripped, and the long edge capped at 3200px. Gallery widths stop at 1600, because the 2400w WebP broke the 400 kB image budget.
 - **About (owner, after milestone 4):** no "Worked with" column and no testimonial; "Available across Europe" confirmed.
+- **Home hover (owner, after milestone 7):** no WebGL ripple — it warped faces in the portraits. Hover is the accent tint plus a gentle CSS zoom (scale 1.06) inside the strip.
 - **Header eyebrow:** keeps "Cinematographer · Photographer" (owner, after milestone 2). Strip names stay hidden at rest on desktop, as in the reference.
 
 ## Goal

@@ -29,7 +29,13 @@ describe('createTintShader', () => {
   it('declares every uniform it reads', () => {
     const { spec } = createTintShader('#000000');
     expect(spec.fragment).toContain('precision');
-    for (const u of ['tMap', 'uTime', 'uTint', 'uHover', 'uCoverScale', 'uCoverOffset']) expect(spec.fragment).toContain(u);
+    for (const u of ['tMap', 'uTint', 'uHover', 'uCoverScale', 'uCoverOffset']) expect(spec.fragment).toContain(u);
+  });
+
+  it('only recolours: it never moves pixels, so faces are never warped', () => {
+    const { spec } = createTintShader('#000000');
+    expect(spec.fragment).not.toMatch(/\b(sin|cos)\(/);
+    expect(spec.fragment).not.toMatch(/uv\.[xy]\s*[+-]?=/);
   });
 });
 

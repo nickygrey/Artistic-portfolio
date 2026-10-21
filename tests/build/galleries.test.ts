@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
-const SLUGS = ['portrait', 'analog'];
+// Every gallery folder: new disciplines are covered without editing this file.
+const SLUGS = readdirSync('src/content/galleries', { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
 const IMAGE = /\.(jpe?g|png|webp)$/i;
 const imageCount = (slug: string) => readdirSync(`src/content/galleries/${slug}`).filter((f) => IMAGE.test(f)).length;
 const hasImages = (slug: string) =>
@@ -86,5 +87,14 @@ describe('single view markup', () => {
   it('offers Single from the grid, and carries no film links', () => {
     expect(html()).toMatch(/<button[^>]*data-open[^>]*>Single<\/button>/);
     expect(html()).not.toMatch(/youtube|Play film/i);
+  });
+});
+
+describe('per-photograph width cap', () => {
+  it('a capped photograph gets no derivative wider than its cap', () => {
+    const html = readFileSync('dist/work/wedding/index.html', 'utf8');
+    const widths = [...html.matchAll(/DSC04998[^"\s,]*\s(\d+)w/g)].map((m) => Number(m[1]));
+    expect(widths.length).toBeGreaterThan(0);
+    expect(Math.max(...widths)).toBeLessThanOrEqual(960);
   });
 });

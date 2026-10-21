@@ -64,6 +64,7 @@ describe('cssMotionVars', () => {
     expect(css).toContain(`--dur-fast: ${DURATION.fast}s;`);
     expect(css).toContain(`--dur-base: ${DURATION.base}s;`);
     expect(css).toContain(`--dur-slow: ${DURATION.slow}s;`);
+    expect(css).toContain(`--stagger-base: ${STAGGER.base}s;`);
   });
 
   it('mirrors the easing scale as the cubic-beziers GSAP documents for power3.out and power2.inOut', () => {
