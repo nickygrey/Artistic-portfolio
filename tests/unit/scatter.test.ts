@@ -45,3 +45,20 @@ describe('scatter', () => {
     expect(tile.width % CELL).toBe(0);
   });
 });
+
+describe('scatter with repeated frames', () => {
+  it('never puts two copies of the same photograph in neighbouring cells, wrapping included', () => {
+    const groups = Array.from({ length: 21 }, (_, i) => i % 7);
+    const cell = 380;
+    const tile = scatter(groups.map(() => 0.66), { cell, seed: 11, minWidth: 1820, minHeight: 1280, groups });
+    const cols = tile.width / cell, rows = tile.height / cell;
+    const cellOf = (p: Placed) => [Math.floor(p.x / cell), Math.floor(p.y / cell)];
+    tile.placed.forEach((a, i) => tile.placed.forEach((b, j) => {
+      if (i >= j || groups[i] !== groups[j]) return;
+      const [ax, ay] = cellOf(a), [bx, by] = cellOf(b);
+      const dx = Math.min(Math.abs(ax - bx), cols - Math.abs(ax - bx));
+      const dy = Math.min(Math.abs(ay - by), rows - Math.abs(ay - by));
+      expect(Math.max(dx, dy), `copies ${i} and ${j}`).toBeGreaterThan(1);
+    }));
+  });
+});

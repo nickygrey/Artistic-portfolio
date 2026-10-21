@@ -51,7 +51,10 @@ test('the header eyebrow never collides with the nav or the page content', async
         const others = [
           ...document.querySelectorAll('.site-header__nav, .site-header__name, main img, main h1, main p, main li'),
         ];
-        return others.filter((el) => overlaps(el.getBoundingClientRect())).map((el) => el.tagName + '.' + el.className);
+        return others
+          .filter((el) => !el.closest('.is-canvas li'))
+          .filter((el) => overlaps(el.getBoundingClientRect()))
+          .map((el) => el.tagName + '.' + el.className);
       });
       expect(hits, `${width}px ${path}`).toEqual([]);
     }

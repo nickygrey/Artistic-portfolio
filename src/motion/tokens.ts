@@ -65,6 +65,20 @@ export function cssMotionVars(): string {
   ].join(' ');
 }
 
+/** The gallery canvas (src/gallery/canvas.ts). */
+export const DRAG = {
+  /** Share of the remaining distance the canvas covers per 60fps frame: lower glides longer. */
+  follow: 0.1,
+  /** Pixels of travel per pixel of wheel delta. */
+  wheel: 1,
+  /** Seconds of release velocity added as the throw after a drag. */
+  throw: 0.18,
+  /** Release velocity cap, px/s: a hard flick glides at most throw × this. */
+  maxVelocity: 2500,
+  /** Pixels a press may move and still count as a click. */
+  clickSlop: 6,
+} as const;
+
 /** Pixels of travel for enter animations. */
 export const DISTANCE = {
   sm: 20,

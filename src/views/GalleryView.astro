@@ -39,6 +39,10 @@ const aspects = await Promise.all(
 >
   <Header lang={lang} />
   <main id="main-content" class="gallery" data-gallery data-seed={seed} data-lenis-prevent>
+    <div class="gallery__title">
+      <h1 class="display">{name}</h1>
+      <p>{discipline.years}</p>
+    </div>
     <ol class="gallery__frames">
       {frames.map((f) => (
         <li data-frame={f.index} data-aspect={aspects[f.index - 1]}>
@@ -59,10 +63,6 @@ const aspects = await Promise.all(
       ))}
     </ol>
     <p class="gallery__hint eyebrow" aria-hidden="true">‹&nbsp;&nbsp;{t(lang, 'gallery.drag')}&nbsp;&nbsp;›</p>
-    <div class="gallery__title">
-      <h1 class="display">{name}</h1>
-      <p>{discipline.years}</p>
-    </div>
     <a class="gallery__back" href={localizedPath('/', lang)} aria-label={t(lang, 'gallery.back')}>←</a>
   </main>
 </Layout>
@@ -78,7 +78,9 @@ const aspects = await Promise.all(
   .gallery__frame { display: block; }
   .gallery__frame img { width: 100%; height: 100%; object-fit: cover; }
 
-  .gallery__title { position: fixed; z-index: 2; left: calc(var(--gutter) + var(--rail)); bottom: 24px; pointer-events: none; }
+  /* Resting: the title leads the page and scrolls with it. Canvas mode pins it bottom-left, over the frames. */
+  .gallery__title { margin-bottom: 40px; }
+  .gallery.is-canvas .gallery__title { position: fixed; z-index: 2; left: calc(var(--gutter) + var(--rail)); bottom: 24px; margin: 0; pointer-events: none; }
   .gallery__title h1 { margin: 0; font-size: var(--step-title); }
   .gallery__title p { margin: 4px 0 0; }
 
@@ -104,3 +106,30 @@ const aspects = await Promise.all(
     margin: 0; color: var(--ink); pointer-events: none; white-space: nowrap;
   }
 </style>
+
+<script>
+  import { canvasOffset, mountCanvas, observerCount } from '../gallery/canvas';
+
+  let destroy: (() => void) | null = null;
+
+  function teardown() {
+    destroy?.();
+    destroy = null;
+  }
+
+  function mount() {
+    teardown();
+    const root = document.querySelector<HTMLElement>('[data-gallery]');
+    if (root) destroy = mountCanvas(root);
+  }
+
+  // astro:page-load fires on first load and after every ClientRouter navigation.
+  document.addEventListener('astro:page-load', mount);
+  document.addEventListener('astro:before-swap', teardown);
+
+  (window as unknown as Record<string, unknown>).__gallery = {
+    observers: observerCount,
+    mounted: () => destroy !== null,
+    offset: canvasOffset,
+  };
+</script>
