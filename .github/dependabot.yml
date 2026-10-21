@@ -1,0 +1,17 @@
+# Weekly dependency updates. Security fixes also arrive as soon as GitHub
+# publishes an advisory (Dependabot security updates, enabled in repo settings).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Build and test tools change together; one PR instead of several.
+      dev-tooling:
+        dependency-type: development
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
