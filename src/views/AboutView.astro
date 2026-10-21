@@ -27,3 +27,26 @@ const { lang } = Astro.props;
 <style>
   .about { width: min(100% - 2 * (var(--gutter) + var(--rail)), 1040px); margin: 0 auto; padding-top: 96px; }
 </style>
+
+<script>
+  import { mountContactForm } from '../contact/form';
+  import { registerBrackets } from '../about/register-brackets';
+
+  registerBrackets();
+
+  let destroy: (() => void) | null = null;
+
+  function teardown() {
+    destroy?.();
+    destroy = null;
+  }
+
+  function mount() {
+    teardown();
+    const form = document.querySelector<HTMLFormElement>('#contact-form');
+    if (form) destroy = mountContactForm(form);
+  }
+
+  document.addEventListener('astro:page-load', mount);
+  document.addEventListener('astro:before-swap', teardown);
+</script>

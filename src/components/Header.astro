@@ -46,6 +46,10 @@ const current = (nav: string) => (nav === section ? 'page' : undefined);
     letter-spacing: 0.02em;
     text-transform: uppercase;
   }
+  /* Pages that scroll fade content out beneath the header; the gallery canvas, like the reference, has no backdrop. */
+  :global(html:not(:has(.is-canvas))) .site-header {
+    background: linear-gradient(var(--world-bg) 60%, color-mix(in srgb, var(--world-bg) 0%, transparent));
+  }
   .site-header a { text-decoration: none; text-underline-offset: 4px; }
   .site-header a:hover { text-decoration: underline; }
   .site-header__eyebrow { margin: 0; opacity: 0.8; }
