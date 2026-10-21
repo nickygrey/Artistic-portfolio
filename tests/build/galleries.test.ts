@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
 const SLUGS = ['cinematography', 'documentary', 'portrait', 'photography'];
 const IMAGE = /\.(jpe?g|png|webp)$/i;
@@ -21,5 +21,29 @@ describe('gallery content', () => {
   it('starting content is in place', () => {
     expect(readdirSync('src/content/galleries/portrait').filter((f) => IMAGE.test(f))).toHaveLength(7);
     expect(hasImages('photography')).toBe(true);
+  });
+});
+
+describe('gallery routes', () => {
+  it('an active discipline has a page in every locale and a strip on every home page', () => {
+    for (const s of SLUGS.filter(hasImages)) {
+      for (const prefix of ['', '/fr', '/de']) {
+        expect(existsSync(`dist${prefix}/work/${s}/index.html`), `${prefix}/work/${s}`).toBe(true);
+        expect(readFileSync(`dist${prefix}/index.html`, 'utf8')).toContain(`data-discipline="${s}"`);
+      }
+    }
+  });
+
+  it('an empty discipline has no page and no strip', () => {
+    for (const s of SLUGS.filter((s) => !hasImages(s))) {
+      expect(existsSync(`dist/work/${s}`), s).toBe(false);
+      expect(readFileSync('dist/index.html', 'utf8')).not.toContain(`data-discipline="${s}"`);
+    }
+  });
+
+  it('a gallery page paints its own world', () => {
+    expect(readFileSync('dist/work/portrait/index.html', 'utf8')).toMatch(
+      /<html[^>]*data-world="portrait"[^>]*--world-bg: #2b1512; --world-accent: #9fc3d6;/
+    );
   });
 });

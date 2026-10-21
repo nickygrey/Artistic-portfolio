@@ -26,10 +26,11 @@ describe('image pipeline', () => {
     expect(assets.some(f => f.endsWith('.avif') || f.endsWith('.webp'))).toBe(true);
   });
 
-  it('offers responsive candidates for the hero', () => {
-    const hero = (html().match(/<img[^>]*class="[^"]*hero-img[^"]*"[^>]*>/) || [])[0] || '';
-    expect(hero).toMatch(/srcset=/);
-    expect(hero.match(/\d+w/g)?.length || 0).toBeGreaterThan(1);
+  it('offers responsive candidates for gallery frames', () => {
+    const page = readFileSync('dist/work/portrait/index.html', 'utf8');
+    const frame = (page.match(/<li data-frame="1"[^>]*>[\s\S]*?<img[^>]*>/) || [])[0] || '';
+    expect(frame).toMatch(/srcset=/);
+    expect(frame.match(/\d+w/g)?.length || 0).toBeGreaterThan(1);
   });
 
   it('keeps every generated image under 400kB', () => {
