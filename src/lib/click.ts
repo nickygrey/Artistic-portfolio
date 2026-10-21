@@ -2,16 +2,10 @@
  * Whether a click is the plain, primary one — no modifier, no secondary
  * button.
  *
- * Shared, because two unrelated systems need the identical answer and a copy
- * in each was a review finding (two places to change, already diverging):
- *
- * - `src/motion/engine.ts`'s `preventNativeAnchorJump()`, which must let a
- *   modifier-click on a same-page anchor fall through to the browser's native
- *   handling untouched (see tests/e2e/modifier-click.spec.ts for the
- *   regression that produced it).
- * - `src/components/SelectedWork.astro`, which must not arm a work card's
- *   re-form on one. A modifier- or middle-click opens a BACKGROUND tab, so
- *   the visitor never leaves this page and never "returns" to it.
+ * `src/motion/engine.ts`'s `preventNativeAnchorJump()` must let a
+ * modifier-click on a same-page anchor fall through to the browser's native
+ * handling untouched: a modifier- or middle-click opens a background tab, and
+ * the current page must not scroll as if it had been followed.
  *
  * `button` absent counts as primary. Keyboard activation of a link dispatches
  * a click that some engines leave without a meaningful `button`, and that IS

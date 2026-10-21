@@ -9,11 +9,8 @@ export const defaultLang = 'en';
 export const translations = {
   en: {
     // Navigation
-    'nav.photos': 'Photos',
-    'nav.reel': 'Reel',
     'nav.work': 'Work',
     'nav.about': 'About',
-    'nav.services': 'Services',
     // Page metadata
     'meta.home.title': 'Vyacheslav Plotnikov — Cinematographer in Luxembourg',
     'meta.about.title': 'About — Vyacheslav Plotnikov',
@@ -45,34 +42,8 @@ export const translations = {
     'discipline.portrait': 'Portrait',
     'discipline.photography': 'Photography',
 
-    // Hero
-    'hero.tagline': 'Cinematographer · Photographer · Editor — Luxembourg',
-    'hero.title1': 'Images made',
-    'hero.title2': 'with patience.',
-    'hero.desc': "I came up through film photography and grew into cinematography — short films, documentaries and commercial work, shot with a still photographer's eye and finished, colour and cut, in-house.",
-    'hero.cta': 'View the reel',
-
-    // Reel
-    'reel.label': 'Featured',
-    'reel.title': 'The showreel',
-    'reel.youtube': 'Watch on YouTube ↗',
-
     // About
-    'about.label': 'About',
-    'about.title': 'Based in Luxembourg, working wherever the story is.',
-    'about.p1': 'A professional cinematographer and photographer with strong editing skills. My work began with film photography — the discipline of light, patience and a limited frame — and grew into cinematography across short films, documentaries and commercial projects.',
     'about.p2': 'I shoot, grade and cut, so a project stays whole from the first setup to the final frame. Available for commissions, staff roles and brand collaborations.',
-
-    // Services
-    'services.label': 'Services',
-    'services.cinematography': 'Cinematography',
-    'services.cinematography.desc': "Short films, documentaries and commercial projects — shot and lit with a still photographer's eye for frame and patience.",
-    'services.photography': 'Photography',
-    'services.photography.desc': 'Film and digital, from portraiture to reportage. The discipline where the eye was first trained, still practised.',
-    'services.editing': 'Editing & Colour',
-    'services.editing.desc': 'Rhythm, sound and grade finished in-house, so the cut is part of the shoot rather than an afterthought.',
-    'services.book': 'Book a consultation',
-    'services.book.desc': 'Let\'s discuss your project',
 
     // Contact
     'contact.label': 'Contact',
@@ -90,14 +61,7 @@ export const translations = {
     'contact.error': 'Something went wrong. Please email me directly.',
 
     // Testimonials
-    'testimonials.label': 'Kind words',
-    'testimonials.title': 'What people say',
-    'testimonials.quote1': 'I felt comfortable. Wanted to try myself as a model, didn\'t expect anything, but ended up being very happy with the result.',
     'testimonials.quote2': 'Professional, patient, and truly understands how to capture the essence of a moment. The final film exceeded all expectations.',
-    'testimonials.quote3': 'Working with P.V. was effortless. He has a rare ability to make you feel at ease while delivering stunning visual work.',
-
-    // Partner
-    'partner': 'General Partner',
 
     // Footer
     'footer.copyright': '© 2026 Vyacheslav Plotnikov — Luxembourg',
@@ -116,10 +80,8 @@ export const translations = {
     'privacy.thirdparty.title': 'Third-Party Services',
     'privacy.thirdparty.legal': 'Legal basis: Art. 6(1)(f) GDPR — legitimate interest in operating this website.',
     'privacy.thirdparty.formspree': 'Contact form submissions are processed through Formspree, Inc. (USA). Formspree acts as a data processor under Art. 28 GDPR and provides appropriate safeguards for international transfers.',
-    'privacy.thirdparty.fonts': 'This site uses Google Fonts, which may log your IP address when loading fonts. Provider: Google LLC (USA).',
     'privacy.thirdparty.hosting': 'The site is hosted on GitHub Pages (GitHub, Inc., USA), which may collect basic server logs including IP addresses.',
     'privacy.storage.title': 'Cookies & Local Storage',
-    'privacy.storage.legal': 'Legal basis: Art. 6(1)(f) GDPR and Art. 5(3) ePrivacy Directive — strictly necessary for website functionality.',
     'privacy.storage.desc': 'This site uses no cookies and no analytics, and stores nothing in your browser.',
     'privacy.rights.title': 'Your Rights',
     'privacy.rights.intro': 'Under GDPR Articles 15–22, you have the right to:',
@@ -132,11 +94,8 @@ export const translations = {
 
   fr: {
     // Navigation
-    'nav.photos': 'Photos',
-    'nav.reel': 'Bande-démo',
     'nav.work': 'Travaux',
     'nav.about': 'À propos',
-    'nav.services': 'Services',
     // Page metadata
     'meta.home.title': 'Vyacheslav Plotnikov — Cinéaste & Photographe, Luxembourg',
     'meta.about.title': 'À propos — Vyacheslav Plotnikov',
@@ -168,34 +127,8 @@ export const translations = {
     'discipline.portrait': 'Portrait',
     'discipline.photography': 'Photographie',
 
-    // Hero
-    'hero.tagline': 'Cinéaste · Photographe · Monteur — Luxembourg',
-    'hero.title1': 'Des images',
-    'hero.title2': 'avec patience.',
-    'hero.desc': "J'ai commencé par la photographie argentique et j'ai évolué vers la cinématographie — courts métrages, documentaires et travaux commerciaux, tournés avec l'œil d'un photographe et finalisés, couleur et montage, en interne.",
-    'hero.cta': 'Voir la bande-démo',
-
-    // Reel
-    'reel.label': 'En vedette',
-    'reel.title': 'La bande-démo',
-    'reel.youtube': 'Regarder sur YouTube ↗',
-
     // About
-    'about.label': 'À propos',
-    'about.title': "Basé au Luxembourg, travaillant partout où l'histoire se trouve.",
-    'about.p1': "Cinéaste et photographe professionnel avec de solides compétences en montage. Mon travail a commencé avec la photographie argentique — la discipline de la lumière, de la patience et du cadre limité — et a évolué vers la cinématographie à travers courts métrages, documentaires et projets commerciaux.",
     'about.p2': "Je filme, étalonne et monte, pour qu'un projet reste cohérent du premier plan au dernier. Disponible pour commandes, postes et collaborations.",
-
-    // Services
-    'services.label': 'Services',
-    'services.cinematography': 'Cinématographie',
-    'services.cinematography.desc': "Courts métrages, documentaires et projets commerciaux — tournés et éclairés avec l'œil d'un photographe pour le cadre et la patience.",
-    'services.photography': 'Photographie',
-    'services.photography.desc': "Argentique et numérique, du portrait au reportage. La discipline où l'œil a été formé, toujours pratiquée.",
-    'services.editing': 'Montage & Couleur',
-    'services.editing.desc': "Rythme, son et étalonnage finalisés en interne, pour que le montage fasse partie du tournage plutôt qu'une réflexion après coup.",
-    'services.book': 'Réserver une consultation',
-    'services.book.desc': 'Discutons de votre projet',
 
     // Contact
     'contact.label': 'Contact',
@@ -213,14 +146,7 @@ export const translations = {
     'contact.error': 'Une erreur est survenue. Veuillez me contacter par email.',
 
     // Testimonials
-    'testimonials.label': 'Témoignages',
-    'testimonials.title': 'Ce qu\'ils disent',
-    'testimonials.quote1': 'Je me suis sentie à l\'aise. Je voulais m\'essayer en tant que modèle, je n\'attendais rien, mais j\'ai fini par être très contente du résultat.',
     'testimonials.quote2': 'Professionnel, patient, et comprend vraiment comment capturer l\'essence d\'un moment. Le film final a dépassé toutes les attentes.',
-    'testimonials.quote3': 'Travailler avec P.V. était sans effort. Il a une capacité rare de vous mettre à l\'aise tout en livrant un travail visuel époustouflant.',
-
-    // Partner
-    'partner': 'Partenaire Général',
 
     // Footer
     'footer.copyright': '© 2026 Vyacheslav Plotnikov — Luxembourg',
@@ -239,10 +165,8 @@ export const translations = {
     'privacy.thirdparty.title': 'Services tiers',
     'privacy.thirdparty.legal': 'Base juridique : Art. 6(1)(f) RGPD — intérêt légitime à exploiter ce site web.',
     'privacy.thirdparty.formspree': 'Les soumissions du formulaire de contact sont traitées par Formspree, Inc. (USA). Formspree agit en tant que sous-traitant au sens de l\'Art. 28 RGPD et fournit des garanties appropriées pour les transferts internationaux.',
-    'privacy.thirdparty.fonts': 'Ce site utilise Google Fonts, qui peut enregistrer votre adresse IP lors du chargement des polices. Fournisseur : Google LLC (USA).',
     'privacy.thirdparty.hosting': 'Le site est hébergé sur GitHub Pages (GitHub, Inc., USA), qui peut collecter des journaux serveur basiques incluant les adresses IP.',
     'privacy.storage.title': 'Cookies et stockage local',
-    'privacy.storage.legal': 'Base juridique : Art. 6(1)(f) RGPD et Art. 5(3) Directive ePrivacy — strictement nécessaire au fonctionnement du site.',
     'privacy.storage.desc': "Ce site n'utilise ni cookies ni outils d'analyse, et ne stocke rien dans votre navigateur.",
     'privacy.rights.title': 'Vos droits',
     'privacy.rights.intro': 'En vertu des Articles 15–22 du RGPD, vous avez le droit de :',
@@ -255,11 +179,8 @@ export const translations = {
 
   de: {
     // Navigation
-    'nav.photos': 'Fotos',
-    'nav.reel': 'Showreel',
     'nav.work': 'Arbeiten',
     'nav.about': 'Über mich',
-    'nav.services': 'Leistungen',
     // Page metadata
     'meta.home.title': 'Vyacheslav Plotnikov — Kameramann & Fotograf, Luxemburg',
     'meta.about.title': 'Über mich — Vyacheslav Plotnikov',
@@ -291,34 +212,8 @@ export const translations = {
     'discipline.portrait': 'Porträt',
     'discipline.photography': 'Fotografie',
 
-    // Hero
-    'hero.tagline': 'Kameramann · Fotograf · Editor — Luxemburg',
-    'hero.title1': 'Bilder mit',
-    'hero.title2': 'Geduld.',
-    'hero.desc': 'Ich begann mit der Filmfotografie und entwickelte mich zur Kinematografie — Kurzfilme, Dokumentationen und kommerzielle Arbeiten, aufgenommen mit dem Auge eines Fotografen und fertiggestellt, Farbe und Schnitt, im Haus.',
-    'hero.cta': 'Showreel ansehen',
-
-    // Reel
-    'reel.label': 'Empfohlen',
-    'reel.title': 'Das Showreel',
-    'reel.youtube': 'Auf YouTube ansehen ↗',
-
     // About
-    'about.label': 'Über mich',
-    'about.title': 'In Luxemburg ansässig, arbeite ich überall, wo die Geschichte ist.',
-    'about.p1': 'Ein professioneller Kameramann und Fotograf mit starken Schnittfähigkeiten. Meine Arbeit begann mit der Filmfotografie — die Disziplin des Lichts, der Geduld und des begrenzten Rahmens — und entwickelte sich zur Kinematografie für Kurzfilme, Dokumentationen und kommerzielle Projekte.',
     'about.p2': 'Ich filme, grade und schneide, damit ein Projekt vom ersten Setup bis zum letzten Bild ganz bleibt. Verfügbar für Aufträge, Stellen und Markenkooperationen.',
-
-    // Services
-    'services.label': 'Leistungen',
-    'services.cinematography': 'Kinematografie',
-    'services.cinematography.desc': 'Kurzfilme, Dokumentationen und kommerzielle Projekte — aufgenommen und beleuchtet mit dem Auge eines Fotografen für Rahmen und Geduld.',
-    'services.photography': 'Fotografie',
-    'services.photography.desc': 'Film und Digital, vom Porträt bis zur Reportage. Die Disziplin, in der das Auge zuerst geschult wurde, wird weiterhin praktiziert.',
-    'services.editing': 'Schnitt & Farbe',
-    'services.editing.desc': 'Rhythmus, Ton und Farbkorrektur werden im Haus fertiggestellt, sodass der Schnitt Teil des Drehs ist und nicht nachträglich.',
-    'services.book': 'Beratung buchen',
-    'services.book.desc': 'Lassen Sie uns über Ihr Projekt sprechen',
 
     // Contact
     'contact.label': 'Kontakt',
@@ -336,14 +231,7 @@ export const translations = {
     'contact.error': 'Etwas ist schief gelaufen. Bitte kontaktieren Sie mich direkt per E-Mail.',
 
     // Testimonials
-    'testimonials.label': 'Kundenstimmen',
-    'testimonials.title': 'Was andere sagen',
-    'testimonials.quote1': 'Ich fühlte mich wohl. Wollte mich als Model ausprobieren, erwartete nichts, war aber am Ende sehr zufrieden mit dem Ergebnis.',
     'testimonials.quote2': 'Professionell, geduldig und versteht wirklich, wie man die Essenz eines Moments einfängt. Der finale Film übertraf alle Erwartungen.',
-    'testimonials.quote3': 'Die Arbeit mit P.V. war mühelos. Er hat die seltene Fähigkeit, einen sich wohl fühlen zu lassen und gleichzeitig beeindruckende visuelle Arbeit zu liefern.',
-
-    // Partner
-    'partner': 'Generalpartner',
 
     // Footer
     'footer.copyright': '© 2026 Vyacheslav Plotnikov — Luxemburg',
@@ -362,10 +250,8 @@ export const translations = {
     'privacy.thirdparty.title': 'Drittanbieter',
     'privacy.thirdparty.legal': 'Rechtsgrundlage: Art. 6(1)(f) DSGVO — berechtigtes Interesse am Betrieb dieser Website.',
     'privacy.thirdparty.formspree': 'Kontaktformular-Einreichungen werden über Formspree, Inc. (USA) verarbeitet. Formspree fungiert als Auftragsverarbeiter gemäß Art. 28 DSGVO und bietet angemessene Garantien für internationale Übermittlungen.',
-    'privacy.thirdparty.fonts': 'Diese Website verwendet Google Fonts, die beim Laden der Schriftarten Ihre IP-Adresse protokollieren können. Anbieter: Google LLC (USA).',
     'privacy.thirdparty.hosting': 'Die Website wird auf GitHub Pages (GitHub, Inc., USA) gehostet, das grundlegende Server-Logs einschließlich IP-Adressen erfassen kann.',
     'privacy.storage.title': 'Cookies und lokaler Speicher',
-    'privacy.storage.legal': 'Rechtsgrundlage: Art. 6(1)(f) DSGVO und Art. 5(3) ePrivacy-Richtlinie — unbedingt erforderlich für die Website-Funktionalität.',
     'privacy.storage.desc': 'Diese Website verwendet weder Cookies noch Analysen und speichert nichts in Ihrem Browser.',
     'privacy.rights.title': 'Ihre Rechte',
     'privacy.rights.intro': 'Gemäß DSGVO Artikel 15–22 haben Sie das Recht auf:',

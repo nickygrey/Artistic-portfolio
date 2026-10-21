@@ -19,11 +19,11 @@ test('ScrollTrigger count does not grow across View Transitions', async ({ page 
   counts.push(await page.evaluate(() => window.__motion.triggerCount()));
 
   for (let i = 0; i < 3; i++) {
-    await page.locator('footer a[href="/privacy"]').click();
-    await page.waitForURL((url) => url.pathname === '/privacy');
+    await page.locator('header a[data-nav="about"]').click();
+    await page.waitForURL((url) => url.pathname === '/about/');
     await page.waitForTimeout(600);
 
-    await page.locator('a.logo[href="/"]').click();
+    await page.locator('header a[data-nav="home"]').click();
     await page.waitForURL((url) => url.pathname === '/');
     await page.waitForTimeout(1200);
 

@@ -2,11 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { isPlainPrimaryClick } from '../../src/lib/click';
 
 /**
- * Shared by `src/motion/engine.ts` (which must let a modifier-click on a
- * same-page anchor reach the browser's native handling) and
- * `src/components/SelectedWork.astro` (which must not arm a card's re-form on
- * one). It used to be a copy in each, already diverging — hence one home and
- * one set of tests.
+ * Used by `src/motion/engine.ts`, which must let a modifier-click on a
+ * same-page anchor reach the browser's native handling.
  */
 describe('isPlainPrimaryClick', () => {
   it('accepts the plain primary click', () => {

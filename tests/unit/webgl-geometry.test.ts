@@ -139,9 +139,9 @@ describe('computeMeshTransform', () => {
   });
 });
 
-/** The real hero photograph's intrinsic size (src/assets/hero.jpg). */
+/** A real landscape photograph's intrinsic size (the former hero image). */
 const HERO_NATURAL = { width: 2400, height: 1943 };
-/** Hero.astro's own `object-position: center 30%`. */
+/** The former hero's `object-position: center 30%`. */
 const HERO_POSITION = { x: 0.5, y: 0.3 };
 
 /**
