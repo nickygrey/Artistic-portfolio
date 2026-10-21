@@ -14,7 +14,8 @@
     "test:build": "vitest run tests/build",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "perf": "node scripts/perf.mjs"
+    "perf": "node scripts/perf.mjs",
+    "test:prod": "playwright test -c playwright.prod.config.ts"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",

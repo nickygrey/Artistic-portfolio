@@ -5,6 +5,7 @@ import { ClientRouter } from 'astro:transitions';
 import { stripLocale, canonicalUrl, hreflangAlternates, ogLocale, siteJsonLd } from '../lib/seo';
 import { worldColors, type World } from '../lib/disciplines';
 import { cssMotionVars } from '../motion/tokens';
+import { CANVAS_PENDING_SCRIPT, contentSecurityPolicy } from '../lib/csp';
 
 interface Props {
   title: string;
@@ -34,18 +35,17 @@ const alternates = hreflangAlternates(path);
 const isHome = path === '/';
 const { bg, accent } = worldColors(world);
 const image = ogImage ?? `${siteUrl}/images/og.jpg`;
+// Production only: the dev server injects its own inline scripts for hot reloading.
+const csp = import.meta.env.PROD ? contentSecurityPolicy([CANVAS_PENDING_SCRIPT]) : null;
 ---
 
 <!DOCTYPE html>
 <html lang={locale} data-world={world} style={`--world-bg: ${bg}; --world-accent: ${accent};`}>
 <head>
   <meta charset="utf-8">
+  {csp && <meta http-equiv="Content-Security-Policy" content={csp}>}
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script is:inline>
-    // Before first paint: on pointer devices a gallery's fallback grid stays unpainted until the
-    // canvas lays it out (see GalleryView.astro). Same query as CANVAS_QUERY in src/gallery/canvas.ts.
-    if (matchMedia('(hover: hover) and (pointer: fine)').matches) document.documentElement.classList.add('canvas-pending');
-  </script>
+  <script is:inline set:html={CANVAS_PENDING_SCRIPT} />
   <title>{title}</title>
   <meta name="description" content={description}>
   <meta name="author" content="Vyacheslav Plotnikov">
