@@ -47,3 +47,23 @@ describe('gallery routes', () => {
     );
   });
 });
+
+describe('gallery markup', () => {
+  const html = () => readFileSync('dist/work/portrait/index.html', 'utf8');
+
+  it('shows images only: no captions in the grid', () => {
+    expect(html()).not.toContain('<figcaption');
+  });
+
+  it('every frame is a link to its single view and carries its aspect ratio', () => {
+    const frames = [...html().matchAll(/<li data-frame="(\d+)" data-aspect="([\d.]+)"[^>]*>\s*<a class="gallery__frame" href="\?frame=(\d+)"/g)];
+    expect(frames.length).toBe(7);
+    for (const f of frames) expect(f[1]).toBe(f[3]);
+  });
+
+  it('has a back link home, a drag hint hidden from screen readers, and lets the canvas own the wheel', () => {
+    expect(html()).toMatch(/<a class="gallery__back" href="\/" aria-label="Back to all work"/);
+    expect(html()).toMatch(/<p class="gallery__hint eyebrow" aria-hidden="true"/);
+    expect(html()).toMatch(/<main[^>]*data-gallery[^>]*data-lenis-prevent/);
+  });
+});

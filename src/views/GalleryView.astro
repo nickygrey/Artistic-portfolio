@@ -2,10 +2,11 @@
 import { Image, getImage } from 'astro:assets';
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
-import { type Lang, type TranslationKey, t } from '../i18n/translations';
+import { type Lang, t } from '../i18n/translations';
 import { getDiscipline, type DisciplineSlug } from '../lib/disciplines';
 import { coverOf } from '../lib/gallery';
 import { getGallery } from '../lib/gallery-data';
+import { localizedPath } from '../lib/seo';
 
 interface Props {
   lang: Lang;
@@ -18,7 +19,15 @@ const frames = await getGallery(slug);
 const name = t(lang, discipline.nameKey);
 const og = await getImage({ src: coverOf(frames)!.image, width: 1200, format: 'jpg', quality: 80 });
 const siteUrl = Astro.site!.toString().replace(/\/$/, '');
-const roleList = (roles: string[]) => roles.map((r) => t(lang, `role.${r}` as TranslationKey)).join(', ');
+const seed = [...slug].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+// Aspect ratios come from a processed thumbnail: reading width/height off the source
+// ImageMetadata makes Astro ship the full-resolution original to dist/.
+const aspects = await Promise.all(
+  frames.map(async (f) => {
+    const { attributes } = await getImage({ src: f.image, width: 480, format: 'webp', quality: 72 });
+    return (Number(attributes.width) / Number(attributes.height)).toFixed(4);
+  })
+);
 ---
 
 <Layout
@@ -29,52 +38,69 @@ const roleList = (roles: string[]) => roles.map((r) => t(lang, `role.${r}` as Tr
   ogImage={`${siteUrl}${og.src}`}
 >
   <Header lang={lang} />
-  <main id="main-content" class="gallery">
+  <main id="main-content" class="gallery" data-gallery data-seed={seed} data-lenis-prevent>
     <ol class="gallery__frames">
       {frames.map((f) => (
-        <li data-frame={f.index}>
-          <figure>
+        <li data-frame={f.index} data-aspect={aspects[f.index - 1]}>
+          <a class="gallery__frame" href={`?frame=${f.index}`}>
             <Image
               src={f.image}
               alt={f.credit?.alt ?? `${name}, ${f.index} / ${frames.length}`}
               width={1600}
               widths={[480, 960, 1600]}
-              sizes="(max-width: 760px) 50vw, 25vw"
+              sizes="(max-width: 760px) 50vw, 340px"
               format="webp"
               quality={72}
-              loading={f.index <= 4 ? 'eager' : 'lazy'}
+              loading={f.index <= 6 ? 'eager' : 'lazy'}
+              draggable="false"
             />
-            {f.credit && (f.credit.title || f.credit.client || f.credit.roles.length > 0 || f.credit.film) && (
-              <figcaption class="eyebrow">
-                <span>{[f.credit.title, f.credit.client, roleList(f.credit.roles)].filter(Boolean).join(' — ')}</span>
-                {f.credit.film && <a href={f.credit.film} target="_blank" rel="noopener">{t(lang, 'gallery.play')}</a>}
-              </figcaption>
-            )}
-          </figure>
+          </a>
         </li>
       ))}
     </ol>
+    <p class="gallery__hint eyebrow" aria-hidden="true">‹&nbsp;&nbsp;{t(lang, 'gallery.drag')}&nbsp;&nbsp;›</p>
     <div class="gallery__title">
       <h1 class="display">{name}</h1>
       <p>{discipline.years}</p>
     </div>
+    <a class="gallery__back" href={localizedPath('/', lang)} aria-label={t(lang, 'gallery.back')}>←</a>
   </main>
 </Layout>
 
 <style>
-  .gallery { padding: 96px var(--gutter) 180px calc(var(--gutter) + var(--rail)); }
+  /* Resting layout: touch, no JS, and search engines. A staggered two-column grid with native scrolling. */
+  .gallery { padding: 96px var(--gutter) 200px calc(var(--gutter) + var(--rail)); }
   .gallery__frames {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
-    gap: var(--gutter);
-    align-items: start;
-    margin: 0;
-    padding: 0;
-    list-style: none;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100% / 2 - var(--gutter), 260px), 1fr));
+    gap: var(--gutter); align-items: start; margin: 0; padding: 0; list-style: none;
   }
-  figure { margin: 0; }
-  figcaption { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
-  .gallery__title { position: fixed; left: calc(var(--gutter) + var(--rail)); bottom: 24px; }
+  .gallery:not(.is-canvas) li:nth-child(even) { translate: 0 12vh; }
+  .gallery__frame { display: block; }
+  .gallery__frame img { width: 100%; height: 100%; object-fit: cover; }
+
+  .gallery__title { position: fixed; z-index: 2; left: calc(var(--gutter) + var(--rail)); bottom: 24px; pointer-events: none; }
   .gallery__title h1 { margin: 0; font-size: var(--step-title); }
   .gallery__title p { margin: 4px 0 0; }
+
+  .gallery__back {
+    position: fixed; z-index: 2; right: var(--gutter); bottom: 24px;
+    width: 40px; height: 40px; display: grid; place-items: center;
+    border: 1px solid var(--control-line); border-radius: 50%; text-decoration: none;
+    background: color-mix(in srgb, var(--world-bg) 70%, transparent);
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+  .gallery__back:hover { border-color: var(--world-accent); }
+
+  .gallery__hint { display: none; }
+
+  /* Canvas mode, added by src/gallery/canvas.ts on fine-pointer devices. */
+  .gallery.is-canvas { position: fixed; inset: 0; padding: 0; overflow: hidden; cursor: grab; user-select: none; touch-action: none; }
+  .gallery.is-canvas.is-dragging { cursor: grabbing; }
+  .gallery.is-canvas .gallery__frames { display: block; }
+  .gallery.is-canvas li { position: absolute; left: 0; top: 0; will-change: transform; }
+  .gallery.is-canvas .gallery__frame { height: 100%; }
+  .gallery.is-canvas .gallery__hint {
+    display: block; position: fixed; z-index: 2; left: 50%; bottom: 88px; translate: -50% 0;
+    margin: 0; color: var(--ink); pointer-events: none; white-space: nowrap;
+  }
 </style>

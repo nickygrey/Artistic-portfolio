@@ -19,6 +19,8 @@ export const translations = {
     'home.heading': 'Vyacheslav Plotnikov — selected work',
     // Gallery
     'gallery.play': 'Play film ↗',
+    'gallery.drag': 'Drag to explore',
+    'gallery.back': 'Back to all work',
     'role.camera': 'Camera',
     'role.lighting': 'Lighting',
     'role.edit': 'Edit',
@@ -102,6 +104,8 @@ export const translations = {
     'home.heading': 'Vyacheslav Plotnikov — travaux choisis',
     // Gallery
     'gallery.play': 'Voir le film ↗',
+    'gallery.drag': 'Glisser pour explorer',
+    'gallery.back': 'Retour à tous les travaux',
     'role.camera': 'Image',
     'role.lighting': 'Lumière',
     'role.edit': 'Montage',
@@ -185,6 +189,8 @@ export const translations = {
     'home.heading': 'Vyacheslav Plotnikov — ausgewählte Arbeiten',
     // Gallery
     'gallery.play': 'Film ansehen ↗',
+    'gallery.drag': 'Ziehen zum Entdecken',
+    'gallery.back': 'Zurück zu allen Arbeiten',
     'role.camera': 'Kamera',
     'role.lighting': 'Licht',
     'role.edit': 'Schnitt',
