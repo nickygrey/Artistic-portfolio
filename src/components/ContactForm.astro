@@ -1,0 +1,83 @@
+---
+import { type Lang, t } from '../i18n/translations';
+import { richText } from '../lib/rich';
+import { localizedPath } from '../lib/seo';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const privacy = richText(t(lang, 'contact.privacy'), {
+  privacy: { href: localizedPath('/privacy/', lang), label: t(lang, 'contact.privacy.link'), accent: 'currentColor' },
+});
+---
+
+<section id="contact" class="contact" aria-labelledby="contact-heading">
+  <h2 id="contact-heading" class="eyebrow">{t(lang, 'nav.contact')}</h2>
+  <p class="contact__desc">{t(lang, 'contact.desc')}</p>
+  <form
+    id="contact-form"
+    class="contact__form"
+    action="https://formspree.io/f/xwvgojzz"
+    method="post"
+    data-sending={t(lang, 'contact.sending')}
+    data-success={t(lang, 'contact.success')}
+    data-error={t(lang, 'contact.error')}
+  >
+    <label class="field">
+      <span class="eyebrow">{t(lang, 'contact.name')}</span>
+      <input name="name" type="text" autocomplete="name" required />
+    </label>
+    <label class="field">
+      <span class="eyebrow">{t(lang, 'contact.email')}</span>
+      <input name="email" type="email" autocomplete="email" required />
+    </label>
+    <label class="field field--wide">
+      <span class="eyebrow">{t(lang, 'contact.message')}</span>
+      <textarea name="message" rows="3" placeholder={t(lang, 'contact.message.placeholder')} required></textarea>
+    </label>
+    <input class="contact__gotcha" type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" />
+    <div class="contact__foot">
+      <button class="contact__send eyebrow" type="submit">{t(lang, 'contact.submit')}</button>
+      <p class="contact__privacy">
+        {privacy.map((s) => ('text' in s ? s.text : <a href={s.link.href}>{s.link.label}</a>))}
+      </p>
+    </div>
+    <p class="contact__status" data-form-status aria-live="polite"></p>
+  </form>
+</section>
+
+<style>
+  .contact { margin-top: 96px; padding-top: 28px; border-top: 1px solid var(--line); scroll-margin-top: 96px; }
+  .contact h2 { margin: 0 0 12px; font-weight: 500; opacity: 0.7; }
+  .contact__desc { max-width: 52ch; margin: 0 0 36px; color: var(--ink); }
+
+  .contact__form { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 6%; }
+  .field { display: grid; gap: 6px; }
+  .field--wide { grid-column: 1 / -1; }
+  .field span { opacity: 0.7; }
+  .field input, .field textarea {
+    width: 100%; padding: 8px 0 10px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
+    background: none; color: var(--ink); font: inherit; resize: vertical;
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+  .field input:focus, .field textarea:focus { outline: none; border-bottom-color: var(--world-accent); }
+  .field textarea::placeholder { color: color-mix(in srgb, var(--ink) 40%, transparent); }
+
+  .contact__gotcha { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+
+  .contact__foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; }
+  .contact__send {
+    padding: 14px 24px; border: 1px solid var(--world-accent); border-radius: 99px; background: none; color: inherit; cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  }
+  .contact__send:hover:not(:disabled) { background: var(--world-accent); color: var(--world-bg); }
+  .contact__send:disabled { opacity: 0.6; cursor: progress; }
+  .contact__privacy { margin: 0; font-size: 0.8125rem; opacity: 0.75; }
+  .contact__privacy a { text-underline-offset: 3px; }
+  .contact__status { grid-column: 1 / -1; min-height: 1.6em; margin: 0; color: var(--ink); }
+  .contact__status a { text-underline-offset: 3px; }
+
+  @media (max-width: 560px) { .contact__form { grid-template-columns: 1fr; } }
+</style>
