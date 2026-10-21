@@ -60,7 +60,7 @@ const { lang } = Astro.props;
 </Layout>
 
 <style>
-  .privacy { width: min(100% - 2 * var(--gutter), 680px); margin: 0 auto; padding-top: clamp(100px, 12vw, 140px); }
+  .privacy { width: min(100% - 2 * (var(--gutter) + var(--rail)), 680px); margin: 0 auto; padding-top: clamp(100px, 12vw, 140px); }
   .privacy h1 { margin: 0 0 32px; font-size: var(--step-name); }
   .privacy h2 { margin: 40px 0 16px; font-size: clamp(1.375rem, 1.2rem + 0.8vw, 1.75rem); }
   .privacy ul { padding-left: 24px; }

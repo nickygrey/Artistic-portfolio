@@ -42,7 +42,7 @@ const { lang } = Astro.props;
 </Layout>
 
 <style>
-  .about { width: min(100% - 2 * var(--gutter), 980px); margin: 0 auto; padding-top: 120px; }
+  .about { width: min(100% - 2 * (var(--gutter) + var(--rail)), 980px); margin: 0 auto; padding-top: 120px; }
   .about__intro { display: grid; grid-template-columns: 1.15fr 1fr; gap: 6%; align-items: start; }
   .about__text h1 { margin: 0 0 16px; font-size: var(--step-name); }
   .about__text p { max-width: 62ch; }

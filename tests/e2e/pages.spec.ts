@@ -34,3 +34,27 @@ test('the page never scrolls sideways at 375px', async ({ browser }) => {
   }
   await ctx.close();
 });
+
+test('the header eyebrow never collides with the nav or the page content', async ({ browser }) => {
+  test.setTimeout(90_000);
+  for (const width of [375, 768, 1024, 1440]) {
+    const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await ctx.newPage();
+    for (const path of ['/', '/work/portrait/', '/about/', '/de/privacy/']) {
+      await page.goto(path);
+      await page.waitForTimeout(2200);
+      const hits = await page.evaluate(() => {
+        const eyebrow = document.querySelector('.site-header__eyebrow')!.getBoundingClientRect();
+        const overlaps = (r: DOMRect) =>
+          r.width > 0 && r.height > 0 &&
+          r.left < eyebrow.right && r.right > eyebrow.left && r.top < eyebrow.bottom && r.bottom > eyebrow.top;
+        const others = [
+          ...document.querySelectorAll('.site-header__nav, .site-header__name, main img, main h1, main p, main li'),
+        ];
+        return others.filter((el) => overlaps(el.getBoundingClientRect())).map((el) => el.tagName + '.' + el.className);
+      });
+      expect(hits, `${width}px ${path}`).toEqual([]);
+    }
+    await ctx.close();
+  }
+});

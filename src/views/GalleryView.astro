@@ -62,7 +62,7 @@ const roleList = (roles: string[]) => roles.map((r) => t(lang, `role.${r}` as Tr
 </Layout>
 
 <style>
-  .gallery { padding: 96px var(--gutter) 180px; }
+  .gallery { padding: 96px var(--gutter) 180px calc(var(--gutter) + var(--rail)); }
   .gallery__frames {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
@@ -74,7 +74,7 @@ const roleList = (roles: string[]) => roles.map((r) => t(lang, `role.${r}` as Tr
   }
   figure { margin: 0; }
   figcaption { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
-  .gallery__title { position: fixed; left: var(--gutter); bottom: 24px; }
+  .gallery__title { position: fixed; left: calc(var(--gutter) + var(--rail)); bottom: 24px; }
   .gallery__title h1 { margin: 0; font-size: var(--step-title); }
   .gallery__title p { margin: 4px 0 0; }
 </style>

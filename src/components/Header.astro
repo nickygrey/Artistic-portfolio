@@ -51,7 +51,8 @@ const about = localizedPath('/about/', lang);
   .site-header__locales { display: flex; gap: 6px; margin: 0 0 0 8px; padding: 0; list-style: none; opacity: 0.7; }
   .site-header__locales a[aria-current] { text-decoration: underline; }
 
-  @media (max-width: 760px) {
+  /* Same width as --rail in global.css: below it the centred eyebrow no longer fits beside the nav. */
+  @media (max-width: 1100px) {
     .site-header { grid-template-columns: 1fr auto; }
     .site-header__eyebrow {
       position: fixed;

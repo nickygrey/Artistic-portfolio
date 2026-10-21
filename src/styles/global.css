@@ -32,7 +32,11 @@
   --size-nav: 0.8125rem;
   --size-eyebrow: 0.625rem;
   --gutter: clamp(16px, 2.2vw, 32px);
+  /* Left margin reserved for the header's vertical eyebrow, at widths where it stands vertically (Header.astro). */
+  --rail: 0px;
 }
+
+@media (max-width: 1100px) { :root { --rail: 28px; } }
 
 *, *::before, *::after { box-sizing: border-box; }
 
