@@ -73,3 +73,18 @@ a, button, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 /* Lenis is never constructed on touch devices (src/motion/engine.ts); native smooth scroll covers in-page anchors there. */
 @media (hover: none) and (pointer: coarse) and (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+/* Page transitions (Astro ClientRouter): one timing with the rest of the site; none under reduced motion. */
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none;
+  }
+}

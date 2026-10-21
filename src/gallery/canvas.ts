@@ -31,6 +31,11 @@ export function mountCanvas(root: HTMLElement): (() => void) | null {
     for (const li of originals) {
       const clone = li.cloneNode(true) as HTMLElement;
       clone.setAttribute('aria-hidden', 'true');
+      // A repeated transition name makes the browser skip the page transition entirely.
+      for (const named of [clone, ...clone.querySelectorAll<HTMLElement>('[data-astro-transition-scope]')]) {
+        named.removeAttribute('data-astro-transition-scope');
+        named.style.removeProperty('view-transition-name');
+      }
       clone.dataset.clone = '';
       clone.querySelector('a')?.setAttribute('tabindex', '-1');
       li.parentElement!.append(clone);

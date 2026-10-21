@@ -78,6 +78,7 @@ const image = ogImage ?? `${siteUrl}/images/og.jpg`;
   <script>
     import { initMotion, teardownMotion } from '../motion';
     import { initWebGL, teardownWebGL } from '../webgl';
+    import '../gallery/lifecycle';
 
     // Both calls are intentional, not redundant. astro:page-load fires only
     // after every module script on the page has run, so it is what guarantees

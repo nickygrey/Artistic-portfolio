@@ -28,7 +28,7 @@ const active = await getActiveDisciplines();
             data-discipline={discipline.slug}
             style={`--tint: ${discipline.accent}`}
           >
-            <span class="strip__media" data-strip-media>
+            <span class="strip__media" data-strip-media transition:name={`frame-${discipline.slug}`}>
               <Image
                 src={coverOf(frames)!.image}
                 alt=""

@@ -54,7 +54,7 @@ const aspects = await Promise.all(
     <ol class="gallery__frames">
       {frames.map((f) => (
         <li data-frame={f.index} data-aspect={aspects[f.index - 1]} data-cover={f.cover || undefined}>
-          <a class="gallery__frame" href={`?frame=${f.index}`}>
+          <a class="gallery__frame" href={`?frame=${f.index}`} transition:name={f.cover ? `frame-${slug}` : undefined}>
             <Image
               src={f.image}
               alt={altOf(f)}
@@ -212,35 +212,3 @@ const aspects = await Promise.all(
   }
 </style>
 
-<script>
-  import { canvasOffset, mountCanvas, observerCount } from '../gallery/canvas';
-  import { mountSingle } from '../gallery/single';
-
-  let destroy: (() => void) | null = null;
-  let destroySingle: (() => void) | null = null;
-
-  function teardown() {
-    destroySingle?.();
-    destroySingle = null;
-    destroy?.();
-    destroy = null;
-  }
-
-  function mount() {
-    teardown();
-    const root = document.querySelector<HTMLElement>('[data-gallery]');
-    if (!root) return;
-    destroy = mountCanvas(root);
-    destroySingle = mountSingle(root);
-  }
-
-  // astro:page-load fires on first load and after every ClientRouter navigation.
-  document.addEventListener('astro:page-load', mount);
-  document.addEventListener('astro:before-swap', teardown);
-
-  (window as unknown as Record<string, unknown>).__gallery = {
-    observers: observerCount,
-    mounted: () => destroy !== null,
-    offset: canvasOffset,
-  };
-</script>
