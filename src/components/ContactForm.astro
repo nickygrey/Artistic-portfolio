@@ -63,6 +63,8 @@ const privacy = richText(t(lang, 'contact.privacy'), {
     transition: border-color var(--dur-fast) var(--ease-out);
   }
   .field input:focus, .field textarea:focus { outline: none; border-bottom-color: var(--world-accent); }
+  /* iOS Safari zooms the page into any field under 16px when it takes focus. */
+  @media (pointer: coarse) { .field input, .field textarea { font-size: max(16px, 1em); } }
   .field textarea::placeholder { color: color-mix(in srgb, var(--ink) 40%, transparent); }
 
   .contact__gotcha { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }

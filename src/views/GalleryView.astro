@@ -233,5 +233,18 @@ const aspects = await Promise.all(
     display: block; position: fixed; z-index: 2; left: 50%; bottom: 88px; translate: -50% 0;
     margin: 0; color: var(--ink); pointer-events: none; white-space: nowrap;
   }
+
+  /*
+   * A phone on its side is only ~340-430px tall: the photograph takes the full
+   * height on the left, the controls stand in a column on the right, and the
+   * thumbnail rail and hint give way (swipe and the arrow keys still step).
+   */
+  @media (orientation: landscape) and (max-height: 520px) {
+    main.gallery[data-view='single'] .gallery__title { visibility: hidden; }
+    .single { background: var(--world-bg); }
+    .single__stage { inset: 60px 232px 12px var(--gutter); }
+    .single__hint, .single__rail { display: none; }
+    .single__controls { top: 50%; bottom: auto; translate: 0 -50%; flex-direction: column; align-items: flex-end; }
+  }
 </style>
 
