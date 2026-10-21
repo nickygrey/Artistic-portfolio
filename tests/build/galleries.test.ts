@@ -67,3 +67,23 @@ describe('gallery markup', () => {
     expect(html()).toMatch(/<main[^>]*data-gallery[^>]*data-lenis-prevent/);
   });
 });
+
+describe('single view markup', () => {
+  const html = () => readFileSync('dist/work/portrait/index.html', 'utf8');
+
+  it('renders a hidden modal dialog named after the gallery', () => {
+    expect(html()).toMatch(/<div[^>]*class="single"[^>]*role="dialog"[^>]*aria-modal="true"[^>]*aria-label="Portraits"[^>]*data-single[^>]*hidden/);
+  });
+
+  it('has one stage figure and one rail button per frame, plus a live region', () => {
+    expect(html().match(/data-single-frame="\d+"/g)).toHaveLength(7);
+    expect(html().match(/data-goto="\d+"/g)).toHaveLength(7);
+    expect(html()).toMatch(/aria-live="polite"[^>]*data-live/);
+    expect(html()).toContain('data-position="{n} of {total}"');
+  });
+
+  it('offers Single from the grid, and carries no film links', () => {
+    expect(html()).toMatch(/<button[^>]*data-open[^>]*>Single<\/button>/);
+    expect(html()).not.toMatch(/youtube|Play film/i);
+  });
+});
