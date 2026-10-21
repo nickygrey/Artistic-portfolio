@@ -45,6 +45,26 @@ export const LENIS = {
   easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
 } as const;
 
+/**
+ * CSS equivalents of EASE, for transitions that cannot go through GSAP
+ * (hover states). Values are the cubic-beziers GSAP documents for each ease.
+ */
+export const CSS_EASE = {
+  out: 'cubic-bezier(0.215, 0.61, 0.355, 1)',
+  inOut: 'cubic-bezier(0.455, 0.03, 0.515, 0.955)',
+} as const;
+
+/** The motion scale as CSS custom properties; Layout.astro puts these on :root. */
+export function cssMotionVars(): string {
+  return [
+    `--dur-fast: ${DURATION.fast}s;`,
+    `--dur-base: ${DURATION.base}s;`,
+    `--dur-slow: ${DURATION.slow}s;`,
+    `--ease-out: ${CSS_EASE.out};`,
+    `--ease-in-out: ${CSS_EASE.inOut};`,
+  ].join(' ');
+}
+
 /** Pixels of travel for enter animations. */
 export const DISTANCE = {
   sm: 20,

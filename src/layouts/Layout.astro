@@ -4,6 +4,7 @@ import { type Lang, defaultLang, t } from '../i18n/translations';
 import { ClientRouter } from 'astro:transitions';
 import { stripLocale, canonicalUrl, hreflangAlternates, ogLocale, siteJsonLd } from '../lib/seo';
 import { worldColors, type World } from '../lib/disciplines';
+import { cssMotionVars } from '../motion/tokens';
 
 interface Props {
   title: string;
@@ -67,6 +68,7 @@ const image = ogImage ?? `${siteUrl}/images/og.jpg`;
 
   <link rel="preload" href="/fonts/satoshi-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/cormorant-garamond-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <style is:inline set:html={`:root{${cssMotionVars()}}@media (prefers-reduced-motion: reduce){:root{--dur-fast: 0s; --dur-base: 0s; --dur-slow: 0s;}}`} />
 
   <ClientRouter />
 </head>

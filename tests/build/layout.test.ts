@@ -29,6 +29,12 @@ describe('layout', () => {
     expect(html).toMatch(/href="\/de\/privacy\/"[^>]*data-locale="de"/);
   });
 
+  it.each(PAGES)('%s exposes the motion scale to CSS, zeroed under reduced motion', (file) => {
+    const html = read(file);
+    expect(html).toMatch(/:root\{--dur-fast: 0\.5s;/);
+    expect(html).toMatch(/@media \(prefers-reduced-motion: reduce\)\{:root\{--dur-fast: 0s; --dur-base: 0s; --dur-slow: 0s;\}\}/);
+  });
+
   it('there is no page loader any more', () => {
     for (const f of PAGES) expect(read(f)).not.toContain('page-loader');
   });
