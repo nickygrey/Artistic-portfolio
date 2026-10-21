@@ -7,8 +7,9 @@ export function hexToVec3(hex: string): [number, number, number] {
 
 /**
  * The home strip: grayscale at rest, the discipline's accent multiplied in on
- * hover — the same result as the CSS multiply layer underneath — with a liquid
- * ripple that exists only while the tint is changing (uHover · (1 − uHover)).
+ * hover — the same result as the CSS multiply layer underneath. It only
+ * recolours: an earlier ripple displaced the image and warped faces in the
+ * portraits. The hover zoom is CSS on the <img>, which the mesh follows.
  */
 export function createTintShader(hex: string) {
   const uniforms = {
@@ -21,7 +22,6 @@ export function createTintShader(hex: string) {
     fragment: `
 precision highp float;
 uniform sampler2D tMap;
-uniform float uTime;
 uniform vec3 uTint;
 uniform float uHover;
 uniform vec2 uCoverScale;
@@ -29,12 +29,7 @@ uniform vec2 uCoverOffset;
 varying vec2 vUv;
 
 void main() {
-  vec2 uv = vUv;
-  float ripple = uHover * (1.0 - uHover) * 4.0;
-  uv.x += sin(uv.y * 14.0 + uTime * 3.0) * 0.012 * ripple;
-  uv.y += cos(uv.x * 10.0 + uTime * 2.0) * 0.008 * ripple;
-
-  vec3 col = texture2D(tMap, uv * uCoverScale + uCoverOffset).rgb;
+  vec3 col = texture2D(tMap, vUv * uCoverScale + uCoverOffset).rgb;
   float g = dot(col, vec3(0.299, 0.587, 0.114));
   g = clamp((g - 0.5) * 1.05 + 0.5, 0.0, 1.0);
   vec3 tinted = vec3(g) * mix(vec3(1.0), uTint, uHover);

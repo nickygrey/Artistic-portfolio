@@ -91,3 +91,20 @@ test('strips grow when there are few of them, without leaving the first screen',
   expect(span, 'the strips read as a band, not a pair of thumbnails').toBeGreaterThan(380);
   for (const b of boxes) expect(b.bottom).toBeLessThan(900 - 40);
 });
+
+test('hovering a strip zooms its photograph gently within the frame', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await page.waitForTimeout(2600);
+  const scale = () => page.locator('a[data-discipline="portrait"] img').evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
+  expect(await scale()).toBeCloseTo(1, 3);
+  await page.locator('a[data-discipline="portrait"]').hover();
+  await page.waitForTimeout(1200);
+  expect(await scale()).toBeCloseTo(1.06, 3);
+  const [media, img] = await Promise.all([
+    page.locator('a[data-discipline="portrait"] [data-strip-media]').boundingBox(),
+    page.locator('a[data-discipline="portrait"] img').boundingBox(),
+  ]);
+  expect(img!.width).toBeGreaterThan(media!.width);
+  expect(await page.locator('a[data-discipline="portrait"] [data-strip-media]').evaluate((el) => getComputedStyle(el).overflow)).toBe('hidden');
+});
