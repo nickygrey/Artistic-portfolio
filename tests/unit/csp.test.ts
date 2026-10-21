@@ -32,7 +32,11 @@ describe('contentSecurityPolicy', () => {
     expect(p['object-src']).toEqual(["'none'"]);
     expect(p['base-uri']).toEqual(["'self'"]);
     expect(p['frame-src']).toEqual(["'none'"]);
-    expect(p).toHaveProperty('upgrade-insecure-requests');
+  });
+
+  it('does not upgrade requests: Safari would then fetch an http://localhost preview over https and fail', () => {
+    // HTTPS is enforced by GitHub Pages (redirect + HSTS) and every URL on the site is relative.
+    expect(p).not.toHaveProperty('upgrade-insecure-requests');
   });
 
   it('uses only directives a <meta> policy honours', () => {

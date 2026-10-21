@@ -33,6 +33,8 @@ export function contentSecurityPolicy(inlineScripts: string[]): string {
     "frame-src 'none'",
     "object-src 'none'",
     "base-uri 'self'",
-    'upgrade-insecure-requests',
+    // No upgrade-insecure-requests: GitHub Pages already forces HTTPS, every URL
+    // here is relative, and Safari would apply it to an http://localhost preview,
+    // rewriting every request to https and loading nothing.
   ].join('; ');
 }
