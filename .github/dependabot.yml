@@ -11,6 +11,12 @@ updates:
       # Build and test tools change together; one PR instead of several.
       dev-tooling:
         dependency-type: development
+    ignore:
+      # Astro 7 changes rendered markup (the gallery's build checks fail on it);
+      # upgrading is a planned migration, not a weekly bump. Patches and minor
+      # releases within Astro 5 — including security fixes — still arrive.
+      - dependency-name: "astro"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
