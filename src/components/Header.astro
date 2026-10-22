@@ -75,4 +75,16 @@ const current = (nav: string) => (nav === section ? 'page' : undefined);
     .site-header__nav { gap: 10px; }
     .site-header__locales { gap: 0; margin-left: 0; }
   }
+
+  /* Phones: the eyebrow cannot fit vertically (it broke into two or three columns) and the same words are on About. */
+  @media (max-width: 760px), (orientation: landscape) and (max-height: 520px) {
+    .site-header__eyebrow { display: none; }
+  }
+
+  /* Touch: every header link is a 44px-tall thumb target; the visible text is unchanged. */
+  @media (pointer: coarse) {
+    .site-header { padding-block: 6px; }
+    .site-header a { display: inline-flex; align-items: center; min-height: 44px; }
+    .site-header__locales a { min-width: 28px; }
+  }
 </style>
