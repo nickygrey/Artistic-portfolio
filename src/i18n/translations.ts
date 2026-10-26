@@ -75,7 +75,7 @@ export const translations = {
     'contact.submit': 'Send enquiry',
     'contact.sending': 'Sending…',
     'contact.success': "Thank you — your message is on its way. I'll reply within a few days.",
-    'contact.error': "The message couldn't be sent. Please write to me directly:",
+    'contact.error': "The message couldn't be sent. Please try again in a moment.",
 
     // Footer
     'footer.copyright': '© 2026 Vyacheslav Plotnikov — Luxembourg',
@@ -100,7 +100,8 @@ export const translations = {
     'privacy.rights.title': 'Your Rights',
     'privacy.rights.intro': 'Under GDPR Articles 15–22, you have the right to:',
     'privacy.rights.list': 'Access your data (Art. 15), rectify inaccurate data (Art. 16), request erasure (Art. 17), restrict processing (Art. 18), data portability (Art. 20), and object to processing (Art. 21).',
-    'privacy.rights.desc': 'To exercise these rights, contact me at:',
+    'privacy.rights.desc': 'To exercise these rights, write to me through the contact form:',
+    'privacy.rights.link': 'Contact form',
     'privacy.rights.complaint': 'You also have the right to lodge a complaint with the Luxembourg data protection authority (CNPD) at cnpd.lu.',
     'privacy.updated': 'Last updated: October 2026',
     'privacy.back': '← Back to home',
@@ -174,7 +175,7 @@ export const translations = {
     'contact.submit': 'Envoyer',
     'contact.sending': 'Envoi…',
     'contact.success': 'Merci — votre message est envoyé. Je réponds sous quelques jours.',
-    'contact.error': "Le message n'a pas pu être envoyé. Écrivez-moi directement :",
+    'contact.error': "Le message n'a pas pu être envoyé. Merci de réessayer dans un instant.",
 
     // Footer
     'footer.copyright': '© 2026 Vyacheslav Plotnikov — Luxembourg',
@@ -199,7 +200,8 @@ export const translations = {
     'privacy.rights.title': 'Vos droits',
     'privacy.rights.intro': 'En vertu des Articles 15–22 du RGPD, vous avez le droit de :',
     'privacy.rights.list': 'Accéder à vos données (Art. 15), rectifier les données inexactes (Art. 16), demander l\'effacement (Art. 17), limiter le traitement (Art. 18), à la portabilité des données (Art. 20), et vous opposer au traitement (Art. 21).',
-    'privacy.rights.desc': 'Pour exercer ces droits, contactez-moi à :',
+    'privacy.rights.desc': 'Pour exercer ces droits, écrivez-moi via le formulaire de contact :',
+    'privacy.rights.link': 'Formulaire de contact',
     'privacy.rights.complaint': 'Vous avez également le droit de déposer une plainte auprès de la Commission Nationale pour la Protection des Données (CNPD) du Luxembourg sur cnpd.lu.',
     'privacy.updated': 'Dernière mise à jour : octobre 2026',
     'privacy.back': '← Retour à l\'accueil',
@@ -273,7 +275,7 @@ export const translations = {
     'contact.submit': 'Anfrage senden',
     'contact.sending': 'Senden…',
     'contact.success': 'Danke — Ihre Nachricht ist unterwegs. Ich antworte innerhalb weniger Tage.',
-    'contact.error': 'Die Nachricht konnte nicht gesendet werden. Schreiben Sie mir direkt:',
+    'contact.error': 'Die Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es gleich noch einmal.',
 
     // Footer
     'footer.copyright': '© 2026 Vyacheslav Plotnikov — Luxemburg',
@@ -298,7 +300,8 @@ export const translations = {
     'privacy.rights.title': 'Ihre Rechte',
     'privacy.rights.intro': 'Gemäß DSGVO Artikel 15–22 haben Sie das Recht auf:',
     'privacy.rights.list': 'Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen die Verarbeitung (Art. 21).',
-    'privacy.rights.desc': 'Um diese Rechte auszuüben, kontaktieren Sie mich unter:',
+    'privacy.rights.desc': 'Um diese Rechte auszuüben, schreiben Sie mir über das Kontaktformular:',
+    'privacy.rights.link': 'Kontaktformular',
     'privacy.rights.complaint': 'Sie haben auch das Recht, eine Beschwerde bei der luxemburgischen Datenschutzbehörde (CNPD) unter cnpd.lu einzureichen.',
     'privacy.updated': 'Zuletzt aktualisiert: Oktober 2026',
     'privacy.back': '← Zurück zur Startseite',

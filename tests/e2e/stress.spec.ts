@@ -115,7 +115,7 @@ test('the contact form survives real worst-case input and a failure message', as
         'https://www.example.com/a/very/long/reference/link/that/never/breaks/naturally/in/a/textarea/at/all'
     );
     await page.locator('.contact__send').click();
-    await expect(page.locator('[data-form-status]')).toContainText('pv@nickygrey.com');
+    await expect(page.locator('[data-form-status]')).toContainText('noch einmal');
     expect(await noOverflow(page), `${width}px`).toBeLessThanOrEqual(0);
     const status = await page.locator('[data-form-status]').boundingBox();
     const form = await page.locator('#contact-form').boundingBox();

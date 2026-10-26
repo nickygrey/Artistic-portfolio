@@ -48,7 +48,7 @@ const { lang } = Astro.props;
         <p>{t(lang, 'privacy.rights.intro')}</p>
         <ul><li>{t(lang, 'privacy.rights.list')}</li></ul>
         <p>{t(lang, 'privacy.rights.desc')}</p>
-        <p><a href="mailto:pv@nickygrey.com">pv@nickygrey.com</a></p>
+        <p><a href={`${localizedPath('/about/', lang)}#contact`}>{t(lang, 'privacy.rights.link')}</a></p>
         <p>{t(lang, 'privacy.rights.complaint')}</p>
       </section>
 

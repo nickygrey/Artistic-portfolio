@@ -82,7 +82,6 @@ export function siteJsonLd(site: string = SITE): object {
         '@id': personId,
         name: 'Vyacheslav Plotnikov',
         url: `${site}/`,
-        email: 'pv@nickygrey.com',
         jobTitle: 'Cinematographer, Photographer & Editor',
         image: `${site}/images/og.jpg`,
         sameAs: ['https://instagram.com/nickygreys'],
@@ -93,7 +92,6 @@ export function siteJsonLd(site: string = SITE): object {
         name: 'Vyacheslav Plotnikov — Cinematography & Photography',
         url: `${site}/`,
         image: `${site}/images/og.jpg`,
-        email: 'pv@nickygrey.com',
         founder: { '@id': personId },
         areaServed: { '@type': 'Country', name: 'Luxembourg' },
         hasOfferCatalog: {

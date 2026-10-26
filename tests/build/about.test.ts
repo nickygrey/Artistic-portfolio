@@ -40,9 +40,23 @@ describe('about page', () => {
     expect(html).toMatch(/data-form-status[^>]*aria-live="polite"|aria-live="polite"[^>]*data-form-status/);
   });
 
-  it('does not spell-check or translate the email address', () => {
+  it('does not spell-check the email field', () => {
     expect(en()).toMatch(/name="email"[^>]*spellcheck="false"|spellcheck="false"[^>]*name="email"/);
-    expect(en()).toMatch(/<a href="mailto:pv@nickygrey\.com"[^>]*translate="no"/);
+  });
+
+  it('publishes no email address on any page: the contact form is the way in', () => {
+    const pages = ['', 'fr/', 'de/'].flatMap((p) => [`${p}index.html`, `${p}about/index.html`, `${p}privacy/index.html`]);
+    for (const page of pages) {
+      const html = readFileSync(`dist/${page}`, 'utf8');
+      expect(html, page).not.toContain('mailto:');
+      expect(html, page).not.toContain('pv@nickygrey.com');
+    }
+  });
+
+  it('sends GDPR requests to the contact form in every language', () => {
+    for (const [p, about] of [['', '/about/'], ['fr/', '/fr/about/'], ['de/', '/de/about/']]) {
+      expect(readFileSync(`dist/${p}privacy/index.html`, 'utf8'), p).toContain(`href="${about}#contact"`);
+    }
   });
 
   it('gives the home strips fetch priority as the page\'s main images', () => {
