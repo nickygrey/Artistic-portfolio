@@ -60,7 +60,11 @@ const aspects = await Promise.all(
     <ol class="gallery__frames">
       {frames.map((f) => (
         <li data-frame={f.index} data-aspect={aspects[f.index - 1]} data-cover={f.cover || undefined}>
-          <a class="gallery__frame" href={`?frame=${f.index}`} transition:name={f.cover ? `frame-${slug}` : undefined}>
+          <a
+            class="gallery__frame"
+            href={`?frame=${f.index}`}
+            style={f.cover ? `view-transition-name: frame-${slug}` : undefined}
+          >
             {/* AVIF (WebP fallback): film grain and textured backdrops cost WebP twice the bytes at equal quality. */}
             <Picture
               src={f.image}

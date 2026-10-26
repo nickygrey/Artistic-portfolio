@@ -58,9 +58,17 @@ describe('gallery markup', () => {
   });
 
   it('every frame is a link to its single view and carries its aspect ratio', () => {
-    const frames = [...html().matchAll(/<li data-frame="(\d+)" data-aspect="([\d.]+)"[^>]*>\s*<a class="gallery__frame" href="\?frame=(\d+)"/g)];
+    // Attribute order is the compiler's business; read each attribute on its own.
+    const frames = [...html().matchAll(/<li ([^>]*data-frame="\d+"[^>]*)>\s*<a ([^>]*class="gallery__frame"[^>]*)>/g)].map((m) => ({
+      frame: m[1].match(/data-frame="(\d+)"/)![1],
+      aspect: m[1].match(/data-aspect="([\d.]+)"/)?.[1],
+      href: m[2].match(/href="\?frame=(\d+)"/)?.[1],
+    }));
     expect(frames.length).toBe(imageCount('portrait'));
-    for (const f of frames) expect(f[1]).toBe(f[3]);
+    for (const f of frames) {
+      expect(f.aspect).toBeTruthy();
+      expect(f.href).toBe(f.frame);
+    }
   });
 
   it('has a back link home, a drag hint hidden from screen readers, and lets the canvas own the wheel', () => {

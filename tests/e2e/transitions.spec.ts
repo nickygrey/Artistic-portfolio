@@ -17,6 +17,15 @@ test('each strip shares exactly one transition name with its gallery', async ({ 
   expect(await page.locator('[data-clone] [data-astro-transition-scope], [data-clone][data-astro-transition-scope]').count()).toBe(0);
 });
 
+test('only the cover takes part in the page transition, not every frame', async ({ page }) => {
+  await page.goto('/work/portrait/');
+  await page.waitForTimeout(400);
+  const named = await page.evaluate(() =>
+    [...document.querySelectorAll('main *')].map((el) => getComputedStyle(el).viewTransitionName).filter((n) => n && n !== 'none')
+  );
+  expect(named).toEqual(['frame-portrait']);
+});
+
 test('the named gallery frame is the cover, the same photograph the strip shows', async ({ page }) => {
   await page.goto('/work/analog/');
   await page.waitForTimeout(400);
