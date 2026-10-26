@@ -13,7 +13,8 @@ export default defineConfig({
     { name: 'android', use: { ...devices['Pixel 7'], channel: 'chrome' }, testMatch: /phone\.spec\.ts/ },
   ],
   webServer: {
-    command: 'npm run dev -- --port 4329',
+    // --ignore-lock: Astro 7 runs `astro dev` in the background when it detects a coding agent; tests need it in the foreground.
+    command: 'npm run dev -- --port 4329 --ignore-lock',
     url: 'http://localhost:4329',
     reuseExistingServer: false,
     timeout: 60000,

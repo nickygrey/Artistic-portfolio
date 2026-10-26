@@ -2,7 +2,7 @@
 
 ## Active Systems & Frameworks
 
-- **Framework:** Astro 5 (static output) with zero-JS default hydration
+- **Framework:** Astro 7 (static output, Node ≥ 22.23.4) with zero-JS default hydration
 - **Routing:** i18n — `en` (default, unprefixed), `fr`, `de`. Pages per locale: home (`/`), one gallery per discipline with images (`/work/<slug>/`), `/about/` (with the contact form at `#contact`) and `/privacy/`. Page markup lives in `src/views/`; `src/pages/` holds three-line locale wrappers.
 - **Galleries (content):** each discipline is a folder in `src/content/galleries/<slug>/` plus an optional `<slug>.yaml` of credits (alt text, cover). Disciplines, colours and years are in `src/lib/disciplines.ts`. A discipline with no images builds no page and shows no home strip. Owner originals live in `FOR PORTFOLIO/` (git-ignored); copy them in with EXIF rotation baked in, metadata stripped and the long edge capped at 3200px (see the commit adding the portraits), then add alt text to the YAML.
 - **Design spec:** `docs/superpowers/specs/2026-10-21-aperture-redesign-design.md` (read its Revision section first); one plan per milestone in `docs/superpowers/plans/`.
@@ -16,13 +16,13 @@ Full dependency set is deliberately small: `astro`, `@astrojs/sitemap`, `gsap`, 
 
 ## Development
 
-Astro 5.7 has no `--background` mode (the flag is ignored and the server runs in the foreground). Start the dev server as a background task on an explicit port, and stop it when done:
+Astro 7 runs `astro dev` and `astro preview` as a detached background server when it detects a coding agent, tracked by a lock file (`npx astro dev status` / `logs` / `stop`). A stale one keeps its port and blocks the next start. To get a plain foreground server you control, pass `--ignore-lock` (the Playwright configs do):
 
 ```
-npx astro dev --port 4331
+npx astro dev --port 4331 --ignore-lock
 ```
 
-For anything visual or performance-related, prefer the production build: `npm run build && npx astro preview --port 4340`.
+For anything visual or performance-related, prefer the production build: `npm run build && npx astro preview --port 4340 --ignore-lock`.
 
 Ports 4321–4324 are frequently occupied by stale dev servers from unrelated projects on this machine. Always confirm which port your server actually bound to before trusting what you see in a browser.
 

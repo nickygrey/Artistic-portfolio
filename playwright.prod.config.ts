@@ -7,7 +7,8 @@ export default defineConfig({
   timeout: 60000,
   use: { baseURL: 'http://localhost:4339', channel: 'chrome' },
   webServer: {
-    command: 'npm run build && npx astro preview --port 4339',
+    // --ignore-lock keeps the preview in the foreground (Astro 7 backgrounds it when it detects a coding agent).
+    command: 'npm run build && npx astro preview --port 4339 --ignore-lock',
     url: 'http://localhost:4339',
     reuseExistingServer: false,
     timeout: 180000,

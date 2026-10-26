@@ -1,6 +1,6 @@
 // Core Web Vitals on a mid-range phone profile, against a production build.
 //
-//   npm run build && npx astro preview --port 4340   (in another terminal)
+//   npm run build && npx astro preview --port 4340 --ignore-lock   (in another terminal)
 //   node scripts/perf.mjs [base-url]
 //
 // Budgets (spec §8): LCP < 2500 ms, CLS < 0.05, INP < 200 ms.
