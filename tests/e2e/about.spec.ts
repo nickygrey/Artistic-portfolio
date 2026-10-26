@@ -24,13 +24,14 @@ test('a sent message is confirmed in place and the form clears', async ({ page }
   expect(body).toContain('ada@example.com');
 });
 
-test('a failed send says so, offers the email address, and keeps what was typed', async ({ page }) => {
+test('a failed send says so, asks to try again, and keeps what was typed', async ({ page }) => {
   await page.route(FORMSPREE, (route) => route.fulfill({ status: 500, body: '{}' }));
   await page.goto('/about/');
   await fill(page);
   await page.locator('.contact__send').click();
   await expect(page.locator('[data-form-status]')).toContainText("couldn't be sent");
-  await expect(page.locator('[data-form-status] a[href="mailto:pv@nickygrey.com"]')).toBeVisible();
+  await expect(page.locator('[data-form-status]')).toContainText('try again');
+  await expect(page.locator('[data-form-status] a')).toHaveCount(0);
   await expect(page.locator('input[name="name"]')).toHaveValue('Ada');
 });
 

@@ -7,14 +7,8 @@ export function mountContactForm(form: HTMLFormElement): () => void {
   const status = form.querySelector<HTMLElement>('[data-form-status]')!;
   const label = button.textContent ?? '';
 
-  function say(message: string, withEmail = false) {
+  function say(message: string) {
     status.replaceChildren(message);
-    if (withEmail) {
-      const a = document.createElement('a');
-      a.href = 'mailto:pv@nickygrey.com';
-      a.textContent = 'pv@nickygrey.com';
-      status.append(' ', a);
-    }
   }
 
   async function onSubmit(e: SubmitEvent) {
@@ -32,7 +26,7 @@ export function mountContactForm(form: HTMLFormElement): () => void {
       form.reset();
       say(form.dataset.success ?? '');
     } catch {
-      say(form.dataset.error ?? '', true);
+      say(form.dataset.error ?? '');
     } finally {
       button.disabled = false;
       button.textContent = label;
