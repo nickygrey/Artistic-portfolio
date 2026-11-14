@@ -65,6 +65,26 @@ export function ogLocale(locale: Locale): string {
   return OG_LOCALES[locale];
 }
 
+const PERSON_ID = `${SITE}/#person`;
+
+/**
+ * The one Person every page's structured data points at. "Nicky Grey" is the
+ * name the domain and the Instagram handle carry, so search engines can tie
+ * them to the legal name.
+ */
+function personNode(site: string = SITE): object {
+  return {
+    '@type': 'Person',
+    '@id': `${site}/#person`,
+    name: 'Vyacheslav Plotnikov',
+    alternateName: 'Nicky Grey',
+    url: `${site}/`,
+    jobTitle: 'Photographer, Cinematographer & Editor',
+    image: `${site}/images/og.jpg`,
+    sameAs: ['https://instagram.com/nickygreys'],
+  };
+}
+
 /**
  * Person + ProfessionalService, linked by @id.
  * Deliberately asserts no postal address and no business registration —
@@ -77,19 +97,11 @@ export function siteJsonLd(site: string = SITE): object {
   return {
     '@context': 'https://schema.org',
     '@graph': [
-      {
-        '@type': 'Person',
-        '@id': personId,
-        name: 'Vyacheslav Plotnikov',
-        url: `${site}/`,
-        jobTitle: 'Cinematographer, Photographer & Editor',
-        image: `${site}/images/og.jpg`,
-        sameAs: ['https://instagram.com/nickygreys'],
-      },
+      personNode(site),
       {
         '@type': 'ProfessionalService',
         '@id': serviceId,
-        name: 'Vyacheslav Plotnikov — Cinematography & Photography',
+        name: 'Vyacheslav Plotnikov — Photography & Cinematography',
         url: `${site}/`,
         image: `${site}/images/og.jpg`,
         founder: { '@id': personId },
@@ -98,11 +110,71 @@ export function siteJsonLd(site: string = SITE): object {
           '@type': 'OfferCatalog',
           name: 'Services',
           itemListElement: [
+            { '@type': 'Offer', name: 'Portrait Photography' },
+            { '@type': 'Offer', name: 'Wedding Photography' },
+            { '@type': 'Offer', name: 'Analog Photography' },
             { '@type': 'Offer', name: 'Cinematography' },
-            { '@type': 'Offer', name: 'Photography' },
             { '@type': 'Offer', name: 'Editing & Colour' },
           ],
         },
+      },
+    ],
+  };
+}
+
+/** The about page: a ProfilePage whose subject is the Person. */
+export function aboutJsonLd(locale: Locale, name: string, description: string): object {
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      personNode(),
+      {
+        '@type': 'ProfilePage',
+        '@id': `${canonicalUrl('/about/', locale)}#page`,
+        url: canonicalUrl('/about/', locale),
+        name,
+        description,
+        inLanguage: locale,
+        mainEntity: { '@id': PERSON_ID },
+      },
+    ],
+  };
+}
+
+/**
+ * A gallery: a CollectionPage by the Person, with the breadcrumb home > gallery.
+ * `image` is the absolute URL of the gallery's cover.
+ */
+export function galleryJsonLd(opts: {
+  locale: Locale;
+  slug: string;
+  name: string;
+  description: string;
+  image: string;
+  homeName: string;
+}): object {
+  const url = canonicalUrl(`/work/${opts.slug}/`, opts.locale);
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      personNode(),
+      {
+        '@type': 'CollectionPage',
+        '@id': `${url}#page`,
+        url,
+        name: opts.name,
+        description: opts.description,
+        inLanguage: opts.locale,
+        primaryImageOfPage: opts.image,
+        author: { '@id': PERSON_ID },
+        about: { '@id': PERSON_ID },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: opts.homeName, item: canonicalUrl('/', opts.locale) },
+          { '@type': 'ListItem', position: 2, name: opts.name, item: url },
+        ],
       },
     ],
   };

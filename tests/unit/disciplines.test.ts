@@ -26,6 +26,14 @@ describe('disciplines', () => {
     }
   );
 
+  it.each(DISCIPLINES)('$slug has a search title, description and intro in every locale', ({ slug }) => {
+    for (const lang of ['en', 'fr', 'de'] as const) {
+      for (const part of ['title', 'description', 'intro']) {
+        expect((translations[lang] as Record<string, string>)[`gallery.${slug}.${part}`], `${lang} ${part}`).toBeTruthy();
+      }
+    }
+  });
+
   it.each(DISCIPLINES)('$slug has a display name in every locale', ({ nameKey }) => {
     for (const lang of ['en', 'fr', 'de'] as const) {
       expect((translations[lang] as Record<string, string>)[nameKey]).toBeTruthy();

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   LOCALES, DEFAULT_LOCALE, SITE,
-  stripLocale, localizedPath, canonicalUrl, hreflangAlternates, ogLocale, siteJsonLd,
+  stripLocale, localizedPath, canonicalUrl, hreflangAlternates, ogLocale, siteJsonLd, aboutJsonLd, galleryJsonLd,
 } from '../../src/lib/seo';
 
 describe('constants', () => {
@@ -127,11 +127,16 @@ describe('siteJsonLd', () => {
     expect(person.sameAs).toContain('https://instagram.com/nickygreys');
   });
 
-  it('claims Luxembourg as service area and lists the three services', () => {
+  it('ties the legal name to the name the domain and Instagram carry', () => {
+    const person = ld['@graph'].find((n: any) => n['@type'] === 'Person');
+    expect(person.alternateName).toBe('Nicky Grey');
+  });
+
+  it('claims Luxembourg as service area and lists the services, photography first', () => {
     const svc = ld['@graph'].find((n: any) => n['@type'] === 'ProfessionalService');
     expect(svc.areaServed.name).toBe('Luxembourg');
     const offers = svc.hasOfferCatalog.itemListElement.map((i: any) => i.name);
-    expect(offers).toEqual(['Cinematography', 'Photography', 'Editing & Colour']);
+    expect(offers).toEqual(['Portrait Photography', 'Wedding Photography', 'Analog Photography', 'Cinematography', 'Editing & Colour']);
   });
 
   it('makes NO address or business-registration claim', () => {
@@ -152,5 +157,56 @@ describe('siteJsonLd', () => {
 
   it('serialises to valid JSON', () => {
     expect(() => JSON.parse(JSON.stringify(ld))).not.toThrow();
+  });
+});
+
+describe('aboutJsonLd', () => {
+  const ld = aboutJsonLd('fr', 'À propos', 'Description') as any;
+  const page = ld['@graph'].find((n: any) => n['@type'] === 'ProfilePage');
+
+  it('is a ProfilePage about the same Person the homepage declares', () => {
+    const home = (siteJsonLd() as any)['@graph'].find((n: any) => n['@type'] === 'Person');
+    const person = ld['@graph'].find((n: any) => n['@type'] === 'Person');
+    expect(person).toEqual(home);
+    expect(page.mainEntity['@id']).toBe(person['@id']);
+  });
+
+  it('carries the locale URL, language, name and description of the page it is on', () => {
+    expect(page.url).toBe('https://nickygrey.com/fr/about/');
+    expect(page.inLanguage).toBe('fr');
+    expect(page.name).toBe('À propos');
+    expect(page.description).toBe('Description');
+  });
+
+  it('makes no address claim', () => {
+    expect(JSON.stringify(ld)).not.toContain('address');
+  });
+});
+
+describe('galleryJsonLd', () => {
+  const ld = galleryJsonLd({
+    locale: 'de',
+    slug: 'wedding',
+    name: 'Hochzeitsfotograf in Luxemburg',
+    description: 'Beschreibung',
+    image: 'https://nickygrey.com/assets/cover.jpg',
+    homeName: 'Arbeiten',
+  }) as any;
+  const page = ld['@graph'].find((n: any) => n['@type'] === 'CollectionPage');
+  const crumbs = ld['@graph'].find((n: any) => n['@type'] === 'BreadcrumbList');
+
+  it('is a CollectionPage by the Person, at the locale URL', () => {
+    const person = ld['@graph'].find((n: any) => n['@type'] === 'Person');
+    expect(page.url).toBe('https://nickygrey.com/de/work/wedding/');
+    expect(page.inLanguage).toBe('de');
+    expect(page.author['@id']).toBe(person['@id']);
+    expect(page.primaryImageOfPage).toBe('https://nickygrey.com/assets/cover.jpg');
+  });
+
+  it('has a two-step breadcrumb from the locale home to the gallery', () => {
+    expect(crumbs.itemListElement.map((i: any) => [i.position, i.name, i.item])).toEqual([
+      [1, 'Arbeiten', 'https://nickygrey.com/de/'],
+      [2, 'Hochzeitsfotograf in Luxemburg', 'https://nickygrey.com/de/work/wedding/'],
+    ]);
   });
 });

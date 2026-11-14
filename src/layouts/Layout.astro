@@ -14,9 +14,11 @@ interface Props {
   world?: World;
   /** Absolute URL. Defaults to the site-wide 1200x630 og.jpg. */
   ogImage?: string;
+  /** Structured data for this page. The homepage defaults to the site graph; other pages emit none unless given. */
+  jsonLd?: object;
 }
 
-const { title, lang = defaultLang, world = 'neutral', ogImage } = Astro.props;
+const { title, lang = defaultLang, world = 'neutral', ogImage, jsonLd } = Astro.props;
 const description = Astro.props.description ?? t(lang, 'meta.home.description');
 
 const siteUrl = Astro.site?.toString().replace(/\/$/, '') || 'https://nickygrey.com';
@@ -33,6 +35,7 @@ if (lang !== locale) {
 const canonical = canonicalUrl(path, locale);
 const alternates = hreflangAlternates(path);
 const isHome = path === '/';
+const structuredData = jsonLd ?? (isHome ? siteJsonLd() : null);
 const { bg, accent } = worldColors(world);
 const image = ogImage ?? `${siteUrl}/images/og.jpg`;
 // Production only: the dev server injects its own inline scripts for hot reloading.
@@ -51,7 +54,7 @@ const csp = import.meta.env.PROD ? contentSecurityPolicy([CANVAS_PENDING_SCRIPT]
   <meta name="author" content="Vyacheslav Plotnikov">
   <link rel="canonical" href={canonical}>
   {alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
-  {isHome && <script type="application/ld+json" set:html={JSON.stringify(siteJsonLd())} />}
+  {structuredData && <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />}
 
   <meta property="og:type" content="website">
   <meta property="og:title" content={title}>

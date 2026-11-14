@@ -6,7 +6,7 @@ import { type Lang, type TranslationKey, t } from '../i18n/translations';
 import { getDiscipline, type DisciplineSlug } from '../lib/disciplines';
 import { coverOf } from '../lib/gallery';
 import { getGallery } from '../lib/gallery-data';
-import { localizedPath } from '../lib/seo';
+import { galleryJsonLd, localizedPath } from '../lib/seo';
 
 interface Props {
   lang: Lang;
@@ -17,6 +17,9 @@ const { lang, slug } = Astro.props;
 const discipline = getDiscipline(slug)!;
 const frames = await getGallery(slug);
 const name = t(lang, discipline.nameKey);
+// Search-facing copy is per discipline: what it is and where, not just the one-word heading.
+const copy = (part: 'title' | 'description' | 'intro') => t(lang, `gallery.${slug}.${part}` as TranslationKey);
+const pageTitle = `${copy('title')} — Vyacheslav Plotnikov`;
 const og = await getImage({ src: coverOf(frames)!.image, width: 1200, format: 'jpg', quality: 80 });
 const siteUrl = Astro.site!.toString().replace(/\/$/, '');
 const altOf = (f: (typeof frames)[number]) => f.credit?.alt ?? `${name}, ${f.index} / ${frames.length}`;
@@ -47,15 +50,24 @@ const aspects = await Promise.all(
 <Layout
   lang={lang}
   world={slug}
-  title={`${name} — Vyacheslav Plotnikov`}
-  description={`${name}. ${t(lang, 'meta.gallery.description')}`}
+  title={pageTitle}
+  description={copy('description')}
   ogImage={`${siteUrl}${og.src}`}
+  jsonLd={galleryJsonLd({
+    locale: lang,
+    slug,
+    name: copy('title'),
+    description: copy('description'),
+    image: `${siteUrl}${og.src}`,
+    homeName: t(lang, 'nav.work'),
+  })}
 >
   <Header lang={lang} />
   <main id="main-content" class="gallery" data-gallery data-seed={seed} data-lenis-prevent>
     <div class="gallery__title">
       <h1 class="display">{name}</h1>
       <p>{discipline.years}</p>
+      <p class="gallery__intro">{copy('intro')}</p>
     </div>
     <ol class="gallery__frames">
       {frames.map((f) => (
@@ -162,6 +174,8 @@ const aspects = await Promise.all(
   .gallery.is-canvas .gallery__title { position: fixed; z-index: 2; left: calc(var(--gutter) + var(--rail)); bottom: calc(24px + env(safe-area-inset-bottom)); max-width: calc(100vw - 2 * var(--gutter) - var(--rail) - 260px); margin: 0; pointer-events: none; }
   .gallery__title h1 { margin: 0; font-size: var(--step-title); text-wrap: balance; }
   .gallery__title p { margin: 4px 0 0; }
+  /* One or two lines saying what the gallery is and where: the only prose on the page for search engines and first-time visitors. */
+  .gallery__title .gallery__intro { margin-top: 10px; max-width: 44ch; text-wrap: pretty; }
 
   .gallery__controls, .single__controls {
     position: fixed; z-index: 3; right: var(--gutter); bottom: calc(24px + env(safe-area-inset-bottom));

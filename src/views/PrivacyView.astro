@@ -12,7 +12,7 @@ interface Props {
 const { lang } = Astro.props;
 ---
 
-<Layout lang={lang} title={t(lang, 'meta.privacy.title')}>
+<Layout lang={lang} title={t(lang, 'meta.privacy.title')} description={t(lang, 'meta.privacy.description')}>
   <Header lang={lang} />
   <main id="main-content" class="privacy">
     <article>

@@ -6,15 +6,18 @@ import AboutIntro from '../components/AboutIntro.astro';
 import AboutDetails from '../components/AboutDetails.astro';
 import ContactForm from '../components/ContactForm.astro';
 import { type Lang, t } from '../i18n/translations';
+import { aboutJsonLd } from '../lib/seo';
 
 interface Props {
   lang: Lang;
 }
 
 const { lang } = Astro.props;
+const title = t(lang, 'meta.about.title');
+const description = t(lang, 'meta.about.description');
 ---
 
-<Layout lang={lang} title={t(lang, 'meta.about.title')}>
+<Layout lang={lang} title={title} description={description} jsonLd={aboutJsonLd(lang, title, description)}>
   <Header lang={lang} />
   <main id="main-content" class="about">
     <AboutIntro lang={lang} />
