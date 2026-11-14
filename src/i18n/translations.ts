@@ -12,10 +12,21 @@ export const translations = {
     'nav.work': 'Work',
     'nav.about': 'About',
     // Page metadata
-    'meta.home.title': 'Vyacheslav Plotnikov — Cinematographer in Luxembourg',
-    'meta.about.title': 'About — Vyacheslav Plotnikov',
+    'meta.home.title': 'Photographer & Filmmaker, Luxembourg — Vyacheslav Plotnikov',
+    'meta.about.title': 'About Vyacheslav Plotnikov (Nicky Grey), Photographer',
+    'meta.about.description': 'About Vyacheslav Plotnikov, a Luxembourg photographer and cinematographer who shoots, grades and edits. Open to commissions and brand work across Europe.',
     'meta.privacy.title': 'Privacy Policy — Vyacheslav Plotnikov',
-    'meta.gallery.description': 'Selected frames by Vyacheslav Plotnikov, cinematographer and photographer in Luxembourg.',
+    'meta.privacy.description': 'How nickygrey.com handles personal data: what the contact form collects, who processes it, and your rights under the GDPR.',
+    // Galleries: search title, meta description and the visible intro under the heading
+    'gallery.portrait.title': 'Portrait Photographer in Luxembourg',
+    'gallery.portrait.description': 'Portrait photography in Luxembourg by Vyacheslav Plotnikov. Selected portraits from 2024 to 2026. Available for commissions across Europe.',
+    'gallery.portrait.intro': 'Portrait photography by Vyacheslav Plotnikov, based in Luxembourg and available for commissions across Europe.',
+    'gallery.wedding.title': 'Wedding Photographer in Luxembourg',
+    'gallery.wedding.description': 'Wedding photography in Luxembourg by Vyacheslav Plotnikov. Selected wedding photographs from 2026. Available for weddings across Europe.',
+    'gallery.wedding.intro': 'Wedding photography by Vyacheslav Plotnikov, based in Luxembourg and available for weddings across Europe.',
+    'gallery.analog.title': 'Analog Film Photography, Luxembourg',
+    'gallery.analog.description': 'Analog film photography by Vyacheslav Plotnikov, a photographer based in Luxembourg. Selected frames shot on film in 2024.',
+    'gallery.analog.intro': 'Analog photography by Vyacheslav Plotnikov, a photographer based in Luxembourg: selected frames shot on film.',
     'home.heading': 'Vyacheslav Plotnikov — selected work',
     // Gallery
     'gallery.play': 'Play film ↗',
@@ -56,15 +67,15 @@ export const translations = {
     'nav.label': 'Main',
     'nav.language': 'Language',
     'nav.skip': 'Skip to content',
-    'header.eyebrow': 'Cinematographer · Photographer — Luxembourg',
-    'meta.home.description': 'Professional cinematographer, photographer and editor based in Luxembourg. Specializing in short films, documentaries, commercial work, and photography with a film-trained eye.',
+    'header.eyebrow': 'Photographer · Cinematographer — Luxembourg',
+    'meta.home.description': 'Vyacheslav Plotnikov (Nicky Grey) is a photographer and cinematographer in Luxembourg: portraits, weddings and analog film photography, across Europe.',
     // Disciplines
     'discipline.portrait': 'Portraits',
     'discipline.analog': 'Analog',
     'discipline.wedding': 'Wedding',
 
     // About
-    'about.p2': 'I shoot, grade and cut, so a project stays whole from the first setup to the final frame. Available for commissions, staff roles and brand collaborations.',
+    'about.p2': 'I shoot, grade and cut, so a project stays whole from the first setup to the final frame. Available for commissions, staff roles and brand collaborations. Online, I work under the name Nicky Grey.',
 
     // Contact
     'contact.desc': 'Commissions, roles and brand work welcome. Tell me about the project below, or reach me directly.',
@@ -112,10 +123,21 @@ export const translations = {
     'nav.work': 'Travaux',
     'nav.about': 'À propos',
     // Page metadata
-    'meta.home.title': 'Vyacheslav Plotnikov — Cinéaste & Photographe, Luxembourg',
-    'meta.about.title': 'À propos — Vyacheslav Plotnikov',
+    'meta.home.title': 'Photographe & Cinéaste, Luxembourg — Vyacheslav Plotnikov',
+    'meta.about.title': 'À propos de Vyacheslav Plotnikov (Nicky Grey), photographe',
+    'meta.about.description': 'À propos de Vyacheslav Plotnikov, photographe et cinéaste au Luxembourg, qui filme, étalonne et monte. Disponible pour commandes et collaborations en Europe.',
     'meta.privacy.title': 'Politique de confidentialité — Vyacheslav Plotnikov',
-    'meta.gallery.description': 'Images choisies de Vyacheslav Plotnikov, cinéaste et photographe au Luxembourg.',
+    'meta.privacy.description': 'Comment nickygrey.com traite les données personnelles : ce que collecte le formulaire de contact, qui les traite, et vos droits selon le RGPD.',
+    // Galleries: search title, meta description and the visible intro under the heading
+    'gallery.portrait.title': 'Photographe portrait au Luxembourg',
+    'gallery.portrait.description': 'Photographie de portrait au Luxembourg par Vyacheslav Plotnikov. Portraits choisis, de 2024 à 2026. Disponible pour des commandes dans toute l\'Europe.',
+    'gallery.portrait.intro': "Photographie de portrait par Vyacheslav Plotnikov, basé au Luxembourg et disponible pour des commandes dans toute l'Europe.",
+    'gallery.wedding.title': 'Photographe de mariage au Luxembourg',
+    'gallery.wedding.description': 'Photographie de mariage au Luxembourg par Vyacheslav Plotnikov. Images de mariage choisies, 2026. Disponible pour des mariages dans toute l\'Europe.',
+    'gallery.wedding.intro': "Photographie de mariage par Vyacheslav Plotnikov, basé au Luxembourg et disponible pour des mariages dans toute l'Europe.",
+    'gallery.analog.title': 'Photographie argentique, Luxembourg',
+    'gallery.analog.description': 'Photographie argentique par Vyacheslav Plotnikov, photographe basé au Luxembourg. Une sélection d\'images réalisées sur pellicule en 2024.',
+    'gallery.analog.intro': "Photographie argentique par Vyacheslav Plotnikov, photographe basé au Luxembourg : une sélection d'images sur pellicule.",
     'home.heading': 'Vyacheslav Plotnikov — travaux choisis',
     // Gallery
     'gallery.play': 'Voir le film ↗',
@@ -156,15 +178,15 @@ export const translations = {
     'nav.label': 'Principale',
     'nav.language': 'Langue',
     'nav.skip': 'Aller au contenu',
-    'header.eyebrow': 'Cinéaste · Photographe — Luxembourg',
-    'meta.home.description': 'Cinéaste, photographe et monteur professionnel basé au Luxembourg. Courts métrages, documentaires, projets commerciaux et photographie, avec un œil formé à l\'argentique.',
+    'header.eyebrow': 'Photographe · Cinéaste — Luxembourg',
+    'meta.home.description': 'Vyacheslav Plotnikov (Nicky Grey), photographe et cinéaste au Luxembourg : portraits, mariages et photographie argentique, dans toute l\'Europe.',
     // Disciplines
     'discipline.portrait': 'Portraits',
     'discipline.analog': 'Argentique',
     'discipline.wedding': 'Mariage',
 
     // About
-    'about.p2': "Je filme, étalonne et monte, pour qu'un projet reste cohérent du premier plan au dernier. Disponible pour commandes, postes et collaborations.",
+    'about.p2': "Je filme, étalonne et monte, pour qu'un projet reste cohérent du premier plan au dernier. Disponible pour commandes, postes et collaborations. En ligne, je travaille sous le nom Nicky Grey.",
 
     // Contact
     'contact.desc': 'Commandes, postes et collaborations bienvenues. Parlez-moi de votre projet ci-dessous, ou contactez-moi directement.',
@@ -212,10 +234,21 @@ export const translations = {
     'nav.work': 'Arbeiten',
     'nav.about': 'Über mich',
     // Page metadata
-    'meta.home.title': 'Vyacheslav Plotnikov — Kameramann & Fotograf, Luxemburg',
-    'meta.about.title': 'Über mich — Vyacheslav Plotnikov',
+    'meta.home.title': 'Fotograf & Kameramann, Luxemburg — Vyacheslav Plotnikov',
+    'meta.about.title': 'Über Vyacheslav Plotnikov (Nicky Grey), Fotograf',
+    'meta.about.description': 'Über Vyacheslav Plotnikov, Fotograf und Kameramann in Luxemburg, der filmt, gradet und schneidet. Verfügbar für Aufträge und Markenarbeit in ganz Europa.',
     'meta.privacy.title': 'Datenschutzerklärung — Vyacheslav Plotnikov',
-    'meta.gallery.description': 'Ausgewählte Bilder von Vyacheslav Plotnikov, Kameramann und Fotograf in Luxemburg.',
+    'meta.privacy.description': 'Wie nickygrey.com mit personenbezogenen Daten umgeht: was das Kontaktformular erhebt, wer die Daten verarbeitet und welche Rechte Sie nach der DSGVO haben.',
+    // Galleries: search title, meta description and the visible intro under the heading
+    'gallery.portrait.title': 'Porträtfotograf in Luxemburg',
+    'gallery.portrait.description': 'Porträtfotografie in Luxemburg von Vyacheslav Plotnikov. Ausgewählte Porträts aus den Jahren 2024 bis 2026. Für Aufträge in ganz Europa verfügbar.',
+    'gallery.portrait.intro': 'Porträtfotografie von Vyacheslav Plotnikov, ansässig in Luxemburg und für Aufträge in ganz Europa verfügbar.',
+    'gallery.wedding.title': 'Hochzeitsfotograf in Luxemburg',
+    'gallery.wedding.description': 'Hochzeitsfotografie in Luxemburg von Vyacheslav Plotnikov. Ausgewählte Hochzeitsbilder aus dem Jahr 2026. Für Hochzeiten in ganz Europa verfügbar.',
+    'gallery.wedding.intro': 'Hochzeitsfotografie von Vyacheslav Plotnikov, ansässig in Luxemburg und für Hochzeiten in ganz Europa verfügbar.',
+    'gallery.analog.title': 'Analoge Fotografie, Luxemburg',
+    'gallery.analog.description': 'Analoge Fotografie von Vyacheslav Plotnikov, Fotograf in Luxemburg. Ausgewählte Aufnahmen auf Film aus dem Jahr 2024.',
+    'gallery.analog.intro': 'Analoge Fotografie von Vyacheslav Plotnikov, Fotograf in Luxemburg: ausgewählte Aufnahmen auf Film.',
     'home.heading': 'Vyacheslav Plotnikov — ausgewählte Arbeiten',
     // Gallery
     'gallery.play': 'Film ansehen ↗',
@@ -256,15 +289,15 @@ export const translations = {
     'nav.label': 'Hauptnavigation',
     'nav.language': 'Sprache',
     'nav.skip': 'Zum Inhalt springen',
-    'header.eyebrow': 'Kameramann · Fotograf — Luxemburg',
-    'meta.home.description': 'Professioneller Kameramann, Fotograf und Editor in Luxemburg. Kurzfilme, Dokumentarfilme, kommerzielle Projekte und Fotografie mit einem analog geschulten Auge.',
+    'header.eyebrow': 'Fotograf · Kameramann — Luxemburg',
+    'meta.home.description': 'Vyacheslav Plotnikov (Nicky Grey), Fotograf und Kameramann in Luxemburg: Porträts, Hochzeiten und analoge Fotografie, in ganz Europa.',
     // Disciplines
     'discipline.portrait': 'Porträts',
     'discipline.analog': 'Analog',
     'discipline.wedding': 'Hochzeit',
 
     // About
-    'about.p2': 'Ich filme, grade und schneide, damit ein Projekt vom ersten Setup bis zum letzten Bild ganz bleibt. Verfügbar für Aufträge, Stellen und Markenkooperationen.',
+    'about.p2': 'Ich filme, grade und schneide, damit ein Projekt vom ersten Setup bis zum letzten Bild ganz bleibt. Verfügbar für Aufträge, Stellen und Markenkooperationen. Online arbeite ich unter dem Namen Nicky Grey.',
 
     // Contact
     'contact.desc': 'Aufträge, Stellen und Markenarbeit willkommen. Erzählen Sie mir unten von Ihrem Projekt oder kontaktieren Sie mich direkt.',

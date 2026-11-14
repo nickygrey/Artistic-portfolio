@@ -112,9 +112,62 @@ describe('built pages', () => {
     }
   });
 
-  it.each(PAGES)('$file emits JSON-LD only when it is a homepage', ({ file, home }) => {
+  // Home, about and galleries each describe themselves; the privacy policy has nothing to say to a search engine.
+  it.each(PAGES)('$file emits one JSON-LD block, except the privacy policy', ({ file }) => {
     const count = (read(file).match(/application\/ld\+json/g) || []).length;
-    expect(count).toBe(home ? 1 : 0);
+    expect(count).toBe(file.includes('/privacy/') ? 0 : 1);
+  });
+
+  it.each(PAGES.filter((p) => !p.file.includes('/privacy/')))('$file JSON-LD parses, names the person and their alias, and claims no address', ({ file }) => {
+    const raw = read(file).match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] ?? '';
+    const parsed = JSON.parse(raw);
+    const person = parsed['@graph'].find((n: any) => n['@type'] === 'Person');
+    expect(person.name).toBe('Vyacheslav Plotnikov');
+    expect(person.alternateName).toBe('Nicky Grey');
+    expect(raw).not.toContain('address');
+  });
+
+  it.each(PAGES.filter((p) => p.gallery))('$file JSON-LD describes this page in its own locale', ({ file, locale, canonical }) => {
+    const raw = read(file).match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] ?? '';
+    const graph = JSON.parse(raw)['@graph'];
+    const page = graph.find((n: any) => n['@type'] === 'CollectionPage');
+    expect(page.url).toBe(canonical);
+    expect(page.inLanguage).toBe(locale);
+    expect(existsSync(`dist${page.primaryImageOfPage.replace('https://nickygrey.com', '')}`)).toBe(true);
+    const crumbs = graph.find((n: any) => n['@type'] === 'BreadcrumbList').itemListElement;
+    expect(crumbs[crumbs.length - 1].item).toBe(canonical);
+  });
+
+  // Search results cut a title near 60 characters and a description near 160.
+  it.each(PAGES)('$file title fits a search result and names the person', ({ file }) => {
+    const title = decodeEntities(read(file).match(/<title>([^<]*)<\/title>/)?.[1] ?? '');
+    expect(title).toContain('Vyacheslav Plotnikov');
+    expect([...title].length).toBeLessThanOrEqual(60);
+  });
+
+  it.each(PAGES.filter((p) => !p.file.includes('/privacy/')))('$file title says where: Luxembourg, or on the about page the person', ({ file, locale }) => {
+    const title = decodeEntities(read(file).match(/<title>([^<]*)<\/title>/)?.[1] ?? '');
+    if (file.includes('/about/')) expect(title).toContain('Nicky Grey');
+    else expect(title).toContain(locale === 'de' ? 'Luxemburg' : 'Luxembourg');
+  });
+
+  it.each(PAGES)('$file description is 70-160 characters', ({ file }) => {
+    const d = decodeEntities(read(file).match(/<meta name="description" content="([^"]*)">/)?.[1] ?? '');
+    expect([...d].length).toBeGreaterThanOrEqual(70);
+    expect([...d].length).toBeLessThanOrEqual(160);
+  });
+
+  it('no two pages share a title or a description', () => {
+    for (const re of [/<title>([^<]*)<\/title>/, /<meta name="description" content="([^"]*)">/]) {
+      const values = PAGES.map((p) => read(p.file).match(re)?.[1] ?? '');
+      expect(new Set(values).size).toBe(values.length);
+    }
+  });
+
+  it.each(PAGES.filter((p) => p.gallery))('$file says in prose what the gallery is and where', ({ file, locale }) => {
+    const intro = read(file).match(/<p class="gallery__intro"[^>]*>([^<]+)<\/p>/)?.[1] ?? '';
+    expect(intro).toContain('Vyacheslav Plotnikov');
+    expect(intro).toContain(locale === 'de' ? 'Luxemburg' : 'Luxembourg');
   });
 
   it.each(PAGES.filter((p) => p.home))('$file title is 50-60 characters', ({ file }) => {
